@@ -74,9 +74,9 @@ export class PluginRegistry {
       );
       if (missing.length > 0) {
         process.stderr.write(
-          `[pylon-plugins] WARNING: Plugin "${validated.id}" requires the following ` +
+          `[uplnk-plugins] WARNING: Plugin "${validated.id}" requires the following ` +
           `env vars that are not currently set: ${missing.join(', ')}\n` +
-          `Set them before starting pylon for the plugin to work correctly.\n`,
+          `Set them before starting uplnk for the plugin to work correctly.\n`,
         );
       }
     }
@@ -125,13 +125,13 @@ export class PluginRegistry {
           manifests.push(result.data);
         } else {
           process.stderr.write(
-            `[pylon-plugins] WARNING: Skipping malformed plugin file "${entry}": ` +
+            `[uplnk-plugins] WARNING: Skipping malformed plugin file "${entry}": ` +
             `${result.error.errors.map((e) => e.message).join('; ')}\n`,
           );
         }
       } catch (err) {
         process.stderr.write(
-          `[pylon-plugins] WARNING: Could not read plugin file "${entry}": ${String(err)}\n`,
+          `[uplnk-plugins] WARNING: Could not read plugin file "${entry}": ${String(err)}\n`,
         );
       }
     }

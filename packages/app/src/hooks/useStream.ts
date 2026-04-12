@@ -1,8 +1,8 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
 import { streamText } from 'ai';
 import type { LanguageModel, CoreMessage, Tool } from 'ai';
-import type { PylonError } from 'uplnk-shared';
-import { toPylonError } from '../lib/errors.js';
+import type { UplnkError } from '@uplnk/shared';
+import { toUplnkError } from '../lib/errors.js';
 
 export type StreamStatus =
   | 'idle'
@@ -37,7 +37,7 @@ interface UseStreamResult {
   streamedText: string;
   status: StreamStatus;
   activeToolName: string | null;
-  error: PylonError | null;
+  error: UplnkError | null;
   send: (messages: CoreMessage[], tools?: Record<string, Tool>, opts?: SendOptions) => Promise<void>;
   abort: () => void;
   reset: () => void;
@@ -59,7 +59,7 @@ export function useStream(model: LanguageModel): UseStreamResult {
   const [streamedText, setStreamedText] = useState('');
   const [status, setStatus] = useState<StreamStatus>('idle');
   const [activeToolName, setActiveToolName] = useState<string | null>(null);
-  const [error, setError] = useState<PylonError | null>(null);
+  const [error, setError] = useState<UplnkError | null>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
   // Tokens are accumulated here between flushes so we don't fire a React
   // re-render on every chunk. The ref is the source of truth during a
@@ -216,7 +216,7 @@ export function useStream(model: LanguageModel): UseStreamResult {
           setStatus('idle');
           return;
         }
-        setError(toPylonError(err));
+        setError(toUplnkError(err));
         setStatus('error');
       }
     },

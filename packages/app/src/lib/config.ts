@@ -1,7 +1,7 @@
 import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { z } from 'zod';
-import { db, getPylonDir, upsertProviderConfig, getDefaultProvider, getProviderById, setDefaultProvider } from 'uplnk-db';
+import { db, getPylonDir, upsertProviderConfig, getDefaultProvider, getProviderById, setDefaultProvider } from '@uplnk/db';
 import { migratePlaintext, isSecretRef } from './secrets.js';
 
 // ─── Schema ───────────────────────────────────────────────────────────────────
@@ -53,15 +53,15 @@ const ConfigSchema = z.object({
        * User-configured MCP servers. Merged with project-local `.mcp.json`
        * and installed plugins. Discriminated on `type`; stdio servers require
        * a `command`, http servers require a `url`. Ids starting with
-       * `__pylon_builtin_` are rejected to prevent collision with built-in
+       * `__uplnk_builtin_` are rejected to prevent collision with built-in
        * servers.
        */
       servers: z
         .array(
           z.discriminatedUnion('type', [
             z.object({
-              id: z.string().min(1).refine((v) => !v.startsWith('__pylon_builtin_'), {
-                message: 'id must not start with __pylon_builtin_',
+              id: z.string().min(1).refine((v) => !v.startsWith('__uplnk_builtin_'), {
+                message: 'id must not start with __uplnk_builtin_',
               }),
               name: z.string().min(1),
               type: z.literal('stdio'),
@@ -70,8 +70,8 @@ const ConfigSchema = z.object({
               env: z.record(z.string()).optional(),
             }),
             z.object({
-              id: z.string().min(1).refine((v) => !v.startsWith('__pylon_builtin_'), {
-                message: 'id must not start with __pylon_builtin_',
+              id: z.string().min(1).refine((v) => !v.startsWith('__uplnk_builtin_'), {
+                message: 'id must not start with __uplnk_builtin_',
               }),
               name: z.string().min(1),
               type: z.literal('http'),
@@ -122,7 +122,7 @@ const ConfigSchema = z.object({
     })
     .optional(),
   /**
-   * Auto-update settings. When enabled, pylon checks npm for a newer version
+   * Auto-update settings. When enabled, uplnk checks npm for a newer version
    * once every 24h and prints an update notice on startup.
    */
   updates: z
@@ -353,7 +353,7 @@ function seedConfigProviders(configProviders: Config['providers']): void {
  * trusted source AND point at a local-only address. Anything else opens
  * an SSRF window: an attacker who can set `OLLAMA_BASE_URL` (malicious
  * dotfile, postinstall script, shared machine) could otherwise force the
- * Pylon process to fetch from arbitrary internal addresses.
+ * uplnk process to fetch from arbitrary internal addresses.
  *
  * Returns the canonicalised base URL on success, or `null` if the URL
  * fails validation. Allowed hosts: `localhost`, `127.0.0.1`, `::1`. Any

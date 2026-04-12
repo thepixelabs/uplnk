@@ -7,7 +7,7 @@ import {
   getProviderById,
   createConversation,
   insertMessage,
-} from 'uplnk-db';
+} from '@uplnk/db';
 import { createLanguageModel } from '../lib/languageModelFactory.js';
 import { resolveSecret } from '../lib/secrets.js';
 import { runRelay } from '../lib/workflows/workflowEngine.js';

@@ -179,7 +179,7 @@ export function deleteProviderConfig(db: Db, id: string): void {
 
 /**
  * Update only the api_key column for a single provider. Used by
- * `pylon doctor migrate-secrets` to swap legacy plaintext values for
+ * `uplnk doctor migrate-secrets` to swap legacy plaintext values for
  * `@secret:` refs without disturbing the rest of the row.
  */
 export function setProviderApiKey(db: Db, id: string, apiKey: string | null): void {

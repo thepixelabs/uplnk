@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * pylon-rag — built-in stdio MCP server for RAG (Retrieval-Augmented Generation).
+ * uplnk-rag — built-in stdio MCP server for RAG (Retrieval-Augmented Generation).
  *
  * Exposes two tools:
  *   mcp_rag_search  — semantic search over indexed codebase chunks (read-only)
@@ -15,16 +15,16 @@
  * controls — for test/debug purposes only.
  *
  * Embedding config is read from environment variables:
- *   PYLON_EMBED_BASE_URL  — OpenAI-compatible base URL
- *   PYLON_EMBED_API_KEY   — API key ('ollama' for local Ollama)
- *   PYLON_EMBED_MODEL     — embedding model name
+ *   UPLNK_EMBED_BASE_URL  — OpenAI-compatible base URL
+ *   UPLNK_EMBED_API_KEY   — API key ('ollama' for local Ollama)
+ *   UPLNK_EMBED_MODEL     — embedding model name
  */
 
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { z } from 'zod';
-import { db } from 'uplnk-db';
-import { runMigrations } from 'uplnk-db';
+import { db } from '@uplnk/db';
+import { runMigrations } from '@uplnk/db';
 import { Indexer } from '../../rag/indexer.js';
 import { createEmbedder, deserializeEmbedding, cosineSimilarity } from '../../rag/embedder.js';
 
@@ -42,13 +42,13 @@ try {
 // ─── Embedder setup ───────────────────────────────────────────────────────────
 
 const embedder = createEmbedder(
-  process.env['PYLON_EMBED_BASE_URL'] !== undefined
+  process.env['UPLNK_EMBED_BASE_URL'] !== undefined
     ? {
-        baseUrl: process.env['PYLON_EMBED_BASE_URL'],
-        apiKey: process.env['PYLON_EMBED_API_KEY'] ?? 'ollama',
+        baseUrl: process.env['UPLNK_EMBED_BASE_URL'],
+        apiKey: process.env['UPLNK_EMBED_API_KEY'] ?? 'ollama',
         model:
-          process.env['PYLON_EMBED_MODEL'] ??
-          (process.env['PYLON_EMBED_BASE_URL']?.includes('openai')
+          process.env['UPLNK_EMBED_MODEL'] ??
+          (process.env['UPLNK_EMBED_BASE_URL']?.includes('openai')
             ? 'text-embedding-3-small'
             : 'nomic-embed-text'),
       }
@@ -62,7 +62,7 @@ const indexer = new Indexer(db, embedder);
 // ─── MCP server ───────────────────────────────────────────────────────────────
 
 const server = new McpServer({
-  name: 'pylon-rag',
+  name: 'uplnk-rag',
   version: '0.1.0',
 });
 
@@ -99,7 +99,7 @@ server.tool(
           {
             type: 'text' as const,
             text: 'RAG search requires an embedding model to be configured. ' +
-              'Set PYLON_EMBED_BASE_URL (and optionally PYLON_EMBED_API_KEY / PYLON_EMBED_MODEL).',
+              'Set UPLNK_EMBED_BASE_URL (and optionally UPLNK_EMBED_API_KEY / UPLNK_EMBED_MODEL).',
           },
         ],
         isError: true,

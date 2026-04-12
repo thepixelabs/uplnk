@@ -15,7 +15,7 @@ vi.mock('node:fs', () => ({
   mkdirSync: vi.fn(),
 }));
 
-vi.mock('uplnk-db', () => ({
+vi.mock('@uplnk/db', () => ({
   db: {},
   getPylonDir: vi.fn(() => '/home/testuser/.pylon'),
   upsertProviderConfig: vi.fn(),
@@ -25,7 +25,7 @@ vi.mock('uplnk-db', () => ({
 // ─── Imports after mocks are registered ───────────────────────────────────────
 
 import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';
-import { getPylonDir, upsertProviderConfig, getDefaultProvider } from 'uplnk-db';
+import { getPylonDir, upsertProviderConfig, getDefaultProvider } from '@uplnk/db';
 import { loadConfig, saveConfig, getOrCreateConfig, getConfigPath } from '../lib/config.js';
 import type { Config } from '../lib/config.js';
 

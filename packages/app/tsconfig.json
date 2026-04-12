@@ -3,10 +3,23 @@
   "compilerOptions": {
     "outDir": "./dist",
     "paths": {
-      "pylon-db": ["../db/src/index.ts"],
-      "pylon-shared": ["../shared/src/index.ts"]
+      "@uplnk/db": ["../db/src/index.ts"],
+      "@uplnk/shared": ["../shared/src/index.ts"],
+      "@uplnk/catalog": ["../catalog/src/index.ts"],
+      "@uplnk/providers": ["../providers/src/index.ts"],
+      "uplnk-db": ["../db/src/index.ts"],
+      "uplnk-shared": ["../shared/src/index.ts"],
+      "uplnk-catalog": ["../catalog/src/index.ts"],
+      "uplnk-providers": ["../providers/src/index.ts"]
     }
   },
-  "include": ["src/**/*", "bin/**/*", "../db/src/**/*", "../shared/src/**/*"],
+  "include": [
+    "src/**/*",
+    "bin/**/*",
+    "../db/src/**/*",
+    "../shared/src/**/*",
+    "../catalog/src/**/*",
+    "../providers/src/**/*"
+  ],
   "exclude": ["node_modules", "dist"]
 }

@@ -8,7 +8,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { Box, Text, useInput } from 'ink';
-import { db, upsertProviderConfig } from 'uplnk-db';
+import { db, upsertProviderConfig } from '@uplnk/db';
 import type { DiscoveredServer } from '../lib/networkScanner.js';
 import { useNetworkScan } from '../hooks/useNetworkScan.js';
 

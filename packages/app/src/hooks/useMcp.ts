@@ -44,7 +44,7 @@ export const MAX_TOOL_CALLS_PER_CONVERSATION = 100;
  * {
  *   "mcpServers": {
  *     "dispatch": { "type": "http", "url": "http://localhost:4242/mcp" },
- *     "files":    { "type": "stdio", "command": "npx", "args": ["-y", "@pylon/mcp-files"] }
+ *     "files":    { "type": "stdio", "command": "npx", "args": ["-y", "@uplnk/mcp-files"] }
  *   }
  * }
  */
@@ -96,7 +96,7 @@ function loadMcpJson(repoRoot: string): McpServerConfig[] {
  * a project's intended server). Plugins in turn override team-wide
  * config.json so a user opting in to a plugin gets the plugin's version.
  *
- * Built-in ids (`__pylon_builtin_*`) are hard-rejected from ALL sources.
+ * Built-in ids (`__uplnk_builtin_*`) are hard-rejected from ALL sources.
  */
 export function mergeMcpConfigs(
   fromConfig: McpServerConfig[],
@@ -112,7 +112,7 @@ export function mergeMcpConfigs(
   ];
   for (const { label, list } of sources) {
     for (const cfg of list) {
-      if (cfg.id.startsWith('__pylon_builtin_')) {
+      if (cfg.id.startsWith('__uplnk_builtin_')) {
         warnings.push(`[mcp] ${label} server '${cfg.id}' uses a reserved builtin id — skipped`);
         continue;
       }

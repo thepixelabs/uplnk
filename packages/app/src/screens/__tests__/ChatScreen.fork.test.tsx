@@ -41,7 +41,7 @@ const mockCreateConversation = vi.hoisted(() =>
   })),
 );
 
-vi.mock('uplnk-db', () => ({
+vi.mock('@uplnk/db', () => ({
   db: {},
   getDefaultProvider: mockGetDefaultProvider,
   forkConversation: mockForkConversation,

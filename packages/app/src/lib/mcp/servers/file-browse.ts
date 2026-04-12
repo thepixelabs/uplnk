@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * pylon-file-browse — built-in stdio MCP server for file access.
+ * uplnk-file-browse — built-in stdio MCP server for file access.
  *
  * Exposes two tools:
  *   mcp_file_read  — read a file's UTF-8 contents
@@ -23,7 +23,7 @@ import { join, relative, dirname } from 'node:path';
 import { z } from 'zod';
 
 const server = new McpServer({
-  name: 'pylon-file-browse',
+  name: 'uplnk-file-browse',
   version: '0.1.0',
 });
 

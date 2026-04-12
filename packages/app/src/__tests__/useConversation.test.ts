@@ -31,7 +31,7 @@ const mocks = vi.hoisted(() => ({
   touchConversation: vi.fn(),
 }));
 
-vi.mock('uplnk-db', () => ({
+vi.mock('@uplnk/db', () => ({
   db: mocks.db,
   createConversation: mocks.createConversation,
   getConversation: mocks.getConversation,

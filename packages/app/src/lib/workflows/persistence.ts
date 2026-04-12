@@ -1,6 +1,6 @@
 import { readFileSync, writeFileSync, readdirSync, mkdirSync, unlinkSync } from 'node:fs';
 import { join, resolve } from 'node:path';
-import { getPylonDir } from 'uplnk-db';
+import { getPylonDir } from '@uplnk/db';
 import { RelayPlanSchema, type RelayPlan } from './planSchema.js';
 import { RelayError } from './errors.js';
 

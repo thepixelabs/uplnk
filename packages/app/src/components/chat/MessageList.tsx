@@ -18,7 +18,7 @@
 
 import { memo } from 'react';
 import { Box, Text, Static } from 'ink';
-import type { Message } from 'uplnk-db';
+import type { Message } from '@uplnk/db';
 import { MarkdownMessage } from './MarkdownMessage.js';
 import type { Artifact } from '../artifacts/ArtifactPanel.js';
 
@@ -50,7 +50,7 @@ const MessageItem = memo(function MessageItem({ message, onPromote }: MessageIte
     <Box flexDirection="column" marginY={1}>
       <Box>
         <Text bold color={isUser ? 'white' : '#60A5FA'}>
-          {isUser ? '  you  ' : 'pylon'}
+          {isUser ? '  you  ' : 'uplnk'}
         </Text>
       </Box>
       <Box>

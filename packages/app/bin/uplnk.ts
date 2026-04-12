@@ -7,7 +7,7 @@ import { join } from 'node:path';
 import { homedir } from 'node:os';
 import { App } from '../src/index.js';
 import { WORDMARK } from '../src/lib/colors.js';
-import { runMigrations } from 'uplnk-db';
+import { runMigrations } from '@uplnk/db';
 
 // ─── IPv4-first global fetch dispatcher ──────────────────────────────────────
 // Node's undici-based fetch tries addresses in DNS return order. When a
@@ -73,12 +73,12 @@ import { runMigrations } from 'uplnk-db';
   setGlobalDispatcher(new Agent({ connect: { lookup: ipv4FirstLookup, autoSelectFamily: false } }));
 }
 
-// Crash log lives in the user's private `~/.pylon` directory, NOT in
+// Crash log lives in the user's private `~/.uplnk` directory, NOT in
 // `/tmp`. `/tmp` is world-writable on POSIX systems, which opens a
 // symlink-race / local-information-disclosure class of attacks on
-// multi-user machines. `~/.pylon` is created by getOrCreateConfig()
+// multi-user machines. `~/.uplnk` is created by getOrCreateConfig()
 // with inherited umask (typically 0o700 via the parent mkdir below)
-// and is already our single source of truth for per-user Pylon state.
+// and is already our single source of truth for per-user uplnk state.
 const CRASH_LOG_PATH = join(homedir(), '.uplnk', 'crash.log');
 try { mkdirSync(join(homedir(), '.uplnk'), { recursive: true, mode: 0o700 }); } catch { /* handled below */ }
 
@@ -126,7 +126,7 @@ if (values.help) {
 ${WORDMARK}  —  terminal LLM developer assistant
 
 USAGE
-  pylon [command] [options]
+  uplnk [command] [options]
 
 COMMANDS
   chat                          Start or resume a conversation (default)
@@ -198,8 +198,8 @@ if (subcommand === 'config') {
     const cfgResult = getConfig();
     if (!cfgResult.ok) {
       process.stderr.write(
-        `\npylon: CONFIG_INVALID — ${cfgResult.error}\n` +
-        `Fix or delete ~/.pylon/config.json and try again.\n\n`,
+        `\nuplnk: CONFIG_INVALID — ${cfgResult.error}\n` +
+        `Fix or delete ~/.uplnk/config.json and try again.\n\n`,
       );
       process.exit(1);
     }
@@ -215,7 +215,7 @@ if (subcommand === 'config') {
     };
     saveConfig(updatedConfig);
     process.stdout.write(
-      `\npylon: commandExecEnabled confirmed at ${confirmedAt}\n` +
+      `\nuplnk: commandExecEnabled confirmed at ${confirmedAt}\n` +
       `Command execution is now enabled.\n\n`,
     );
     process.exit(0);
@@ -347,7 +347,7 @@ if (values.theme === 'light') {
 }
 
 // ─── Alternate screen (full-screen TUI mode) ─────────────────────────────────
-// Enter the alternate screen buffer so Pylon takes over the terminal without
+// Enter the alternate screen buffer so uplnk takes over the terminal without
 // touching the user's scroll history. The original content is restored on exit.
 // Skipped when stdout is not a TTY (piped output, CI, --version, etc.) — all
 // early-exit paths above this point call process.exit() before reaching here.
@@ -403,8 +403,8 @@ if (configResult.ok) {
 }
 if (!configResult.ok) {
   process.stderr.write(
-    `\npylon: CONFIG_INVALID — ${configResult.error}\n` +
-    `Fix or delete ~/.pylon/config.json and try again.\n\n`,
+    `\nuplnk: CONFIG_INVALID — ${configResult.error}\n` +
+    `Fix or delete ~/.uplnk/config.json and try again.\n\n`,
   );
   process.exit(1);
 }
@@ -459,7 +459,7 @@ try {
   try {
     appendFileSync(CRASH_LOG_PATH, `\n--- RENDER ${stamp} ---\n${msg}\n`, { mode: 0o600 });
   } catch { /* swallow */ }
-  process.stderr.write(`\npylon crashed — see ${CRASH_LOG_PATH}\n`);
+  process.stderr.write(`\nuplnk crashed — see ${CRASH_LOG_PATH}\n`);
   process.exit(1);
 }
 
@@ -471,7 +471,7 @@ exitAltScreen();
 const updateResult = await updateCheckPromise;
 if (updateResult?.updateAvailable) {
   process.stdout.write(
-    `\n  pylon ${updateResult.latestVersion} is available (you have ${updateResult.currentVersion}).\n` +
+    `\n  uplnk ${updateResult.latestVersion} is available (you have ${updateResult.currentVersion}).\n` +
     `  Run: ${updateResult.updateCommand}\n\n`,
   );
 }

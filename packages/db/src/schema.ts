@@ -1,4 +1,4 @@
-// Pylon database schema — SQLite via Drizzle ORM
+// uplnk database schema — SQLite via Drizzle ORM
 // Driver: better-sqlite3 (synchronous)
 // Location: ~/.uplnk/db.sqlite
 

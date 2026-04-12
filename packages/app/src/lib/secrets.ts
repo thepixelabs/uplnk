@@ -44,7 +44,7 @@ import {
 } from 'node:fs';
 import { join } from 'node:path';
 import { randomBytes, createCipheriv, createDecipheriv } from 'node:crypto';
-import { getPylonDir } from 'uplnk-db';
+import { getPylonDir } from '@uplnk/db';
 
 export interface SecretsBackend {
   readonly name: 'keyring' | 'encrypted-file' | 'plaintext';

@@ -309,12 +309,12 @@ describe('McpManager', () => {
       });
     });
 
-    it('constructs Client with pylon identity and tool capabilities', async () => {
+    it('constructs Client with uplnk identity and tool capabilities', async () => {
       const mgr = makeManager();
       await mgr.connect(SERVER_CONFIG);
 
       expect(Client).toHaveBeenCalledWith(
-        { name: 'pylon', version: '0.1.0' },
+        { name: 'uplnk', version: '0.3.0' },
         { capabilities: {} },
       );
     });

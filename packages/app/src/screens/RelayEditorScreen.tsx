@@ -8,7 +8,7 @@
 
 import { useEffect, useState } from 'react';
 import { Box, Text, useInput } from 'ink';
-import { db, listProviders } from 'uplnk-db';
+import { db, listProviders } from '@uplnk/db';
 import { loadRelay, saveRelay } from '../lib/workflows/persistence.js';
 import type { RelayPlan, RelayPhaseConfig } from '../lib/workflows/planSchema.js';
 

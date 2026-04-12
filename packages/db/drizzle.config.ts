@@ -7,6 +7,6 @@ export default defineConfig({
   out: './migrations',
   dialect: 'sqlite',
   dbCredentials: {
-    url: join(homedir(), '.pylon', 'db.sqlite'),
+    url: join(homedir(), '.uplnk', 'db.sqlite'),
   },
 });

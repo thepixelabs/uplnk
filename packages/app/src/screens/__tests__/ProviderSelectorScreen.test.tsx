@@ -6,13 +6,13 @@ const tick = () => new Promise<void>((r) => setImmediate(() => setImmediate(r)))
 
 // Override the global uplnk-db stub for these tests so we can control
 // the provider list returned by listProviders.
-vi.mock('uplnk-db', () => ({
+vi.mock('@uplnk/db', () => ({
   db: {},
   listProviders: vi.fn(() => []),
 }));
 
 import { vi as _vi, beforeEach } from 'vitest';
-import { listProviders } from 'uplnk-db';
+import { listProviders } from '@uplnk/db';
 import { ProviderSelectorScreen } from '../ProviderSelectorScreen.js';
 
 const makeProvider = (id: string, name: string, overrides = {}) => ({

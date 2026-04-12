@@ -1,6 +1,6 @@
 import chalk from 'chalk';
 import { accessSync, constants } from 'node:fs';
-import { db, getPylonDir, getPylonDbPath, listProviders, setProviderApiKey } from 'uplnk-db';
+import { db, getPylonDir, getPylonDbPath, listProviders, setProviderApiKey } from '@uplnk/db';
 import { initSecretsBackend, getSecretsBackend, isSecretRef, migratePlaintext } from './secrets.js';
 
 interface Check {
@@ -33,7 +33,7 @@ const checks: Check[] = [
     name: 'SQLite database',
     run: async () => {
       try {
-        const { db } = await import('uplnk-db');
+        const { db } = await import('@uplnk/db');
         db.get('SELECT 1');
         return { ok: true, detail: getPylonDbPath() };
       } catch (err) {
@@ -56,7 +56,7 @@ const checks: Check[] = [
 ];
 
 export async function runDoctor(): Promise<void> {
-  console.log(chalk.bold('\nPylon Doctor\n'));
+  console.log(chalk.bold('\nuplnk Doctor\n'));
 
   let allOk = true;
   for (const check of checks) {
@@ -69,7 +69,7 @@ export async function runDoctor(): Promise<void> {
 
   console.log();
   if (allOk) {
-    console.log(chalk.green('All checks passed. Pylon is ready.\n'));
+    console.log(chalk.green('All checks passed. uplnk is ready.\n'));
   } else {
     console.log(chalk.yellow('Some checks failed. Fix the issues above and re-run `uplnk doctor`.\n'));
     process.exit(1);
@@ -91,7 +91,7 @@ export async function runDoctor(): Promise<void> {
  * even when no rows needed migration.
  */
 export async function runMigrateSecrets(): Promise<void> {
-  console.log(chalk.bold('\nPylon Doctor — migrate secrets\n'));
+  console.log(chalk.bold('\nuplnk Doctor — migrate secrets\n'));
 
   await initSecretsBackend();
   const backend = getSecretsBackend();
@@ -177,7 +177,7 @@ export async function runMigrateSecrets(): Promise<void> {
  * `listRefs()` and execute the prune.
  */
 export async function runPruneSecrets(): Promise<void> {
-  console.log(chalk.bold('\nPylon Doctor — prune secrets\n'));
+  console.log(chalk.bold('\nuplnk Doctor — prune secrets\n'));
 
   await initSecretsBackend();
   const backend = getSecretsBackend();

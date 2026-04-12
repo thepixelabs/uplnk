@@ -21,7 +21,7 @@ vi.mock('node:fs', () => ({
 // uplnk-db is imported both at the top of doctor.ts (for getPylonDir /
 // getPylonDbPath) and dynamically inside the SQLite check. We mock the module
 // once; the dynamic import will resolve to the same mock.
-vi.mock('uplnk-db', () => ({
+vi.mock('@uplnk/db', () => ({
   getPylonDir: vi.fn(() => '/home/testuser/.pylon'),
   getPylonDbPath: vi.fn(() => '/home/testuser/.uplnk/db.sqlite'),
   db: {
@@ -45,7 +45,7 @@ vi.mock('chalk', () => {
 // ─── Imports after mocks are registered ───────────────────────────────────────
 
 import { accessSync } from 'node:fs';
-import { getPylonDir, getPylonDbPath, db } from 'uplnk-db';
+import { getPylonDir, getPylonDbPath, db } from '@uplnk/db';
 import { runDoctor } from '../lib/doctor.js';
 
 // ─── Typed mock helpers ────────────────────────────────────────────────────────

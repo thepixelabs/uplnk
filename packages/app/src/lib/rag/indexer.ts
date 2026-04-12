@@ -17,8 +17,8 @@
 import { readFileSync, readdirSync, statSync, existsSync } from 'node:fs';
 import { join, relative } from 'node:path';
 import { randomUUID } from 'node:crypto';
-import type { Db } from 'uplnk-db';
-import { ragChunks } from 'uplnk-db';
+import type { Db } from '@uplnk/db';
+import { ragChunks } from '@uplnk/db';
 import { eq, and } from 'drizzle-orm';
 import type { Embedder } from './embedder.js';
 import { serializeEmbedding } from './embedder.js';

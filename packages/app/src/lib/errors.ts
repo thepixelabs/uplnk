@@ -1,6 +1,6 @@
-import type { PylonError, PylonErrorCode } from 'uplnk-shared';
+import type { UplnkError, UplnkErrorCode } from '@uplnk/shared';
 
-const HINTS: Record<PylonErrorCode, string> = {
+const HINTS: Record<UplnkErrorCode, string> = {
   PROVIDER_UNREACHABLE:
     'Check that Ollama is running: `ollama serve`. Run `uplnk doctor` for a full diagnosis.',
   PROVIDER_AUTH_FAILED:
@@ -21,13 +21,13 @@ const HINTS: Record<PylonErrorCode, string> = {
   MCP_TOOL_LOOP_LIMIT:
     'The model called tools too many times in a row. Simplify your request.',
   SQLITE_BUSY:
-    'Database is busy. Close any other Pylon instances and try again.',
+    'Database is busy. Close any other uplnk instances and try again.',
   DB_MIGRATION_FAILED:
     'Database migration failed. Run `uplnk doctor` or delete ~/.uplnk/db.sqlite to reset.',
   CONFIG_INVALID:
     'Config file is invalid. Run `uplnk config` to edit it or delete ~/.uplnk/config.json to reset.',
   CONFIG_NOT_FOUND:
-    'No config found. Run `pylon` and follow the setup prompts.',
+    'No config found. Run `uplnk` and follow the setup prompts.',
 };
 
 // Minimal structural view of @ai-sdk/provider's APICallError. We duck-type
@@ -64,7 +64,7 @@ function findSystemErrorCode(err: unknown, depth = 0): string | undefined {
   return undefined;
 }
 
-export function toPylonError(err: unknown): PylonError {
+export function toUplnkError(err: unknown): UplnkError {
   if (
     typeof err === 'object' &&
     err !== null &&
@@ -72,7 +72,7 @@ export function toPylonError(err: unknown): PylonError {
     'message' in err &&
     'hint' in err
   ) {
-    return err as PylonError;
+    return err as UplnkError;
   }
 
   const message = err instanceof Error ? err.message : String(err);
@@ -129,3 +129,7 @@ export function toPylonError(err: unknown): PylonError {
     cause: err,
   };
 }
+
+// Backward-compat alias — remove in v0.4
+/** @deprecated Use toUplnkError */
+export const toPylonError = toUplnkError;

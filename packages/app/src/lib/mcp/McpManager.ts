@@ -30,7 +30,7 @@ import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { validateFilePath, validateCommand, validateFileSize } from './security.js';
 import type { FileAccessPolicy } from './security.js';
-import { getPylonDir } from 'uplnk-db';
+import { getPylonDir } from '@uplnk/db';
 
 // ─── Built-in server resolution ──────────────────────────────────────────────
 
@@ -41,9 +41,9 @@ const _serverExt = _isTsSource ? 'ts' : 'js';
 const _serverCmd = _isTsSource ? 'tsx' : process.execPath;
 
 /** Sentinel IDs for the built-in child-process servers. */
-export const BUILTIN_FILE_BROWSE_ID = '__pylon_builtin_file_browse__';
-export const BUILTIN_COMMAND_EXEC_ID = '__pylon_builtin_command_exec__';
-export const BUILTIN_GIT_ID = '__pylon_builtin_git__';
+export const BUILTIN_FILE_BROWSE_ID = '__uplnk_builtin_file_browse__';
+export const BUILTIN_COMMAND_EXEC_ID = '__uplnk_builtin_command_exec__';
+export const BUILTIN_GIT_ID = '__uplnk_builtin_git__';
 export const BUILTIN_RAG_ID = '__uplnk_builtin_rag__';
 
 // ─── Audit log types ──────────────────────────────────────────────────────────
@@ -262,7 +262,7 @@ export class McpManager {
     }
 
     const client = new Client(
-      { name: 'pylon', version: '0.1.0' },
+      { name: 'uplnk', version: '0.3.0' },
       { capabilities: {} },
     );
 
@@ -391,7 +391,7 @@ export class McpManager {
     const fileBrowseScript = join(__mcpDir, 'servers', `file-browse.${_serverExt}`);
     await this.connect({
       id: BUILTIN_FILE_BROWSE_ID,
-      name: 'pylon-file-browse',
+      name: 'uplnk-file-browse',
       command: _serverCmd,
       args: [fileBrowseScript],
     });
@@ -400,7 +400,7 @@ export class McpManager {
       const cmdExecScript = join(__mcpDir, 'servers', `command-exec.${_serverExt}`);
       await this.connect({
         id: BUILTIN_COMMAND_EXEC_ID,
-        name: 'pylon-command-exec',
+        name: 'uplnk-command-exec',
         command: _serverCmd,
         args: [cmdExecScript],
       });
@@ -410,7 +410,7 @@ export class McpManager {
       const gitScript = join(__mcpDir, 'servers', `git.${_serverExt}`);
       await this.connect({
         id: BUILTIN_GIT_ID,
-        name: 'pylon-git',
+        name: 'uplnk-git',
         command: _serverCmd,
         args: [gitScript],
       });
@@ -423,13 +423,13 @@ export class McpManager {
         HOME: process.env['HOME'] ?? '/tmp',
       };
       if (this.config.ragEmbedConfig !== undefined) {
-        ragEnv['PYLON_EMBED_BASE_URL'] = this.config.ragEmbedConfig.baseUrl;
-        ragEnv['PYLON_EMBED_API_KEY'] = this.config.ragEmbedConfig.apiKey;
-        ragEnv['PYLON_EMBED_MODEL'] = this.config.ragEmbedConfig.model;
+        ragEnv['UPLNK_EMBED_BASE_URL'] = this.config.ragEmbedConfig.baseUrl;
+        ragEnv['UPLNK_EMBED_API_KEY'] = this.config.ragEmbedConfig.apiKey;
+        ragEnv['UPLNK_EMBED_MODEL'] = this.config.ragEmbedConfig.model;
       }
       await this.connect({
         id: BUILTIN_RAG_ID,
-        name: 'pylon-rag',
+        name: 'uplnk-rag',
         command: _serverCmd,
         args: [ragScript],
         env: ragEnv,
@@ -698,7 +698,7 @@ export class McpManager {
   }
 
   /**
-   * Wraps git tools from the pylon-git child process with pre-call repoPath
+   * Wraps git tools from the uplnk-git child process with pre-call repoPath
    * validation and the human-in-the-loop approval gate for mutating operations
    * (mcp_git_stage and mcp_git_commit).
    *
@@ -878,7 +878,7 @@ export class McpManager {
   }
 
   /**
-   * Wraps RAG tools from the pylon-rag child process with pre-call security.
+   * Wraps RAG tools from the uplnk-rag child process with pre-call security.
    *
    * mcp_rag_search — read-only; no path validation needed (operates on the DB
    *   which was populated from already-validated indexed paths). Audited.
