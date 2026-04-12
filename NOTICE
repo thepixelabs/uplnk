@@ -1,5 +1,5 @@
-Pylon
-Copyright 2026 [COPYRIGHT HOLDER]
+uplnk
+Copyright 2026 Pixelabs
 
 This product is licensed under the PolyForm Shield License 1.0.0.
 You may obtain a copy of the License at:
@@ -15,7 +15,7 @@ components are used under their respective open-source licenses.
 APACHE 2.0 LICENSED COMPONENTS
 =========================================================================
 
-Vercel AI SDK (ai, @ai-sdk/openai-compatible)
+Vercel AI SDK (ai, @ai-sdk/anthropic, @ai-sdk/openai-compatible)
   Copyright 2023 Vercel, Inc.
   Licensed under the PolyForm Shield License 1.0.0
   https://github.com/vercel/ai

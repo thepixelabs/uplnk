@@ -13,7 +13,7 @@ export const Header = memo(function Header({ modelName, conversationTitle }: Pro
         <Text color="#60A5FA">▐</Text>
         <Text color="#60A5FA" bold>█</Text>
         <Text color="#60A5FA">▌</Text>
-        <Text bold> PYLON</Text>
+        <Text bold> UPLNK</Text>
       </Text>
       <Text dimColor>{conversationTitle}</Text>
       <Text color="#475569">{modelName}</Text>

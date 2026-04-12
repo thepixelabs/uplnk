@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * pylon-command-exec — built-in stdio MCP server for shell command execution.
+ * uplnk-command-exec — built-in stdio MCP server for shell command execution.
  *
  * Exposes one tool:
  *   mcp_command_exec — execute a shell command and return its output
@@ -26,7 +26,7 @@ import { z } from 'zod';
 const execFileAsync = promisify(execFile);
 
 const server = new McpServer({
-  name: 'pylon-command-exec',
+  name: 'uplnk-command-exec',
   version: '0.1.0',
 });
 

@@ -75,8 +75,8 @@ function lcsLineDiff(aLines: string[], bLines: string[]): RawDiffLine[] {
   const result: RawDiffLine[] = [];
   let i = m;
   let j = n;
-  let origLine = m;
-  let modLine = n;
+  const origLine = m;
+  const modLine = n;
 
   while (i > 0 || j > 0) {
     if (i > 0 && j > 0 && aLines[i - 1] === bLines[j - 1]) {
@@ -180,12 +180,8 @@ function applyHunks(original: string, modified: string, hunks: Hunk[]): string {
   // Build full diff with hunk assignments
   const fullDiff = lcsLineDiff(aLines, bLines);
 
-  // Map each diff position to its hunk (if any)
-  const hunkRanges = new Map<number, { hunk: Hunk; inRange: boolean }>();
-  // (simplified: iterate through hunks and their line ranges)
-
   // Determine which hunk contains each diff index
-  let hunkForIdx = new Array(fullDiff.length).fill(-1) as number[];
+  const hunkForIdx = new Array(fullDiff.length).fill(-1) as number[];
   for (const hunk of hunks) {
     // Find where this hunk's first changed line appears in the full diff
     const firstChanged = hunk.lines.find((l) => l.kind !== 'unchanged');
@@ -214,7 +210,7 @@ function applyHunks(original: string, modified: string, hunks: Hunk[]): string {
   const resultLines: string[] = [];
   for (let idx = 0; idx < fullDiff.length; idx++) {
     const dl = fullDiff[idx]!;
-    const hunkId = hunkForIdx[idx];
+    const hunkId = hunkForIdx[idx] ?? -1;
     const hunk = hunkId >= 0 ? hunks.find((h) => h.id === hunkId) : undefined;
     const status = hunk?.status ?? 'pending';
 
@@ -245,10 +241,6 @@ const HunkView = memo(function HunkView({ hunk, isSelected }: HunkViewProps) {
     hunk.status === 'accepted' ? '✓' :
     hunk.status === 'rejected' ? '✗' :
     isSelected                  ? '▶' : ' ';
-  const statusColor =
-    hunk.status === 'accepted' ? 'green' :
-    hunk.status === 'rejected' ? 'red'   :
-    isSelected                  ? 'cyan'  : 'gray';
   const headerColor =
     hunk.status === 'accepted' ? 'green' :
     hunk.status === 'rejected' ? 'red'   :

@@ -5,18 +5,24 @@ import { homedir } from 'node:os';
 import { join } from 'node:path';
 import * as schema from './schema.js';
 
-export function getPylonDir(): string {
-  return join(homedir(), '.pylon');
+export function getUplnkDir(): string {
+  return join(homedir(), '.uplnk');
 }
 
-export function getPylonDbPath(): string {
-  const pylonDir = getPylonDir();
-  mkdirSync(pylonDir, { recursive: true });
-  return join(pylonDir, 'db.sqlite');
+/** @deprecated Use getUplnkDir */
+export const getPylonDir = getUplnkDir;
+
+export function getUplnkDbPath(): string {
+  const uplnkDir = getUplnkDir();
+  mkdirSync(uplnkDir, { recursive: true });
+  return join(uplnkDir, 'db.sqlite');
 }
+
+/** @deprecated Use getUplnkDbPath */
+export const getPylonDbPath = getUplnkDbPath;
 
 function createDb(dbPath?: string) {
-  const sqlite = new Database(dbPath ?? getPylonDbPath());
+  const sqlite = new Database(dbPath ?? getUplnkDbPath());
 
   sqlite.pragma('journal_mode = WAL');
   sqlite.pragma('foreign_keys = ON');

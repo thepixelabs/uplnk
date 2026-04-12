@@ -6,8 +6,8 @@ import {
   getMessages,
   insertMessage,
   touchConversation,
-} from 'pylon-db';
-import type { Message, NewMessage } from 'pylon-db';
+} from '@uplnk/db';
+import type { Message, NewMessage } from '@uplnk/db';
 
 export type AddMessageData = Omit<NewMessage, 'id' | 'conversationId' | 'createdAt'>;
 export type AddMessageWithIdData = Omit<NewMessage, 'conversationId' | 'createdAt'>;

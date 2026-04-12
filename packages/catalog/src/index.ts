@@ -8,11 +8,11 @@ export type { CatalogEntry, CatalogCapabilities, CatalogProviderKind } from './t
 
 /** Path where users can drop an override catalog (e.g. LiteLLM export). */
 export function getUserCatalogPath(): string {
-  return join(homedir(), '.pylon', 'catalog.json');
+  return join(homedir(), '.uplnk', 'catalog.json');
 }
 
 /**
- * Load the catalog. If `~/.pylon/catalog.json` exists and parses, its entries
+ * Load the catalog. If `~/.uplnk/catalog.json` exists and parses, its entries
  * are merged over the built-in snapshot (user wins on `canonicalKey` collision).
  *
  * On any error we fall back to the built-in snapshot so the TUI never fails

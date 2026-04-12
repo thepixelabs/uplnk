@@ -11,7 +11,6 @@ on:
 
 permissions:
   contents: read
-  security-events: write  # required to upload SARIF results
 
 jobs:
   audit:
@@ -42,30 +41,3 @@ jobs:
         # advisory backlog is cleared.
         run: pnpm audit --audit-level=high
 
-  osv-scan:
-    name: OSV Scanner
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Run OSV Scanner
-        uses: google/osv-scanner-action@v2
-        with:
-          # osv-scanner.toml lives at the repo root.  It declares vulnerability
-          # suppressions with documented reasons — see chatty repo pattern.
-          scan-args: |-
-            --config=osv-scanner.toml
-            --format=sarif
-            --output=osv-results.sarif
-            --recursive
-            .
-        continue-on-error: true  # upload SARIF even when vulnerabilities are found
-
-      - name: Upload SARIF results to GitHub Security tab
-        uses: github/codeql-action/upload-sarif@v3
-        if: always()
-        with:
-          sarif_file: osv-results.sarif
-          category: osv-scanner

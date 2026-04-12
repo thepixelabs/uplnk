@@ -4,9 +4,9 @@
  * Responsibilities:
  *  1. Redirect os.homedir() to a stable fake path so tests that call
  *     getPylonDir() (which resolves relative to homedir) never touch the real
- *     ~/.pylon directory on the developer's machine.
- *  2. Stub pylon-db at the module level so tests that import config.ts
- *     (or any module that imports pylon-db) do not open / migrate a real
+ *     ~/.uplnk directory on the developer's machine.
+ *  2. Stub uplnk-db at the module level so tests that import config.ts
+ *     (or any module that imports uplnk-db) do not open / migrate a real
  *     SQLite file.  Each individual test file is free to override these stubs
  *     with its own vi.mock() factory — per-file vi.mock() calls take precedence
  *     over the global stub here.
@@ -25,34 +25,34 @@
 
 import { vi, beforeEach, afterEach } from 'vitest';
 
-// ─── 1. Stable homedir — prevents tests from writing to ~/.pylon ──────────────
+// ─── 1. Stable homedir — prevents tests from writing to ~/.uplnk ──────────────
 
 vi.mock('node:os', async () => {
   const actual = await vi.importActual<typeof import('node:os')>('node:os');
   return {
     ...actual,
-    homedir: () => '/tmp/pylon-test-home',
+    homedir: () => '/tmp/uplnk-test-home',
   };
 });
 
-// ─── 2. In-memory pylon-db stub ───────────────────────────────────────────────
+// ─── 2. In-memory uplnk-db stub ───────────────────────────────────────────────
 //
-// Real pylon-db opens a SQLite file via better-sqlite3. In tests we replace the
+// Real uplnk-db opens a SQLite file via better-sqlite3. In tests we replace the
 // whole module with vi.fn() stubs so no file I/O occurs. The stub surface covers
-// every export that application code currently imports from pylon-db.
+// every export that application code currently imports from uplnk-db.
 //
 // Tests that need specific return values override per-describe via vi.mocked()
-// or re-declare the mock entirely with vi.mock('pylon-db', () => ({ ... })).
+// or re-declare the mock entirely with vi.mock('@uplnk/db', () => ({ ... })).
 //
 // The names here must match the actual exports in packages/db/src/index.ts.
 
-vi.mock('pylon-db', () => ({
+vi.mock('@uplnk/db', () => ({
   db: {},
   // Schema tables (used as query builder inputs — export empty objects)
   ragChunks: {},
   // Path helpers
-  getPylonDir: vi.fn(() => '/tmp/pylon-test-home/.pylon'),
-  getPylonDbPath: vi.fn(() => '/tmp/pylon-test-home/.pylon/db.sqlite'),
+  getPylonDir: vi.fn(() => '/tmp/uplnk-test-home/.uplnk'),
+  getPylonDbPath: vi.fn(() => '/tmp/uplnk-test-home/.uplnk/db.sqlite'),
   // Provider config queries
   upsertProviderConfig: vi.fn(),
   getDefaultProvider: vi.fn(() => undefined),

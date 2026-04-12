@@ -1,10 +1,10 @@
-class Pylon < Formula
-  desc "Terminal-native LLM developer assistant"
-  homepage "https://github.com/pixelicous/pylon"
+class Uplnk < Formula
+  desc "Terminal-native AI chat client — local-first, privacy-first"
+  homepage "https://github.com/uplnk/uplnk"
   # url and sha256 are updated by the automated bump workflow on each release.
   # Do not edit these manually — they are managed by .github/workflows/bump-homebrew.yml
   # in the source repository.
-  url "https://registry.npmjs.org/pylon-dev/-/pylon-dev-0.1.0.tgz"
+  url "https://registry.npmjs.org/uplnk/-/uplnk-0.1.0.tgz"
   sha256 "PLACEHOLDER_REPLACE_ON_FIRST_PUBLISH"
   license :cannot_represent
 
@@ -22,29 +22,29 @@ class Pylon < Formula
 
   def caveats
     <<~EOS
-      Pylon requires a running LLM provider (Ollama, vLLM, LM Studio, or any
+      uplnk requires a running LLM provider (Ollama, vLLM, LM Studio, or any
       OpenAI-compatible endpoint).
 
-      Quick start with Ollama:
+      Quick start::
         brew install ollama
         ollama serve &
         ollama pull llama3.2
-        pylon
+        uplnk
 
       Verify your environment at any time with:
-        pylon doctor
+        uplnk doctor
     EOS
   end
 
   test do
     # Smoke test: --version must print the version string and exit 0.
-    assert_match version.to_s, shell_output("#{bin}/pylon --version")
+    assert_match version.to_s, shell_output("#{bin}/uplnk --version")
 
     # Preflight check: doctor exit code is 0 only when all required
     # runtime dependencies are present.  In the Homebrew sandbox only
     # the Node.js check will pass (no Ollama), so we just assert the
     # binary runs without crashing on the Node version check.
-    output = shell_output("#{bin}/pylon doctor 2>&1", 1)
+    output = shell_output("#{bin}/uplnk doctor 2>&1", 1)
     assert_match "Node.js version", output
   end
 end

@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-export const PylonErrorCodeSchema = z.enum([
+export const UplnkErrorCodeSchema = z.enum([
   // Provider errors
   'PROVIDER_UNREACHABLE',
   'PROVIDER_AUTH_FAILED',
@@ -22,17 +22,17 @@ export const PylonErrorCodeSchema = z.enum([
   'CONFIG_NOT_FOUND',
 ]);
 
-export type PylonErrorCode = z.infer<typeof PylonErrorCodeSchema>;
+export type UplnkErrorCode = z.infer<typeof UplnkErrorCodeSchema>;
 
-export interface PylonError {
-  code: PylonErrorCode;
+export interface UplnkError {
+  code: UplnkErrorCode;
   message: string;
   /** User-facing recovery hint shown in the ErrorBanner */
   hint: string;
   cause?: unknown;
 }
 
-export function isPylonError(value: unknown): value is PylonError {
+export function isUplnkError(value: unknown): value is UplnkError {
   return (
     typeof value === 'object' &&
     value !== null &&
@@ -41,3 +41,13 @@ export function isPylonError(value: unknown): value is PylonError {
     'hint' in value
   );
 }
+
+// Backward-compat aliases — remove in v0.4
+/** @deprecated Use UplnkErrorCodeSchema */
+export const PylonErrorCodeSchema = UplnkErrorCodeSchema;
+/** @deprecated Use UplnkErrorCode */
+export type PylonErrorCode = UplnkErrorCode;
+/** @deprecated Use UplnkError */
+export type PylonError = UplnkError;
+/** @deprecated Use isUplnkError */
+export const isPylonError = isUplnkError;

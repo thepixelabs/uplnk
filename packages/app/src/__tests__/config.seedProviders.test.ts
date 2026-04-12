@@ -2,10 +2,10 @@
  * Tests for seedConfigProviders (called by getOrCreateConfig).
  *
  * Isolated from the broader config.test.ts because we need to add
- * setDefaultProvider and getProviderById to the pylon-db mock surface,
+ * setDefaultProvider and getProviderById to the uplnk-db mock surface,
  * which would conflict with the narrower mock in the sibling file.
  *
- * Strategy: mock at the pylon-db and node:fs boundaries. Each test
+ * Strategy: mock at the uplnk-db and node:fs boundaries. Each test
  * exercises a distinct behaviour of the seeding loop — single reason to fail.
  */
 
@@ -19,7 +19,7 @@ vi.mock('node:fs', () => ({
   mkdirSync: vi.fn(),
 }));
 
-vi.mock('pylon-db', () => ({
+vi.mock('@uplnk/db', () => ({
   db: {},
   getPylonDir: vi.fn(() => '/home/testuser/.pylon'),
   upsertProviderConfig: vi.fn(),
@@ -37,7 +37,7 @@ import {
   getDefaultProvider,
   getProviderById,
   setDefaultProvider,
-} from 'pylon-db';
+} from '@uplnk/db';
 import { getOrCreateConfig } from '../lib/config.js';
 
 // ─── Typed helpers ────────────────────────────────────────────────────────────

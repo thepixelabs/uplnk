@@ -2,7 +2,7 @@
  * Tests for all exported query functions in queries.ts.
  *
  * Uses an in-memory SQLite database via createMigratedDb() — no disk I/O,
- * no ~/.pylon writes. Each test gets a fresh db instance via beforeEach.
+ * no ~/.uplnk writes. Each test gets a fresh db instance via beforeEach.
  *
  * Coverage: 10 exported query functions
  *   Conversations: createConversation, getConversation, listConversations,

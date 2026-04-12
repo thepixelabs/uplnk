@@ -1,5 +1,5 @@
 /**
- * Global test setup for the pylon-db package.
+ * Global test setup for the uplnk-db package.
  *
  * Responsibilities:
  *  1. Provide a `createMigratedDb` helper that creates a fresh `:memory:` SQLite
@@ -10,7 +10,7 @@
  *     this when `isolate: true` is set in the vitest config).
  *
  * Deliberately NOT mocking node:os here:
- *  The pylon-db package tests exercise real SQLite behaviour using `:memory:`
+ *  The uplnk-db package tests exercise real SQLite behaviour using `:memory:`
  *  databases passed explicitly to query functions. The module-level `db`
  *  singleton (which uses the real homedir) is never called in these tests
  *  because all query functions accept a `db` parameter.

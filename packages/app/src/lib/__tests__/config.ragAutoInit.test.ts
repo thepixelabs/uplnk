@@ -6,18 +6,18 @@
  * The two functions are pure with respect to the module — they only call fetch
  * and mutate the config object passed in.
  *
- * pylon-db is mocked (global setup.ts does this) so importing config.ts does
+ * uplnk-db is mocked (global setup.ts does this) so importing config.ts does
  * not open a SQLite file. We import only the two exported functions under test.
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
-// ─── pylon-db mock (supplements global setup.ts stub) ────────────────────────
+// ─── uplnk-db mock (supplements global setup.ts stub) ────────────────────────
 
-vi.mock('pylon-db', () => ({
+vi.mock('@uplnk/db', () => ({
   db: {},
   getPylonDir: vi.fn(() => '/tmp/pylon-test-home/.pylon'),
-  getPylonDbPath: vi.fn(() => '/tmp/pylon-test-home/.pylon/db.sqlite'),
+  getPylonDbPath: vi.fn(() => '/tmp/pylon-test-home/.uplnk/db.sqlite'),
   upsertProviderConfig: vi.fn(),
   getDefaultProvider: vi.fn(() => undefined),
   listProviders: vi.fn(() => []),
@@ -58,7 +58,7 @@ function makeConfig(overrides: Partial<Config['rag']> = {}): Config {
       servers: [],
     },
     git: { enabled: true },
-    updates: { enabled: true, packageName: 'pylon-dev' },
+    updates: { enabled: true, packageName: 'uplnk' },
     providers: [],
     rag: {
       enabled: false,
@@ -138,11 +138,11 @@ describe('probeOllamaEmbedder — success path', () => {
     );
   });
 
-  it('refuses to probe non-localhost URLs without PYLON_TRUST_OLLAMA_URL=1 (SSRF guard)', async () => {
+  it('refuses to probe non-localhost URLs without UPLNK_TRUST_OLLAMA_URL=1 (SSRF guard)', async () => {
     // Security gate round 2 finding M2: OLLAMA_BASE_URL is user-controllable
     // and could be aimed at internal addresses (e.g. cloud metadata endpoints)
     // without an explicit trust opt-in.
-    delete process.env['PYLON_TRUST_OLLAMA_URL'];
+    delete process.env['UPLNK_TRUST_OLLAMA_URL'];
     fetchSpy.mockResolvedValue(
       makeFetchResponse({ models: [{ name: 'nomic-embed-text:latest' }] }),
     );
@@ -153,8 +153,8 @@ describe('probeOllamaEmbedder — success path', () => {
     expect(fetchSpy).not.toHaveBeenCalled();
   });
 
-  it('allows non-localhost URLs when PYLON_TRUST_OLLAMA_URL=1', async () => {
-    process.env['PYLON_TRUST_OLLAMA_URL'] = '1';
+  it('allows non-localhost URLs when UPLNK_TRUST_OLLAMA_URL=1', async () => {
+    process.env['UPLNK_TRUST_OLLAMA_URL'] = '1';
     try {
       fetchSpy.mockResolvedValue(
         makeFetchResponse({ models: [{ name: 'nomic-embed-text:latest' }] }),
@@ -168,7 +168,7 @@ describe('probeOllamaEmbedder — success path', () => {
         expect.any(Object),
       );
     } finally {
-      delete process.env['PYLON_TRUST_OLLAMA_URL'];
+      delete process.env['UPLNK_TRUST_OLLAMA_URL'];
     }
   });
 });

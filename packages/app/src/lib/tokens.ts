@@ -18,7 +18,7 @@
 
 /**
  * Raw hex strings for use as Ink `color` / `borderColor` prop values.
- * Two variants per token: dark (default) and light (PYLON_THEME=light).
+ * Two variants per token: dark (default) and light (UPLNK_THEME=light).
  */
 export const hex = {
   // Brand
@@ -55,7 +55,7 @@ export const hex = {
 
 // ─── Theme-resolved color tokens ─────────────────────────────────────────────
 
-const LIGHT_THEME = process.env['PYLON_THEME'] === 'light';
+const LIGHT_THEME = process.env['UPLNK_THEME'] === 'light';
 
 function resolve<K extends { dark: string; light: string }>(token: K): string {
   return LIGHT_THEME ? token.light : token.dark;
@@ -63,7 +63,7 @@ function resolve<K extends { dark: string; light: string }>(token: K): string {
 
 /**
  * Theme-resolved flat color tokens — always a string, ready for Ink color props.
- * These resolve at module load time based on PYLON_THEME.
+ * These resolve at module load time based on UPLNK_THEME.
  */
 export const color = {
   primary:        resolve(hex.primary),

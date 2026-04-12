@@ -16,15 +16,15 @@ import { mkdtempSync, rmSync, writeFileSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 
-// ─── Mock pylon-db so tests control the pylonDir ─────────────────────────────
+// ─── Mock uplnk-db so tests control the pylonDir ─────────────────────────────
 // Per-file vi.mock takes precedence over the global setup.ts stub.
 
-vi.mock('pylon-db', () => ({
+vi.mock('@uplnk/db', () => ({
   db: {},
-  getPylonDir: vi.fn(() => '/tmp/pylon-secrets-test-default/.pylon'),
+  getPylonDir: vi.fn(() => '/tmp/uplnk-secrets-test-default/.uplnk'),
 }));
 
-import { getPylonDir } from 'pylon-db';
+import { getPylonDir } from '@uplnk/db';
 import {
   SECRET_REF_PREFIX,
   isSecretRef,
@@ -237,6 +237,7 @@ describe('EncryptedFileBackend', () => {
 
     new __EncryptedFileBackendForTests(tmpDir);
 
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
     const files = require('node:fs').readdirSync(tmpDir) as string[];
     const hasBackup = files.some((f: string) => f.startsWith('secrets.enc.corrupt-'));
     expect(hasBackup).toBe(true);
