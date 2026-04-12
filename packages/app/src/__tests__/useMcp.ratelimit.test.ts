@@ -1,5 +1,5 @@
 /**
- * useMcp — BC-5 rate limiting tests (FINDING-008 MEDIUM)
+ * useMcp —
  *
  * Tests the per-conversation tool call counter:
  *  - Normal calls pass through when under the limit
@@ -86,7 +86,7 @@ import { useMcp, MAX_TOOL_CALLS_PER_CONVERSATION } from '../hooks/useMcp.js';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-const tick = () => new Promise<void>((r) => setImmediate(r));
+const tick = () => new Promise<void>((r) => setImmediate(() => setImmediate(r)));
 
 /**
  * Wait for the tools map to be populated (after the async connect+enumerate cycle).
@@ -152,7 +152,7 @@ function renderHook(initialOptions: HookOptions = {}): {
 
 // ─── Tests ────────────────────────────────────────────────────────────────────
 
-describe('useMcp — BC-5 rate limiting', () => {
+describe('useMcp — rate limiting', () => {
   beforeEach(() => {
     mcpManagerMocks.fakeExecute.mockReset();
     mcpManagerMocks.fakeExecute.mockImplementation(async () => 'ok');

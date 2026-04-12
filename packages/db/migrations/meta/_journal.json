@@ -22,6 +22,13 @@
       "when": 1744502400000,
       "tag": "0002_rag_chunks",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "6",
+      "when": 1776000000000,
+      "tag": "0003_provider_auth",
+      "breakpoints": true
     }
   ]
 }

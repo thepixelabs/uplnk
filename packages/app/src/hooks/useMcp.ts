@@ -21,6 +21,7 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { McpManager } from '../lib/mcp/McpManager.js';
 import { createDefaultPolicy } from '../lib/mcp/security.js';
+import { loadPluginConfigs } from '../lib/plugins/loader.js';
 import type { McpServerConfig } from '../lib/mcp/McpManager.js';
 import type { ApprovalRequest } from '../components/mcp/ApprovalDialog.js';
 import type { Tool } from 'ai';
@@ -28,7 +29,7 @@ import type { Tool } from 'ai';
 // ─── Rate limiting ────────────────────────────────────────────────────────────
 
 /**
- * BC-5 (FINDING-008): Maximum number of MCP tool calls allowed per conversation.
+ *: Maximum number of MCP tool calls allowed per conversation.
  * Prevents runaway LLM loops from issuing unbounded tool calls in a single session.
  */
 export const MAX_TOOL_CALLS_PER_CONVERSATION = 100;
@@ -82,13 +83,55 @@ function loadMcpJson(repoRoot: string): McpServerConfig[] {
   }
 }
 
+/**
+ * Merge MCP server lists from three user sources: config.json (team-wide),
+ * installed plugins (community), and .mcp.json (project-local). Last write
+ * wins on id collision, so the precedence chain is:
+ *
+ *     config.json  <  plugins  <  .mcp.json
+ *
+ * Project-local `.mcp.json` is the highest-precedence source because a
+ * project maintainer's explicit config must always win over a globally
+ * installed plugin with the same id (otherwise a rogue plugin could shadow
+ * a project's intended server). Plugins in turn override team-wide
+ * config.json so a user opting in to a plugin gets the plugin's version.
+ *
+ * Built-in ids (`__uplnk_builtin_*`) are hard-rejected from ALL sources.
+ */
+export function mergeMcpConfigs(
+  fromConfig: McpServerConfig[],
+  fromMcpJson: McpServerConfig[],
+  fromPlugins: McpServerConfig[],
+): { configs: McpServerConfig[]; warnings: string[] } {
+  const byId = new Map<string, McpServerConfig>();
+  const warnings: string[] = [];
+  const sources: Array<{ label: string; list: McpServerConfig[] }> = [
+    { label: 'config.json', list: fromConfig },
+    { label: 'plugin', list: fromPlugins },
+    { label: '.mcp.json', list: fromMcpJson },
+  ];
+  for (const { label, list } of sources) {
+    for (const cfg of list) {
+      if (cfg.id.startsWith('__uplnk_builtin_')) {
+        warnings.push(`[mcp] ${label} server '${cfg.id}' uses a reserved builtin id — skipped`);
+        continue;
+      }
+      if (byId.has(cfg.id)) {
+        warnings.push(`[mcp] duplicate server id '${cfg.id}' — ${label} overrides earlier source`);
+      }
+      byId.set(cfg.id, cfg);
+    }
+  }
+  return { configs: Array.from(byId.values()), warnings };
+}
+
 // ─── Hook ─────────────────────────────────────────────────────────────────────
 
 interface UseMcpOptions {
   allowedPaths: string[];
   commandExecEnabled: boolean;
   /**
-   * BC-3 (FINDING-004): commandExecEnabled is only honoured when this is a
+   *: commandExecEnabled is only honoured when this is a
    * valid ISO timestamp set by `uplnk config --confirm-command-exec`.
    * When absent, command execution is disabled regardless of the flag value.
    */
@@ -106,10 +149,15 @@ interface UseMcpOptions {
   /** Repo root directory used to locate .mcp.json. Defaults to process.cwd(). */
   repoRoot?: string;
   /**
-   * BC-5 (FINDING-008): Current conversation ID — used to reset the per-
+   *: Current conversation ID — used to reset the per-
    * conversation tool call counter when a new conversation starts.
    */
   conversationId?: string;
+  /**
+   * User-configured MCP servers from `config.mcp.servers`. Merged with
+   * `.mcp.json` (project-local) and installed plugins before connecting.
+   */
+  configServers?: McpServerConfig[];
 }
 
 export interface UseMcpResult {
@@ -127,8 +175,9 @@ export function useMcp({
   ragEmbedConfig,
   repoRoot = process.cwd(),
   conversationId,
+  configServers = [],
 }: UseMcpOptions): UseMcpResult {
-  // BC-3 (FINDING-004): command execution requires BOTH the feature flag AND
+  //: command execution requires BOTH the feature flag AND
   // an explicit interactive confirmation timestamp. A config file dropped
   // silently (e.g. by a postinstall script) cannot enable command execution.
   const isCommandExecConfirmed =
@@ -143,7 +192,7 @@ export function useMcp({
   // only changes when a new async tool enumeration completes.
   const [toolMap, setToolMap] = useState<Record<string, Tool>>({});
 
-  // BC-5 (FINDING-008): per-conversation tool call counter. Starts at 0 on mount
+  //: per-conversation tool call counter. Starts at 0 on mount
   // and is reset whenever the conversationId prop changes (new conversation).
   // In-memory only — intentionally not persisted to the DB.
   const toolCallCountRef = useRef<number>(0);
@@ -211,14 +260,25 @@ export function useMcp({
     async function connectAndLoadTools(): Promise<void> {
       if (manager === null) return;
 
-      // Connect to built-in child-process servers (file-browse, optionally
-      // command-exec) and user-configured .mcp.json servers in parallel.
-      // C3 fix — arch-critical-fixes Phase 4: built-in tools run as stdio
-      // child processes for crash isolation (ADR-004).
-      const serverConfigs = loadMcpJson(repoRoot);
+      // Merge three user-owned MCP server sources: global config.json
+      // `mcp.servers`, project-local `.mcp.json`, and installed plugins.
+      // Built-ins are always connected in parallel. Merge collisions are
+      // warned to stderr but not fatal — later sources override earlier.
+      const fromMcpJson = loadMcpJson(repoRoot);
+      let fromPlugins: McpServerConfig[] = [];
+      try {
+        fromPlugins = loadPluginConfigs();
+      } catch {
+        // Corrupted ~/.uplnk/plugins directory must not break MCP startup.
+      }
+      const merged = mergeMcpConfigs(configServers, fromMcpJson, fromPlugins);
+      for (const warn of merged.warnings) {
+        console.warn(warn);
+      }
+
       await Promise.allSettled([
         manager.connectBuiltins().catch(() => undefined),
-        ...serverConfigs.map((cfg) => manager.connect(cfg).catch(() => undefined)),
+        ...merged.configs.map((cfg) => manager.connect(cfg).catch(() => undefined)),
       ]);
 
       if (cancelled) return;
@@ -237,7 +297,7 @@ export function useMcp({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []); // intentionally run once on mount only
 
-  // BC-5: Reset the tool call counter whenever a new conversation starts.
+  //
   useEffect(() => {
     toolCallCountRef.current = 0;
   }, [conversationId]);
@@ -245,7 +305,7 @@ export function useMcp({
   // Gap 4: Stabilise the tools reference. useMemo returns the same object
   // identity until toolMap itself is replaced by setToolMap — callers like
   // useStream only re-render when the tool set actually changes.
-  // BC-5: Wrap each tool's execute() with a rate-limit check so no single
+  // with a rate-limit check so no single
   // conversation can issue more than MAX_TOOL_CALLS_PER_CONVERSATION calls.
   const tools = useMemo((): Record<string, Tool> => {
     const limited: Record<string, Tool> = {};

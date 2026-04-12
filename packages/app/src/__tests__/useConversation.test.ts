@@ -139,7 +139,7 @@ function renderHook(resumeId?: string): {
 }
 
 /** Drain the microtask queue so Ink's async state updates commit. */
-const tick = () => new Promise<void>((r) => setImmediate(r));
+const tick = () => new Promise<void>((r) => setImmediate(() => setImmediate(r)));
 
 // ─── Tests ────────────────────────────────────────────────────────────────────
 

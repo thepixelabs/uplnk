@@ -1,11 +1,11 @@
 /**
- * System prompt templates — built-in personas for different workflows.
+ * Roles — built-in personas for different workflows.
  *
- * Templates are selected via the `/template` command in ChatInput.
- * User-defined templates are stored in config and merged at runtime.
+ * Roles are selected via the `/role` command in ChatInput.
+ * User-defined roles are stored in config and merged at runtime.
  */
 
-export interface SystemPromptTemplate {
+export interface Role {
   id: string;
   name: string;
   description: string;
@@ -13,7 +13,7 @@ export interface SystemPromptTemplate {
   icon: string;
 }
 
-export const BUILT_IN_TEMPLATES: SystemPromptTemplate[] = [
+export const BUILT_IN_ROLES: Role[] = [
   {
     id: 'code-reviewer',
     name: 'Code Reviewer',
@@ -102,11 +102,11 @@ Consider operational concerns: monitoring, deployment, rollback.`,
   },
 ];
 
-export function getTemplate(id: string): SystemPromptTemplate | undefined {
-  return BUILT_IN_TEMPLATES.find((t) => t.id === id);
+export function getRole(id: string): Role | undefined {
+  return BUILT_IN_ROLES.find((t) => t.id === id);
 }
 
-export function getDefaultTemplate(): SystemPromptTemplate | undefined {
+export function getDefaultRole(): Role | undefined {
   // No default — blank slate unless user selects one
   return undefined;
 }

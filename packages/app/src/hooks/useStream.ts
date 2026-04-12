@@ -7,6 +7,7 @@ import { toUplnkError } from '../lib/errors.js';
 export type StreamStatus =
   | 'idle'
   | 'connecting'
+  | 'waiting'      // stream open, waiting for first token
   | 'streaming'
   | 'tool-running'
   | 'done'
@@ -69,6 +70,8 @@ export function useStream(model: LanguageModel): UseStreamResult {
   const accumulatedTextRef = useRef('');
   const flushTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const persistTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  // Tracks whether the first text-delta has arrived so we only call setStatus once.
+  const firstTokenRef = useRef(false);
 
   const stopFlushTimer = useCallback(() => {
     if (flushTimerRef.current !== null) {
@@ -94,6 +97,7 @@ export function useStream(model: LanguageModel): UseStreamResult {
 
       streamBufferRef.current = '';
       accumulatedTextRef.current = '';
+      firstTokenRef.current = false;
       setStreamedText('');
       setActiveToolName(null);
       setStatus('connecting');
@@ -114,7 +118,8 @@ export function useStream(model: LanguageModel): UseStreamResult {
           maxSteps: 5,
         });
 
-        setStatus('streaming');
+        // Stream is open but no tokens yet — show 'waiting' until first text-delta.
+        setStatus('waiting');
 
         // Start the UI flush interval. It appends whatever has been buffered
         // since the last tick in one setState, producing at most ~30 React
@@ -142,6 +147,11 @@ export function useStream(model: LanguageModel): UseStreamResult {
 
           switch (event.type) {
             case 'text-delta':
+              // Transition from 'waiting' to 'streaming' on first token arrival.
+              if (!firstTokenRef.current) {
+                firstTokenRef.current = true;
+                setStatus('streaming');
+              }
               // Accumulate text tokens in both the UI buffer and the persist ref
               streamBufferRef.current += event.textDelta;
               accumulatedTextRef.current += event.textDelta;

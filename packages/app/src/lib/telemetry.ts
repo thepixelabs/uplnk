@@ -10,8 +10,6 @@
  * flush logic ship in a follow-up PR once the CF Worker ingestion endpoint is
  * live. Call sites can be wired today — they will silently do nothing until
  * the transport is activated.
- *
- * Full spec: internal-doc/telemetry-design.md
  */
 
 import { randomUUID } from 'node:crypto';
@@ -101,7 +99,7 @@ export interface TelemetryEnvelope {
   uplnk_version: string;   // semver from package.json
   os_platform: string;     // process.platform — "darwin" | "linux"
   node_version: string;    // process.versions.node
-  model_name: string;      // normalized — see telemetry-design.md §4.2
+  model_name: string;      // normalized
   properties: Record<string, unknown>;
 }
 
@@ -128,7 +126,6 @@ const _buffer: TelemetryEvent[] = [];
 
 // ─── Normalise Model Name ─────────────────────────────────────────────────────
 // Strip private quantization suffixes while keeping public ones.
-// See telemetry-design.md §4.2 for full rationale.
 
 const KNOWN_SUFFIXES = new Set([
   '8b', '13b', '70b', '7b', '3b', '1b', 'latest',

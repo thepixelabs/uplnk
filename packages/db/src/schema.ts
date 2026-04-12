@@ -29,13 +29,21 @@ export const providerConfigs = sqliteTable(
     apiKey: text('api_key'),
     defaultModel: text('default_model'),
     isDefault: integer('is_default', { mode: 'boolean' }).notNull().default(false),
+    authMode: text('auth_mode').notNull().default('none'),
+    lastTestedAt: text('last_tested_at'),
+    lastTestStatus: text('last_test_status'),
+    lastTestDetail: text('last_test_detail'),
     createdAt: text('created_at').notNull().default(isoTimestamp()),
     updatedAt: text('updated_at').notNull().default(isoTimestamp()),
   },
   (table) => [
     check(
       'provider_type_check',
-      sql`${table.providerType} IN ('ollama', 'vllm', 'lmstudio', 'localai', 'llama-cpp', 'custom')`,
+      sql`${table.providerType} IN ('ollama', 'openai-compatible', 'lmstudio', 'vllm', 'localai', 'llama-cpp', 'anthropic', 'openai', 'custom')`,
+    ),
+    check(
+      'auth_mode_check',
+      sql`${table.authMode} IN ('none', 'api-key', 'bearer')`,
     ),
   ],
 );

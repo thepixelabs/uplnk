@@ -41,7 +41,7 @@ interface UpdateCheckCache {
 
 const CACHE_PATH = join(homedir(), '.uplnk', 'update-check.json');
 const CHECK_INTERVAL_MS = 24 * 60 * 60 * 1000; // 24 hours
-const NPM_REGISTRY_TIMEOUT_MS = 3000;
+const NPM_REGISTRY_TIMEOUT_MS = 2000;
 
 function getCurrentVersion(): string {
   const require = createRequire(import.meta.url);

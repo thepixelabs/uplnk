@@ -25,7 +25,7 @@ export const StreamingMessage = memo(function StreamingMessage({ text, status }:
   // Spinner frame index — only advances while status === 'connecting'.
   const [spinnerFrame, setSpinnerFrame] = useState(0);
   useEffect(() => {
-    if (status !== 'connecting') return;
+    if (status !== 'connecting' && status !== 'waiting') return;
     const id = setInterval(() => {
       setSpinnerFrame(f => (f + 1) % SPINNER_FRAMES.length);
     }, 80);
@@ -46,7 +46,8 @@ export const StreamingMessage = memo(function StreamingMessage({ text, status }:
     return <Box marginY={1} />;
   }
 
-  if (status === 'connecting') {
+  if (status === 'connecting' || status === 'waiting') {
+    const label = status === 'connecting' ? 'connecting…' : 'waiting for model…';
     return (
       <Box flexDirection="column" marginY={1}>
         <Box>
@@ -55,7 +56,7 @@ export const StreamingMessage = memo(function StreamingMessage({ text, status }:
         <Box>
           <Text color="#1E40AF" dimColor>{'│ '}</Text>
           <Text color="yellow">{SPINNER_FRAMES[spinnerFrame]} </Text>
-          <Text dimColor>connecting…</Text>
+          <Text dimColor>{label}</Text>
         </Box>
       </Box>
     );
@@ -65,6 +66,15 @@ export const StreamingMessage = memo(function StreamingMessage({ text, status }:
   // the token flush at low cost; the final committed message in MessageList
   // will have full markdown + syntax highlight applied.
   const isStreaming = status === 'streaming';
+
+  // Detect models that output a raw function-call JSON blob instead of
+  // answering conversationally.  Shape: { "name": "...", "arguments": ... }
+  // at the root of the response text (optional leading/trailing whitespace).
+  const isHallucinatedToolCall =
+    !isStreaming &&
+    text.trim().startsWith('{') &&
+    /^\s*\{\s*"name"\s*:/.test(text) &&
+    /"arguments"\s*:/.test(text);
 
   return (
     <Box flexDirection="column" marginY={1}>
@@ -80,6 +90,12 @@ export const StreamingMessage = memo(function StreamingMessage({ text, status }:
                 {text}
               </Text>
               <Text color="cyan">{cursorOn ? '▋' : ' '}</Text>
+            </Box>
+          ) : isHallucinatedToolCall ? (
+            <Box flexDirection="column">
+              <Text color="yellow">⚠ Model returned a raw function call instead of text.</Text>
+              <Text dimColor>  This model may not support tool calling. Try /model to switch,</Text>
+              <Text dimColor>  or ask again — the model may self-correct.</Text>
             </Box>
           ) : (
             <MarkdownMessage text={text} />

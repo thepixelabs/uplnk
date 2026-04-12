@@ -6,3 +6,20 @@ dist
 .uplnk
 *.db-shm
 *.db-wal
+
+# Agents & Tools
+.claude/
+.gemini/
+.copilot/
+.tasks/
+.mcp.json
+packages/app/src/lib/mcp/security-fixes.md
+
+# IDE & OS
+.vscode/
+.idea/
+.DS_Store
+*.log
+.env
+.env.*
+!.env.example

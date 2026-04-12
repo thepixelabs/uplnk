@@ -25,7 +25,7 @@ import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js';
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
 import { jsonSchema, type Tool } from 'ai';
-import { appendFileSync, mkdirSync } from 'node:fs';
+import { appendFileSync, mkdirSync, statSync, renameSync, existsSync, unlinkSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { validateFilePath, validateCommand, validateFileSize } from './security.js';
@@ -57,7 +57,7 @@ export const BUILTIN_RAG_ID = '__uplnk_builtin_rag__';
  *   contain secrets. The audit log itself could be read by an attacker who gains
  *   local filesystem access — keep it metadata-only.
  *
- * BC-6 — resolves FINDING-007 (MEDIUM): No MCP tool call audit log.
+ *: No MCP tool call audit log.
  */
 export interface AuditEntry {
   ts: string; // ISO 8601
@@ -184,10 +184,43 @@ export class McpManager {
    * This method MUST NEVER throw. Audit failures are swallowed and written to
    * stderr so they do not block the tool approval gate or execution path.
    *
-   * BC-6 — resolves FINDING-007 (MEDIUM): No MCP tool call audit log.
+   *: No MCP tool call audit log.
    */
+  /**
+   * Maximum size of the audit log before it gets rotated, in bytes.
+   * 10 MB keeps ~30 days of heavy use in one file and fits comfortably in
+   * small `/home` partitions (Marcus's air-gapped cluster requirement).
+   */
+  private static readonly AUDIT_LOG_MAX_BYTES = 10 * 1024 * 1024;
+
+  /**
+   * Rotate the audit log when it exceeds AUDIT_LOG_MAX_BYTES. We keep
+   * exactly one backup (`.1`) and clobber the previous backup on each
+   * rotation — enough for forensics, bounded for disk usage.
+   *
+   * This runs synchronously before every append so rotation is race-free
+   * across concurrent uplnk processes sharing the same log file: worst
+   * case two processes both rotate and overwrite .1, which is acceptable.
+   */
+  private rotateAuditLogIfNeeded(): void {
+    try {
+      const stat = statSync(this.auditLogPath);
+      if (stat.size < McpManager.AUDIT_LOG_MAX_BYTES) return;
+      const backupPath = `${this.auditLogPath}.1`;
+      if (existsSync(backupPath)) {
+        try { unlinkSync(backupPath); } catch { /* ignore */ }
+      }
+      renameSync(this.auditLogPath, backupPath);
+    } catch {
+      // File missing → nothing to rotate. Any other error is swallowed
+      // because logToolCall must never throw; the next append will create
+      // a fresh file.
+    }
+  }
+
   private logToolCall(entry: AuditEntry): void {
     try {
+      this.rotateAuditLogIfNeeded();
       const line = JSON.stringify(entry) + '\n';
       appendFileSync(this.auditLogPath, line, { encoding: 'utf-8', flag: 'a' });
     } catch (err) {

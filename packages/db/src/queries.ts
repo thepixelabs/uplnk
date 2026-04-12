@@ -46,6 +46,48 @@ export function listConversations(db: Db): Conversation[] {
     .all();
 }
 
+/**
+ * Search conversations by free-text match across title AND message content.
+ *
+ * Empty / whitespace-only query behaves identically to `listConversations`.
+ * Non-empty query: returns conversations whose title matches OR whose id
+ * appears in any message whose content matches. Naive LIKE with `%` escape —
+ * fine up to a few hundred conversations / tens of thousands of messages.
+ *
+ * Results are de-duplicated by conversation id, sorted by `updatedAt DESC`,
+ * and capped at `limit` (default 50).
+ */
+export function searchConversations(
+  db: Db,
+  query: string,
+  limit = 50,
+): Conversation[] {
+  const trimmed = query.trim();
+  if (trimmed === '') return listConversations(db);
+
+  // Escape LIKE wildcards so user text "50%" doesn't become a wildcard.
+  const escaped = trimmed.replace(/[\\%_]/g, (c) => `\\${c}`);
+  const pattern = `%${escaped}%`;
+
+  const rows = db
+    .select()
+    .from(conversations)
+    .where(
+      sql`${conversations.deletedAt} IS NULL AND (
+        ${conversations.title} LIKE ${pattern} ESCAPE '\\'
+        OR ${conversations.id} IN (
+          SELECT ${messages.conversationId} FROM ${messages}
+          WHERE ${messages.content} LIKE ${pattern} ESCAPE '\\'
+        )
+      )`,
+    )
+    .orderBy(desc(conversations.updatedAt))
+    .limit(limit)
+    .all();
+
+  return rows;
+}
+
 export function updateConversationTitle(
   db: Db,
   id: string,
@@ -121,9 +163,60 @@ export function upsertProviderConfig(
         apiKey: data.apiKey,
         defaultModel: data.defaultModel,
         isDefault: data.isDefault,
+        authMode: data.authMode,
         updatedAt: new Date().toISOString(),
       },
     })
+    .run();
+}
+
+export function deleteProviderConfig(db: Db, id: string): void {
+  db.delete(providerConfigs).where(eq(providerConfigs.id, id)).run();
+}
+
+/**
+ * Update only the api_key column for a single provider. Used by
+ * `uplnk doctor migrate-secrets` to swap legacy plaintext values for
+ * `@secret:` refs without disturbing the rest of the row.
+ */
+export function setProviderApiKey(db: Db, id: string, apiKey: string | null): void {
+  db.update(providerConfigs)
+    .set({ apiKey, updatedAt: new Date().toISOString() })
+    .where(eq(providerConfigs.id, id))
+    .run();
+}
+
+/**
+ * Promote a provider to default, demoting all others in a single transaction
+ * so the `is_default` column always has exactly one true row.
+ */
+export function setDefaultProvider(db: Db, id: string): void {
+  db.transaction(() => {
+    db.update(providerConfigs).set({ isDefault: false }).run();
+    db.update(providerConfigs)
+      .set({ isDefault: true, updatedAt: new Date().toISOString() })
+      .where(eq(providerConfigs.id, id))
+      .run();
+  });
+}
+
+/**
+ * Record the outcome of a connection test. Purely informational — used to
+ * show the last-known health of a provider in the provider list UI.
+ */
+export function recordProviderTest(
+  db: Db,
+  id: string,
+  status: 'ok' | 'fail',
+  detail: string,
+): void {
+  db.update(providerConfigs)
+    .set({
+      lastTestedAt: new Date().toISOString(),
+      lastTestStatus: status,
+      lastTestDetail: detail,
+    })
+    .where(eq(providerConfigs.id, id))
     .run();
 }
 
@@ -134,6 +227,19 @@ export function getDefaultProvider(
     .select()
     .from(providerConfigs)
     .where(eq(providerConfigs.isDefault, true))
+    .limit(1)
+    .all();
+  return rows[0];
+}
+
+export function getProviderById(
+  db: Db,
+  id: string,
+): ProviderConfig | undefined {
+  const rows = db
+    .select()
+    .from(providerConfigs)
+    .where(eq(providerConfigs.id, id))
     .limit(1)
     .all();
   return rows[0];

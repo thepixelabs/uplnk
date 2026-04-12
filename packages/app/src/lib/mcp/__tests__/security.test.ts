@@ -55,7 +55,7 @@ describe('validateFilePath', () => {
   // which is how readdirSync/statSync return directory paths. Previously these were
   // only blocked when a trailing slash was present, allowing mcp_file_list to enumerate
   // the directory contents.
-  it('denies .ssh directory without trailing slash (regression: FINDING-SSH-DIR)', () => {
+  it('denies .ssh directory without trailing slash (regression:', () => {
     const result = validateFilePath('/home/user/.ssh', policy);
     expect(result.allowed).toBe(false);
   });
@@ -178,7 +178,7 @@ describe('validateCommand', () => {
   });
 });
 
-describe('validateCommand — allowlist (BC-1)', () => {
+describe('validateCommand — allowlist', () => {
   // ── NEVER_ALLOW denials ────────────────────────────────────────────────────
 
   it('permanently blocks bash (NEVER_ALLOW)', () => {

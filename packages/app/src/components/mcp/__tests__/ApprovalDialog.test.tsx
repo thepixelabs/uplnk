@@ -5,12 +5,13 @@ import { ApprovalDialog } from '../ApprovalDialog.js';
 import type { ApprovalRequest } from '../ApprovalDialog.js';
 
 /**
- * One macrotask tick — Ink registers its stdin keypress listener
- * asynchronously after the first render cycle. Awaiting tick() after render()
- * ensures the listener is active before stdin.write() is called, otherwise
- * the first byte is silently dropped.
+ * Two macrotask ticks — Ink registers its stdin keypress listener
+ * asynchronously after the first render cycle, AND the keypress-to-handler
+ * path itself involves another microtask boundary. A single `setImmediate`
+ * is sometimes enough in isolation but loses races when the event loop is
+ * busy (full-suite runs). Double-ticking is stable.
  */
-const tick = () => new Promise<void>((r) => setImmediate(r));
+const tick = () => new Promise<void>((r) => setImmediate(() => setImmediate(r)));
 
 const mockRequest: ApprovalRequest = {
   id: 'req-001',

@@ -4,4 +4,4 @@ export { runMigrations } from './migrate.js';
 export * from './schema.js';
 export * from './queries.js';
 // Re-export schema-v05 types for forward-compat usage
-export type { Project, SystemPromptTemplate } from './schema-v05.js';
+export type { Project, Role } from './schema-v05.js';
