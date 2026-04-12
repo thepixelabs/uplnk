@@ -108,6 +108,7 @@ const { values, positionals } = parseArgs({
     version:                 { type: 'boolean', short: 'v' },
     plugin:                  { type: 'string' },
     'confirm-command-exec':  { type: 'boolean' },
+    'confirm-subnet':        { type: 'boolean' },
   },
   allowPositionals: true,
 });
@@ -221,10 +222,41 @@ if (subcommand === 'config') {
     process.exit(0);
   }
 
+  if (values['confirm-subnet'] === true) {
+    // Stamps networkScanner.subnetConfirmedAt so subnet scans are allowed.
+    // Mirrors the --confirm-command-exec pattern: the timestamp acts as a
+    // consent token that a silently-dropped config file cannot forge.
+    const { getOrCreateConfig: getConfig, saveConfig } = await import('../src/lib/config.js');
+    const cfgResult = getConfig();
+    if (!cfgResult.ok) {
+      process.stderr.write(
+        `\nuplnk: CONFIG_INVALID — ${cfgResult.error}\n` +
+        `Fix or delete ~/.uplnk/config.json and try again.\n\n`,
+      );
+      process.exit(1);
+    }
+    const cfg = cfgResult.config;
+    const confirmedAt = new Date().toISOString();
+    const updatedConfig = {
+      ...cfg,
+      networkScanner: {
+        ...cfg.networkScanner,
+        subnetConfirmedAt: confirmedAt,
+      },
+    };
+    saveConfig(updatedConfig);
+    process.stdout.write(
+      `\nuplnk: subnet scanning confirmed at ${confirmedAt}\n` +
+      `Subnet scanning is now enabled. You can use /scan subnet in the chat.\n\n`,
+    );
+    process.exit(0);
+  }
+
   // Unknown config flag
   process.stderr.write(
     `uplnk config: unknown option. Available options:\n` +
-    `  --confirm-command-exec   Confirm interactive consent for mcp.commandExecEnabled\n`,
+    `  --confirm-command-exec   Confirm interactive consent for mcp.commandExecEnabled\n` +
+    `  --confirm-subnet         Confirm interactive consent for subnet scanning\n`,
   );
   process.exit(1);
 }
@@ -232,7 +264,7 @@ if (subcommand === 'config') {
 // ─── Plugin commands (one-shot, no TUI) ──────────────────────────────────────
 if (values.plugin !== undefined) {
   const { join } = await import('node:path');
-  const { getUplnkDir } = await import('uplnk-db');
+  const { getUplnkDir } = await import('@uplnk/db');
   const { PluginRegistry, PluginManifestSchema } = await import(
     '../src/lib/plugins/registry.js'
   );
