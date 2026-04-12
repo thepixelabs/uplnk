@@ -1,0 +1,71 @@
+name: Security
+
+on:
+  pull_request:
+    branches:
+      - main
+  schedule:
+    # Every Monday at 08:00 UTC.
+    - cron: "0 8 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  security-events: write  # required to upload SARIF results
+
+jobs:
+  audit:
+    name: pnpm audit
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9.15.0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Run pnpm audit
+        # --audit-level=high: fail only on high/critical; moderate advisories are
+        # captured but should not block PRs.  Tighten to "moderate" once the
+        # advisory backlog is cleared.
+        run: pnpm audit --audit-level=high
+
+  osv-scan:
+    name: OSV Scanner
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Run OSV Scanner
+        uses: google/osv-scanner-action@v2
+        with:
+          # osv-scanner.toml lives at the repo root.  It declares vulnerability
+          # suppressions with documented reasons — see chatty repo pattern.
+          scan-args: |-
+            --config=osv-scanner.toml
+            --format=sarif
+            --output=osv-results.sarif
+            --recursive
+            .
+        continue-on-error: true  # upload SARIF even when vulnerabilities are found
+
+      - name: Upload SARIF results to GitHub Security tab
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: osv-results.sarif
+          category: osv-scanner

@@ -6,6 +6,7 @@ import {
   sqliteTable,
   text,
   integer,
+  blob,
   index,
   check,
 } from 'drizzle-orm/sqlite-core';
@@ -118,6 +119,34 @@ export const artifacts = sqliteTable(
   ],
 );
 
+// ─── RAG Chunks ────────────────────────────────────────────────────────────────
+
+/**
+ * RAG chunk storage — each row stores one text chunk of a source file along
+ * with its vector embedding (serialised Float32Array as a BLOB).
+ *
+ * Embedding dimensions are NOT fixed — they vary by model. The BLOB length
+ * divided by 4 gives the number of Float32 values.
+ *
+ * indexed_at: ISO-8601 timestamp of when this chunk was last written.
+ */
+export const ragChunks = sqliteTable(
+  'rag_chunks',
+  {
+    id: text('id').primaryKey(),
+    filePath: text('file_path').notNull(),
+    chunkIndex: integer('chunk_index').notNull(),
+    content: text('content').notNull(),
+    /** Serialised Float32Array — null when embedding is not yet generated. */
+    embedding: blob('embedding', { mode: 'buffer' }),
+    indexedAt: text('indexed_at').notNull(),
+  },
+  (table) => [
+    index('rag_chunks_file_path_idx').on(table.filePath),
+    index('rag_chunks_file_chunk_idx').on(table.filePath, table.chunkIndex),
+  ],
+);
+
 // ─── Inferred types ────────────────────────────────────────────────────────────
 
 export type ProviderConfig = typeof providerConfigs.$inferSelect;
@@ -131,3 +160,6 @@ export type NewMessage = typeof messages.$inferInsert;
 
 export type Artifact = typeof artifacts.$inferSelect;
 export type NewArtifact = typeof artifacts.$inferInsert;
+
+export type RagChunk = typeof ragChunks.$inferSelect;
+export type NewRagChunk = typeof ragChunks.$inferInsert;

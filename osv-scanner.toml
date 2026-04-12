@@ -1,0 +1,8 @@
+# OSV Scanner configuration
+# Add vulnerability IDs here to suppress false positives.
+# Document why each entry is ignored.
+#
+# Example:
+# [[IgnoredVulns]]
+# id = "GHSA-xxxx-xxxx-xxxx"
+# reason = "Only affects Windows builds; Uplnk targets macOS/Linux"

@@ -1,0 +1,29 @@
+# Source — compiled output in bin/ and dist/ replaces these at runtime
+src/
+
+# TypeScript source for the binary — the compiled bin/uplnk.js is what ships
+bin/*.ts
+bin/*.d.ts
+
+# TypeScript project config
+tsconfig.json
+tsup.config.ts
+vitest.config.ts
+vitest.integration.config.ts
+
+# Test infrastructure
+**/*.test.ts
+**/*.test.js
+**/*.spec.ts
+**/*.spec.js
+**/__tests__/
+**/__mocks__/
+
+# Dev tooling config
+.eslintrc*
+eslint.config.*
+.prettierrc*
+.husky/
+
+# Local crash log (never created before publish, but just in case)
+/tmp/uplnk-crash.log
