@@ -56,7 +56,7 @@ vi.mock('node:fs', async (importOriginal) => {
     ...actual,
     statSync: (...args: unknown[]) => mockStatSync(...args),
     realpathSync: (p: string) => p, // identity — no real FS in unit tests
-    mkdirSync: vi.fn(),             // suppress ~/.pylon mkdir in constructor
+    mkdirSync: vi.fn(),             // suppress ~/.uplnk mkdir in constructor
     appendFileSync: vi.fn(),        // suppress audit log writes in tests
   };
 });
@@ -309,12 +309,12 @@ describe('McpManager', () => {
       });
     });
 
-    it('constructs Client with pylon identity and tool capabilities', async () => {
+    it('constructs Client with uplnk identity and tool capabilities', async () => {
       const mgr = makeManager();
       await mgr.connect(SERVER_CONFIG);
 
       expect(Client).toHaveBeenCalledWith(
-        { name: 'pylon', version: '0.1.0' },
+        { name: 'uplnk', version: '0.3.0' },
         { capabilities: {} },
       );
     });

@@ -7,7 +7,7 @@ import { join } from 'node:path';
 import { homedir } from 'node:os';
 import { App } from '../src/index.js';
 import { WORDMARK } from '../src/lib/colors.js';
-import { runMigrations } from 'pylon-db';
+import { runMigrations } from '@uplnk/db';
 
 // ─── IPv4-first global fetch dispatcher ──────────────────────────────────────
 // Node's undici-based fetch tries addresses in DNS return order. When a
@@ -73,14 +73,14 @@ import { runMigrations } from 'pylon-db';
   setGlobalDispatcher(new Agent({ connect: { lookup: ipv4FirstLookup, autoSelectFamily: false } }));
 }
 
-// Crash log lives in the user's private `~/.pylon` directory, NOT in
+// Crash log lives in the user's private `~/.uplnk` directory, NOT in
 // `/tmp`. `/tmp` is world-writable on POSIX systems, which opens a
 // symlink-race / local-information-disclosure class of attacks on
-// multi-user machines. `~/.pylon` is created by getOrCreateConfig()
+// multi-user machines. `~/.uplnk` is created by getOrCreateConfig()
 // with inherited umask (typically 0o700 via the parent mkdir below)
-// and is already our single source of truth for per-user Pylon state.
-const CRASH_LOG_PATH = join(homedir(), '.pylon', 'crash.log');
-try { mkdirSync(join(homedir(), '.pylon'), { recursive: true, mode: 0o700 }); } catch { /* handled below */ }
+// and is already our single source of truth for per-user uplnk state.
+const CRASH_LOG_PATH = join(homedir(), '.uplnk', 'crash.log');
+try { mkdirSync(join(homedir(), '.uplnk'), { recursive: true, mode: 0o700 }); } catch { /* handled below */ }
 
 // Synchronous handlers so nothing is missed regardless of crash type.
 const logCrash = (label: string, err: unknown) => {
@@ -126,7 +126,7 @@ if (values.help) {
 ${WORDMARK}  —  terminal LLM developer assistant
 
 USAGE
-  pylon [command] [options]
+  uplnk [command] [options]
 
 COMMANDS
   chat                          Start or resume a conversation (default)
@@ -156,19 +156,19 @@ OPTIONS
 const [subcommand] = positionals;
 
 if (subcommand === 'doctor') {
-  // `pylon doctor migrate-secrets` and `pylon doctor prune-secrets` are
-  // sub-subcommands taken from the next positional. The plain `pylon doctor`
+  // `uplnk doctor migrate-secrets` and `uplnk doctor prune-secrets` are
+  // sub-subcommands taken from the next positional. The plain `uplnk doctor`
   // form runs the original 4-check preflight. An UNKNOWN action exits with
   // an explicit error so a typo doesn't silently run the wrong command
-  // (e.g. `pylon doctor purge-secrets` should fail loudly, not run the
+  // (e.g. `uplnk doctor purge-secrets` should fail loudly, not run the
   // 4-check preflight and exit 0).
   const action = positionals[1];
   const KNOWN_DOCTOR_ACTIONS = new Set(['migrate-secrets', 'prune-secrets']);
   if (action !== undefined && !KNOWN_DOCTOR_ACTIONS.has(action)) {
     process.stderr.write(
-      `pylon: unknown doctor action '${action}'.\n` +
+      `uplnk: unknown doctor action '${action}'.\n` +
       `       Valid actions: ${Array.from(KNOWN_DOCTOR_ACTIONS).join(', ')}\n` +
-      `       Run 'pylon doctor' (no arguments) for the standard preflight checks.\n`,
+      `       Run 'uplnk doctor' (no arguments) for the standard preflight checks.\n`,
     );
     process.exit(1);
   }
@@ -198,8 +198,8 @@ if (subcommand === 'config') {
     const cfgResult = getConfig();
     if (!cfgResult.ok) {
       process.stderr.write(
-        `\npylon: CONFIG_INVALID — ${cfgResult.error}\n` +
-        `Fix or delete ~/.pylon/config.json and try again.\n\n`,
+        `\nuplnk: CONFIG_INVALID — ${cfgResult.error}\n` +
+        `Fix or delete ~/.uplnk/config.json and try again.\n\n`,
       );
       process.exit(1);
     }
@@ -215,7 +215,7 @@ if (subcommand === 'config') {
     };
     saveConfig(updatedConfig);
     process.stdout.write(
-      `\npylon: commandExecEnabled confirmed at ${confirmedAt}\n` +
+      `\nuplnk: commandExecEnabled confirmed at ${confirmedAt}\n` +
       `Command execution is now enabled.\n\n`,
     );
     process.exit(0);
@@ -223,7 +223,7 @@ if (subcommand === 'config') {
 
   // Unknown config flag
   process.stderr.write(
-    `pylon config: unknown option. Available options:\n` +
+    `uplnk config: unknown option. Available options:\n` +
     `  --confirm-command-exec   Confirm interactive consent for mcp.commandExecEnabled\n`,
   );
   process.exit(1);
@@ -232,7 +232,7 @@ if (subcommand === 'config') {
 // ─── Plugin commands (one-shot, no TUI) ──────────────────────────────────────
 if (values.plugin !== undefined) {
   const { join } = await import('node:path');
-  const { getPylonDir } = await import('pylon-db');
+  const { getPylonDir } = await import('uplnk-db');
   const { PluginRegistry, PluginManifestSchema } = await import(
     '../src/lib/plugins/registry.js'
   );
@@ -262,14 +262,14 @@ if (values.plugin !== undefined) {
 
   if (pluginAction === 'remove') {
     if (pluginArg === undefined) {
-      process.stderr.write('Usage: pylon --plugin remove <id>\n');
+      process.stderr.write('Usage: uplnk --plugin remove <id>\n');
       process.exit(1);
     }
     try {
       await registry.uninstall(pluginArg);
       console.log(`Plugin "${pluginArg}" uninstalled.`);
     } catch (err) {
-      process.stderr.write(`pylon: ${err instanceof Error ? err.message : String(err)}\n`);
+      process.stderr.write(`uplnk: ${err instanceof Error ? err.message : String(err)}\n`);
       process.exit(1);
     }
     process.exit(0);
@@ -277,7 +277,7 @@ if (values.plugin !== undefined) {
 
   if (pluginAction === 'install') {
     if (pluginArg === undefined) {
-      process.stderr.write('Usage: pylon --plugin install <manifest-url-or-json>\n');
+      process.stderr.write('Usage: uplnk --plugin install <manifest-url-or-json>\n');
       process.exit(1);
     }
 
@@ -310,7 +310,7 @@ if (values.plugin !== undefined) {
         rawManifest = JSON.parse(pluginArg) as unknown;
       } catch {
         process.stderr.write(
-          `pylon: "--plugin install" argument must be a URL or valid JSON manifest.\n`,
+          `uplnk: "--plugin install" argument must be a URL or valid JSON manifest.\n`,
         );
         process.exit(1);
       }
@@ -320,7 +320,7 @@ if (values.plugin !== undefined) {
     const parsed = PluginManifestSchema.safeParse(rawManifest);
     if (!parsed.success) {
       process.stderr.write(
-        `pylon: Invalid plugin manifest:\n` +
+        `uplnk: Invalid plugin manifest:\n` +
         parsed.error.errors.map((e) => `  ${e.path.join('.')}: ${e.message}`).join('\n') +
         '\n',
       );
@@ -333,21 +333,21 @@ if (values.plugin !== undefined) {
   }
 
   process.stderr.write(
-    `pylon: Unknown plugin action "${pluginAction}". Use: install | list | remove\n`,
+    `uplnk: Unknown plugin action "${pluginAction}". Use: install | list | remove\n`,
   );
   process.exit(1);
 }
 
 // Apply theme flag before rendering — must happen before config load
-// so that PYLON_THEME is available to the color system at init time.
+// so that UPLNK_THEME is available to the color system at init time.
 if (values.theme === 'light') {
-  process.env['PYLON_THEME'] = 'light';
+  process.env['UPLNK_THEME'] = 'light';
 } else if (values.theme === 'dark') {
-  process.env['PYLON_THEME'] = 'dark';
+  process.env['UPLNK_THEME'] = 'dark';
 }
 
 // ─── Alternate screen (full-screen TUI mode) ─────────────────────────────────
-// Enter the alternate screen buffer so Pylon takes over the terminal without
+// Enter the alternate screen buffer so uplnk takes over the terminal without
 // touching the user's scroll history. The original content is restored on exit.
 // Skipped when stdout is not a TTY (piped output, CI, --version, etc.) — all
 // early-exit paths above this point call process.exit() before reaching here.
@@ -397,20 +397,20 @@ if (configResult.ok) {
   const enabled = await maybeAutoEnableRag(configResult.config);
   if (enabled) {
     process.stderr.write(
-      `[pylon] RAG auto-enabled — found ${configResult.config.rag.embed?.model ?? 'embedder'} on local Ollama\n`,
+      `[uplnk] RAG auto-enabled — found ${configResult.config.rag.embed?.model ?? 'embedder'} on local Ollama\n`,
     );
   }
 }
 if (!configResult.ok) {
   process.stderr.write(
-    `\npylon: CONFIG_INVALID — ${configResult.error}\n` +
-    `Fix or delete ~/.pylon/config.json and try again.\n\n`,
+    `\nuplnk: CONFIG_INVALID — ${configResult.error}\n` +
+    `Fix or delete ~/.uplnk/config.json and try again.\n\n`,
   );
   process.exit(1);
 }
 
 //: warn when commandExecEnabled=true but the user never ran
-// pylon config --confirm-command-exec.  A config file dropped silently (e.g.
+// uplnk config --confirm-command-exec.  A config file dropped silently (e.g.
 // by a malicious package postinstall) must not enable command execution without
 // explicit user consent.  The flag is enforced again in useMcp/McpManager, but
 // an early stderr warning ensures the user sees it at startup.
@@ -421,12 +421,12 @@ if (
 ) {
   process.stderr.write(
     `WARNING: mcp.commandExecEnabled is set but was not confirmed interactively. ` +
-    `Command execution is disabled until you run: pylon config --confirm-command-exec\n`,
+    `Command execution is disabled until you run: uplnk config --confirm-command-exec\n`,
   );
 }
 
 // Non-blocking update check — runs in background, prints notice after TUI exits.
-// checkForUpdate respects PYLON_NO_UPDATE=1, CI=true, and the 24h cache.
+// checkForUpdate respects UPLNK_NO_UPDATE=1, CI=true, and the 24h cache.
 const updateCheckPromise = import('../src/lib/selfUpdate.js').then(({ checkForUpdate }) =>
   checkForUpdate({
     packageName: configResult.config.updates.packageName,
@@ -459,7 +459,7 @@ try {
   try {
     appendFileSync(CRASH_LOG_PATH, `\n--- RENDER ${stamp} ---\n${msg}\n`, { mode: 0o600 });
   } catch { /* swallow */ }
-  process.stderr.write(`\npylon crashed — see ${CRASH_LOG_PATH}\n`);
+  process.stderr.write(`\nuplnk crashed — see ${CRASH_LOG_PATH}\n`);
   process.exit(1);
 }
 
@@ -471,7 +471,7 @@ exitAltScreen();
 const updateResult = await updateCheckPromise;
 if (updateResult?.updateAvailable) {
   process.stdout.write(
-    `\n  pylon ${updateResult.latestVersion} is available (you have ${updateResult.currentVersion}).\n` +
+    `\n  uplnk ${updateResult.latestVersion} is available (you have ${updateResult.currentVersion}).\n` +
     `  Run: ${updateResult.updateCommand}\n\n`,
   );
 }

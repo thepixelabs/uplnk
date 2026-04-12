@@ -51,7 +51,7 @@ export const StreamingMessage = memo(function StreamingMessage({ text, status }:
     return (
       <Box flexDirection="column" marginY={1}>
         <Box>
-          <Text bold color="#60A5FA">pylon</Text>
+          <Text bold color="#60A5FA">uplnk</Text>
         </Box>
         <Box>
           <Text color="#1E40AF" dimColor>{'│ '}</Text>
@@ -79,7 +79,7 @@ export const StreamingMessage = memo(function StreamingMessage({ text, status }:
   return (
     <Box flexDirection="column" marginY={1}>
       <Box>
-        <Text bold color="#60A5FA">pylon</Text>
+        <Text bold color="#60A5FA">uplnk</Text>
       </Box>
       <Box>
         <Text color="#1E40AF" dimColor>{'│ '}</Text>

@@ -5,12 +5,15 @@ import {
   conversations,
   messages,
   providerConfigs,
+  relayRuns,
   type Conversation,
   type NewConversation,
   type Message,
   type NewMessage,
   type ProviderConfig,
   type NewProviderConfig,
+  type RelayRun,
+  type NewRelayRun,
 } from './schema.js';
 
 // ─── Conversations ────────────────────────────────────────────────────────────
@@ -176,7 +179,7 @@ export function deleteProviderConfig(db: Db, id: string): void {
 
 /**
  * Update only the api_key column for a single provider. Used by
- * `pylon doctor migrate-secrets` to swap legacy plaintext values for
+ * `uplnk doctor migrate-secrets` to swap legacy plaintext values for
  * `@secret:` refs without disturbing the rest of the row.
  */
 export function setProviderApiKey(db: Db, id: string, apiKey: string | null): void {
@@ -329,4 +332,36 @@ export function forkConversation(
   });
 
   return getConversation(db, newConvId)!;
+}
+
+// ─── Relay Runs ───────────────────────────────────────────────────────────────
+
+export function createRelayRun(db: Db, data: NewRelayRun): RelayRun {
+  const rows = db.insert(relayRuns).values(data).returning().all();
+  return rows[0]!;
+}
+
+export function updateRelayRun(
+  db: Db,
+  id: string,
+  data: Partial<NewRelayRun>,
+): void {
+  db.update(relayRuns).set(data).where(eq(relayRuns.id, id)).run();
+}
+
+export function getRelayRun(db: Db, id: string): RelayRun | undefined {
+  const rows = db.select().from(relayRuns).where(eq(relayRuns.id, id)).all();
+  return rows[0];
+}
+
+export function listRelayRuns(
+  db: Db,
+  relayId?: string,
+  limit = 50,
+): RelayRun[] {
+  let query = db.select().from(relayRuns).$dynamic();
+  if (relayId !== undefined) {
+    query = query.where(eq(relayRuns.relayId, relayId));
+  }
+  return query.orderBy(desc(relayRuns.startedAt)).limit(limit).all();
 }

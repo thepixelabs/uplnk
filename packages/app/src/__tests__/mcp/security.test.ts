@@ -62,6 +62,24 @@ vi.mock('node:fs', async (importOriginal) => {
   };
 });
 
+// ─── node:child_process mock ──────────────────────────────────────────────────
+// Stub `which <cmd>` so validateCommand's bin-dir check is hermetic.
+// Without this, `which npm` on CI returns a nvm/volta path outside ALLOWED_BIN_DIRS
+// and the "allows npm test" cases fail despite npm being a permitted command.
+vi.mock('node:child_process', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('node:child_process')>();
+  return {
+    ...actual,
+    execFileSync: (cmd: string, args: unknown, opts?: unknown) => {
+      if (cmd === 'which' && Array.isArray(args) && args.length === 1) {
+        // Return a stable path inside ALLOWED_BIN_DIRS regardless of host env.
+        return `/usr/bin/${args[0] as string}\n`;
+      }
+      return (actual.execFileSync as (...a: unknown[]) => unknown)(cmd, args, opts);
+    },
+  };
+});
+
 // ─── Subject under test ───────────────────────────────────────────────────────
 
 import {

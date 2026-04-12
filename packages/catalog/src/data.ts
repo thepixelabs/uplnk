@@ -9,7 +9,7 @@ import type { CatalogEntry } from './types.js';
  *
  * Shape is modelled on LiteLLM's `model_prices_and_context_window.json`;
  * users who want a full catalog can drop a fresh copy into
- * `~/.pylon/catalog.json` and Pylon will merge it over this snapshot.
+ * `~/.uplnk/catalog.json` and Pylon will merge it over this snapshot.
  */
 export const BUILTIN_CATALOG: readonly CatalogEntry[] = [
   // ── Ollama — most-pulled models ────────────────────────────────────────

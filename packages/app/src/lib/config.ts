@@ -1,7 +1,7 @@
 import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { z } from 'zod';
-import { db, getPylonDir, upsertProviderConfig, getDefaultProvider, getProviderById, setDefaultProvider } from 'pylon-db';
+import { db, getPylonDir, upsertProviderConfig, getDefaultProvider, getProviderById, setDefaultProvider } from '@uplnk/db';
 import { migratePlaintext, isSecretRef } from './secrets.js';
 
 // ─── Schema ───────────────────────────────────────────────────────────────────
@@ -35,7 +35,7 @@ const ConfigSchema = z.object({
       commandExecEnabled: z.boolean().default(false),
       /**
        * ISO timestamp set when the user explicitly runs:
-       *   pylon config --confirm-command-exec
+       *   uplnk config --confirm-command-exec
        *
        * commandExecEnabled is only honoured when this field
        * is present and contains a valid ISO 8601 timestamp. Prevents a silently
@@ -53,15 +53,15 @@ const ConfigSchema = z.object({
        * User-configured MCP servers. Merged with project-local `.mcp.json`
        * and installed plugins. Discriminated on `type`; stdio servers require
        * a `command`, http servers require a `url`. Ids starting with
-       * `__pylon_builtin_` are rejected to prevent collision with built-in
+       * `__uplnk_builtin_` are rejected to prevent collision with built-in
        * servers.
        */
       servers: z
         .array(
           z.discriminatedUnion('type', [
             z.object({
-              id: z.string().min(1).refine((v) => !v.startsWith('__pylon_builtin_'), {
-                message: 'id must not start with __pylon_builtin_',
+              id: z.string().min(1).refine((v) => !v.startsWith('__uplnk_builtin_'), {
+                message: 'id must not start with __uplnk_builtin_',
               }),
               name: z.string().min(1),
               type: z.literal('stdio'),
@@ -70,8 +70,8 @@ const ConfigSchema = z.object({
               env: z.record(z.string()).optional(),
             }),
             z.object({
-              id: z.string().min(1).refine((v) => !v.startsWith('__pylon_builtin_'), {
-                message: 'id must not start with __pylon_builtin_',
+              id: z.string().min(1).refine((v) => !v.startsWith('__uplnk_builtin_'), {
+                message: 'id must not start with __uplnk_builtin_',
               }),
               name: z.string().min(1),
               type: z.literal('http'),
@@ -122,14 +122,14 @@ const ConfigSchema = z.object({
     })
     .optional(),
   /**
-   * Auto-update settings. When enabled, pylon checks npm for a newer version
+   * Auto-update settings. When enabled, uplnk checks npm for a newer version
    * once every 24h and prints an update notice on startup.
    */
   updates: z
     .object({
       enabled: z.boolean().default(true),
       /** npm package name to check — defaults to the current package name */
-      packageName: z.string().default('pylon-dev'),
+      packageName: z.string().default('uplnk'),
     })
     .default({}),
   /**
@@ -353,11 +353,11 @@ function seedConfigProviders(configProviders: Config['providers']): void {
  * trusted source AND point at a local-only address. Anything else opens
  * an SSRF window: an attacker who can set `OLLAMA_BASE_URL` (malicious
  * dotfile, postinstall script, shared machine) could otherwise force the
- * Pylon process to fetch from arbitrary internal addresses.
+ * uplnk process to fetch from arbitrary internal addresses.
  *
  * Returns the canonicalised base URL on success, or `null` if the URL
  * fails validation. Allowed hosts: `localhost`, `127.0.0.1`, `::1`. Any
- * other host is rejected unless `PYLON_TRUST_OLLAMA_URL=1` is set, which
+ * other host is rejected unless `UPLNK_TRUST_OLLAMA_URL=1` is set, which
  * is the user's explicit opt-in for non-localhost auto-probing (e.g. a
  * trusted LAN address inside their own network).
  */
@@ -371,7 +371,7 @@ function validateOllamaProbeUrl(raw: string): string | null {
   if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') return null;
   const host = parsed.hostname.toLowerCase();
   const allowed = host === 'localhost' || host === '127.0.0.1' || host === '::1' || host === '[::1]';
-  if (!allowed && process.env['PYLON_TRUST_OLLAMA_URL'] !== '1') {
+  if (!allowed && process.env['UPLNK_TRUST_OLLAMA_URL'] !== '1') {
     return null;
   }
   return raw;
@@ -388,7 +388,7 @@ function validateOllamaProbeUrl(raw: string): string | null {
  *
  * The URL is validated through `validateOllamaProbeUrl` before fetching
  * to avoid SSRF via `OLLAMA_BASE_URL`. Non-localhost URLs require the
- * `PYLON_TRUST_OLLAMA_URL=1` opt-in.
+ * `UPLNK_TRUST_OLLAMA_URL=1` opt-in.
  */
 export async function probeOllamaEmbedder(
   baseUrl = process.env['OLLAMA_BASE_URL'] ?? 'http://localhost:11434',

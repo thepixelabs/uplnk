@@ -6,7 +6,7 @@ import { tmpdir } from 'node:os';
 /**
  * Config unit tests.
  *
- * We cannot import config.ts directly without side effects (it calls pylon-db
+ * We cannot import config.ts directly without side effects (it calls uplnk-db
  * which opens the SQLite connection), so we test the config schema shape via
  * roundtrip JSON read/write, and verify the Zod default values match the spec.
  */

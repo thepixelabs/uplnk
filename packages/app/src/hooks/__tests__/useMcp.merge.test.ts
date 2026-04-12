@@ -108,20 +108,20 @@ describe('mergeMcpConfigs — collision resolution (last write wins)', () => {
 });
 
 describe('mergeMcpConfigs — builtin id rejection', () => {
-  it('rejects a server with a __pylon_builtin_ prefixed id', () => {
-    const bad = makeServer('__pylon_builtin_git');
+  it('rejects a server with a __uplnk_builtin_ prefixed id', () => {
+    const bad = makeServer('__uplnk_builtin_git');
     const result = mergeMcpConfigs([bad], [], []);
     expect(result.configs).toHaveLength(0);
     expect(result.warnings).toHaveLength(1);
-    expect(result.warnings[0]).toContain('__pylon_builtin_git');
+    expect(result.warnings[0]).toContain('__uplnk_builtin_git');
     expect(result.warnings[0]).toContain('reserved builtin id');
   });
 
   it('rejects builtin ids from all three sources', () => {
     const result = mergeMcpConfigs(
-      [makeServer('__pylon_builtin_files')],
-      [makeServer('__pylon_builtin_cmd')],
-      [makeServer('__pylon_builtin_rag')],
+      [makeServer('__uplnk_builtin_files')],
+      [makeServer('__uplnk_builtin_cmd')],
+      [makeServer('__uplnk_builtin_rag')],
     );
     expect(result.configs).toHaveLength(0);
     expect(result.warnings).toHaveLength(3);
@@ -129,7 +129,7 @@ describe('mergeMcpConfigs — builtin id rejection', () => {
 
   it('accepts legitimate servers while rejecting builtin ids in the same batch', () => {
     const result = mergeMcpConfigs(
-      [makeServer('__pylon_builtin_files'), makeServer('my-server')],
+      [makeServer('__uplnk_builtin_files'), makeServer('my-server')],
       [],
       [],
     );
@@ -139,7 +139,7 @@ describe('mergeMcpConfigs — builtin id rejection', () => {
   });
 
   it('warning for builtin id names the source that supplied it', () => {
-    const result = mergeMcpConfigs([], [], [makeServer('__pylon_builtin_x')]);
+    const result = mergeMcpConfigs([], [], [makeServer('__uplnk_builtin_x')]);
     expect(result.warnings[0]).toContain('plugin');
   });
 });

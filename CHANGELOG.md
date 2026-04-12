@@ -9,7 +9,7 @@ Pylon uses [Semantic Versioning](https://semver.org/).
 
 ## [0.2.0] - Unreleased
 
-This release closes every item that was still outstanding from the v0.1, v0.5, v1.0, and v0.2 roadmap checklists AND the four v0.3 items that were initially deferred but pulled back into v0.2 scope: the SecretsBackend abstraction with optional OS keychain, native Anthropic chat dispatch, MCP audit log rotation, and bulk provider registration from `config.json`. The previous "v1.0" commit was a feature-milestone label, not a released semver — the actual on-disk version had never been bumped past 0.1.0 and several promised items were missing or half-wired. 0.2.0 is the first honest release: everything scoped is actually implemented, tested, and typechecks clean.
+Completes the SecretsBackend abstraction with optional OS keychain, native Anthropic chat dispatch, MCP audit log rotation, and bulk provider registration from `config.json`. All scoped items are implemented, tested, and typecheck clean.
 
 ### Added (secrets, Anthropic, audit rotation, bulk seed)
 
@@ -31,7 +31,7 @@ This release closes every item that was still outstanding from the v0.1, v0.5, v
 - Added `@ai-sdk/anthropic` as a hard dependency. Base URL normalisation strips trailing `/v1` before re-appending so `api.anthropic.com`, `api.anthropic.com/v1`, and trailing-slash variants all work.
 
 **MCP audit log rotation**
-- `McpManager.rotateAuditLogIfNeeded()` runs synchronously before every `logToolCall` append. Rotates at 10 MB → `mcp-audit.log.1` (single-generation backup, clobbering any previous `.1`). Marcus's air-gapped cluster no longer risks unbounded audit log growth on a small `/home` partition.
+- `McpManager.rotateAuditLogIfNeeded()` runs synchronously before every `logToolCall` append. Rotates at 10 MB → `mcp-audit.log.1` (single-generation backup, clobbering any previous `.1`). Prevents unbounded audit log growth on constrained `/home` partitions.
 - Rotation is best-effort under concurrent `pylon` processes sharing the same log file — one rename window can drop a generation of backups, but the audit append itself never throws. Documented in the method comment.
 
 **Bulk provider registration from `config.json`**

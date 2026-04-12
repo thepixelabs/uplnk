@@ -20,13 +20,13 @@ const tick = () => new Promise<void>((r) => setImmediate(() => setImmediate(r)))
 
 // ─── Mocks ────────────────────────────────────────────────────────────────────
 
-vi.mock('pylon-db', () => ({
+vi.mock('@uplnk/db', () => ({
   db: {},
   upsertProviderConfig: vi.fn(),
   setDefaultProvider: vi.fn(),
   recordProviderTest: vi.fn(),
   getPylonDir: vi.fn(() => '/tmp/pylon-test-home/.pylon'),
-  getPylonDbPath: vi.fn(() => '/tmp/pylon-test-home/.pylon/db.sqlite'),
+  getPylonDbPath: vi.fn(() => '/tmp/pylon-test-home/.uplnk/db.sqlite'),
 }));
 
 // migratePlaintext is called in the save path — mock it to avoid secrets setup
@@ -36,9 +36,9 @@ vi.mock('../../lib/secrets.js', () => ({
 }));
 
 // makeProvider touches the network during testConnection; mock at the
-// pylon-providers boundary so the TestStep never dials out.
-vi.mock('pylon-providers', async () => {
-  const actual = await vi.importActual<typeof import('pylon-providers')>('pylon-providers');
+// uplnk-providers boundary so the TestStep never dials out.
+vi.mock('@uplnk/providers', async () => {
+  const actual = await vi.importActual<typeof import('@uplnk/providers')>('@uplnk/providers');
   return {
     ...actual,
     makeProvider: vi.fn(() => ({

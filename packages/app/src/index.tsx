@@ -5,11 +5,11 @@ import { ModelSelectorScreen } from './screens/ModelSelectorScreen.js';
 import { ConversationListScreen } from './screens/ConversationListScreen.js';
 import { ProviderSelectorScreen } from './screens/ProviderSelectorScreen.js';
 import { AddProviderScreen } from './screens/AddProviderScreen.js';
-import type { AuthMode, ProviderKind } from 'pylon-providers';
+import type { AuthMode, ProviderKind } from '@uplnk/providers';
 import { CommandPalette } from './components/layout/CommandPalette.js';
 import type { PaletteCommand } from './components/layout/CommandPalette.js';
 import { ErrorBanner } from './components/layout/ErrorBanner.js';
-import type { PylonError } from 'pylon-shared';
+import type { UplnkError } from '@uplnk/shared';
 import type { Config } from './lib/config.js';
 
 export type Screen = 'chat' | 'model-selector' | 'conversations' | 'provider-selector' | 'add-provider' | 'edit-provider';
@@ -49,7 +49,7 @@ export function App({ initialModel = 'qwen2.5:7b', resumeConversationId, project
     baseUrl: string;
     apiKey: string;
   } | null>(null);
-  const [globalError, setGlobalError] = useState<PylonError | null>(null);
+  const [globalError, setGlobalError] = useState<UplnkError | null>(null);
   const [paletteOpen, setPaletteOpen] = useState(false);
 
   // The active conversation id is lifted to App so we can remount ChatScreen
@@ -76,7 +76,7 @@ export function App({ initialModel = 'qwen2.5:7b', resumeConversationId, project
     setCurrentScreen(screen as Screen);
   }, []);
 
-  const handleError = useCallback((error: PylonError) => {
+  const handleError = useCallback((error: UplnkError) => {
     setGlobalError(error);
   }, []);
 

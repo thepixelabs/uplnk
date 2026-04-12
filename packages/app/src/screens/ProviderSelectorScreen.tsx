@@ -9,10 +9,10 @@
 
 import { memo, useCallback, useEffect, useState } from 'react';
 import { Box, Text, useInput } from 'ink';
-import { db, listProviders, deleteProviderConfig, setDefaultProvider, recordProviderTest } from 'pylon-db';
-import type { ProviderConfig as DbRow } from 'pylon-db';
-import type { AuthMode, ProviderKind, ProviderConfig as PyProviderConfig } from 'pylon-providers';
-import { makeProvider, ProviderError } from 'pylon-providers';
+import { db, listProviders, deleteProviderConfig, setDefaultProvider, recordProviderTest } from '@uplnk/db';
+import type { ProviderConfig as DbRow } from '@uplnk/db';
+import type { AuthMode, ProviderKind, ProviderConfig as PyProviderConfig } from '@uplnk/providers';
+import { makeProvider, ProviderError } from '@uplnk/providers';
 import { resolveSecret } from '../lib/secrets.js';
 
 interface Props {

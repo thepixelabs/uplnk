@@ -1,11 +1,11 @@
 /**
  * Tests for ConversationListScreen.
  *
- * Mocks pylon-db so no real SQLite is opened. Seeds a controlled
+ * Mocks uplnk-db so no real SQLite is opened. Seeds a controlled
  * conversation list, then exercises keyboard navigation and search behaviour.
  *
  * Pattern mirrors ProviderSelectorScreen.test.tsx:
- *  - vi.mock('pylon-db') at the top
+ *  - vi.mock('@uplnk/db') at the top
  *  - makeConversation() factory
  *  - tick() to flush React state updates
  *  - stdin.write() to simulate key presses
@@ -17,13 +17,13 @@ import React from 'react';
 
 const tick = () => new Promise<void>((r) => setImmediate(() => setImmediate(r)));
 
-vi.mock('pylon-db', () => ({
+vi.mock('@uplnk/db', () => ({
   db: {},
   listConversations: vi.fn(() => []),
   searchConversations: vi.fn(() => []),
 }));
 
-import { listConversations, searchConversations } from 'pylon-db';
+import { listConversations, searchConversations } from '@uplnk/db';
 import { ConversationListScreen } from '../ConversationListScreen.js';
 
 // ─── Factory ──────────────────────────────────────────────────────────────────

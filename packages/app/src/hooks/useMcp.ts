@@ -44,7 +44,7 @@ export const MAX_TOOL_CALLS_PER_CONVERSATION = 100;
  * {
  *   "mcpServers": {
  *     "dispatch": { "type": "http", "url": "http://localhost:4242/mcp" },
- *     "files":    { "type": "stdio", "command": "npx", "args": ["-y", "@pylon/mcp-files"] }
+ *     "files":    { "type": "stdio", "command": "npx", "args": ["-y", "@uplnk/mcp-files"] }
  *   }
  * }
  */
@@ -96,7 +96,7 @@ function loadMcpJson(repoRoot: string): McpServerConfig[] {
  * a project's intended server). Plugins in turn override team-wide
  * config.json so a user opting in to a plugin gets the plugin's version.
  *
- * Built-in ids (`__pylon_builtin_*`) are hard-rejected from ALL sources.
+ * Built-in ids (`__uplnk_builtin_*`) are hard-rejected from ALL sources.
  */
 export function mergeMcpConfigs(
   fromConfig: McpServerConfig[],
@@ -112,7 +112,7 @@ export function mergeMcpConfigs(
   ];
   for (const { label, list } of sources) {
     for (const cfg of list) {
-      if (cfg.id.startsWith('__pylon_builtin_')) {
+      if (cfg.id.startsWith('__uplnk_builtin_')) {
         warnings.push(`[mcp] ${label} server '${cfg.id}' uses a reserved builtin id — skipped`);
         continue;
       }
@@ -132,7 +132,7 @@ interface UseMcpOptions {
   commandExecEnabled: boolean;
   /**
    *: commandExecEnabled is only honoured when this is a
-   * valid ISO timestamp set by `pylon config --confirm-command-exec`.
+   * valid ISO timestamp set by `uplnk config --confirm-command-exec`.
    * When absent, command execution is disabled regardless of the flag value.
    */
   commandExecConfirmedAt?: string;
@@ -269,7 +269,7 @@ export function useMcp({
       try {
         fromPlugins = loadPluginConfigs();
       } catch {
-        // Corrupted ~/.pylon/plugins directory must not break MCP startup.
+        // Corrupted ~/.uplnk/plugins directory must not break MCP startup.
       }
       const merged = mergeMcpConfigs(configServers, fromMcpJson, fromPlugins);
       for (const warn of merged.warnings) {

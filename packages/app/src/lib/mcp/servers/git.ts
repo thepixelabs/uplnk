@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * pylon-git — built-in stdio MCP server for git operations.
+ * uplnk-git — built-in stdio MCP server for git operations.
  *
  * Exposes four tools:
  *   mcp_git_status  — get repository status (read-only)
@@ -27,7 +27,7 @@ import { z } from 'zod';
 const execFileAsync = promisify(execFile);
 
 const server = new McpServer({
-  name: 'pylon-git',
+  name: 'uplnk-git',
   version: '0.1.0',
 });
 

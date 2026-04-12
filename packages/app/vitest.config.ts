@@ -6,8 +6,14 @@ export default defineConfig({
     alias: {
       // Resolve workspace packages from source so tests do not require a
       // prior build step. Vitest loads TypeScript directly via esbuild.
-      'pylon-db': resolve(__dirname, '../db/src/index.ts'),
-      // pylon-shared alias added here once that package exists
+      'uplnk-db': resolve(__dirname, '../db/src/index.ts'),
+      'uplnk-shared': resolve(__dirname, '../shared/src/index.ts'),
+      'uplnk-catalog': resolve(__dirname, '../catalog/src/index.ts'),
+      'uplnk-providers': resolve(__dirname, '../providers/src/index.ts'),
+      '@uplnk/db': resolve(__dirname, '../db/src/index.ts'),
+      '@uplnk/shared': resolve(__dirname, '../shared/src/index.ts'),
+      '@uplnk/catalog': resolve(__dirname, '../catalog/src/index.ts'),
+      '@uplnk/providers': resolve(__dirname, '../providers/src/index.ts'),
     },
   },
   test: {
