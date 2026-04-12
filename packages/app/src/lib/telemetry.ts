@@ -194,7 +194,7 @@ export function flushEvents(): void {
   const batch = _buffer.splice(0, _buffer.length);
 
   // TODO(telemetry-transport): Build envelopes and POST to
-  // https://telemetry.uplnk.dev/v1/events. Wrap in try/catch — a telemetry
+  // https://telemetry.uplnk.pixelabs.net/v1/events. Wrap in try/catch — a telemetry
   // failure must never surface to the user or affect app behavior.
   //
   // Envelope shape (per event):

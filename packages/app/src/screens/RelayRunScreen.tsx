@@ -15,6 +15,12 @@ interface Props {
   plan: RelayPlan;
   userInput: string;
   onBack: () => void;
+  /**
+   * Called when the relay run completes successfully (status === 'completed').
+   * Useful for callers that want to return to the picker or chat automatically
+   * instead of waiting for the user to press Esc.
+   */
+  onDone?: () => void;
 }
 
 const SPINNER_FRAMES = ['⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', '⠇', '⠏'];
@@ -27,7 +33,7 @@ function makeSeparator(totalWidth = 67): string {
   return '─'.repeat(left) + label + '─'.repeat(right);
 }
 
-export function RelayRunScreen({ plan, userInput, onBack }: Props) {
+export function RelayRunScreen({ plan, userInput, onBack, onDone }: Props) {
   const { scoutText, anchorText, status, error, runRelayPlan, abort } = useWorkflow();
 
   const [frame, setFrame] = useState(0);
@@ -38,6 +44,13 @@ export function RelayRunScreen({ plan, userInput, onBack }: Props) {
     void runRelayPlan(plan, userInput);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Fire onDone when the relay completes (if caller provided it).
+  useEffect(() => {
+    if (status === 'completed' && onDone !== undefined) {
+      onDone();
+    }
+  }, [status, onDone]);
 
   // Spinner — active during scout-running and anchor-running.
   const isSpinning = status === 'scout-running' || status === 'anchor-running';
