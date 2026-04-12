@@ -1,0 +1,44 @@
+{
+  "name": "pylon-dev",
+  "version": "0.1.0",
+  "description": "A terminal-native LLM developer assistant",
+  "type": "module",
+  "bin": {
+    "pylon": "./bin/pylon.js"
+  },
+  "scripts": {
+    "dev": "tsx watch src/index.tsx",
+    "build": "tsup",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint src --ext .ts,.tsx",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:integration": "vitest run --config vitest.integration.config.ts"
+  },
+  "dependencies": {
+    "ink": "^5.0.0",
+    "react": "^18.3.1",
+    "@types/react": "^18.3.1",
+    "ai": "^4.3.0",
+    "@ai-sdk/openai-compatible": "^0.2.0",
+    "chalk": "^5.3.0",
+    "@modelcontextprotocol/sdk": "^1.10.0",
+    "zod": "^3.23.8",
+    "pylon-db": "workspace:*",
+    "pylon-shared": "workspace:*"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.0",
+    "tsx": "^4.19.0",
+    "tsup": "^8.3.0",
+    "eslint": "^9.14.0",
+    "@typescript-eslint/eslint-plugin": "^8.13.0",
+    "@typescript-eslint/parser": "^8.13.0",
+    "prettier": "^3.4.0",
+    "husky": "^9.1.0",
+    "lint-staged": "^15.2.0",
+    "vitest": "^2.1.0",
+    "ink-testing-library": "^4.0.0",
+    "@total-typescript/ts-reset": "^0.6.0"
+  }
+}
