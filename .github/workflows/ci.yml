@@ -32,12 +32,23 @@ jobs:
         with:
           version: 9.15.0
 
+      - name: Check Node version consistency
+        run: |
+          NODE_VER=$(cat .node-version | tr -d '[:space:]')
+          NVMRC=$(cat .nvmrc | tr -d '[:space:]')
+          VOLTA=$(node -e "console.log(require('./package.json').volta?.node ?? '')" 2>/dev/null || echo "")
+          echo ".node-version: $NODE_VER  .nvmrc: $NVMRC  volta: $VOLTA"
+          MAJOR_NV=$(echo "$NODE_VER" | cut -d. -f1)
+          MAJOR_NVM=$(echo "$NVMRC" | cut -d. -f1)
+          if [ "$MAJOR_NV" != "$MAJOR_NVM" ]; then
+            echo "ERROR: .node-version ($NODE_VER) and .nvmrc ($NVMRC) disagree on major version"
+            exit 1
+          fi
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          # No .node-version file present; pin from engines field in package.json.
-          # Update this value when the minimum Node version changes.
-          node-version: "20"
+          node-version-file: .node-version
           cache: pnpm
 
       - name: Get pnpm store path
