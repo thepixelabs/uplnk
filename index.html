@@ -1,0 +1,1571 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Uplnk — Local-First AI Coding Assistant</title>
+  <meta name="description" content="Uplnk is an open-source TUI coding assistant that runs entirely on your hardware. Claude Code quality, without giving up your code." />
+
+  <!-- Open Graph -->
+  <meta property="og:type" content="website" />
+  <meta property="og:title" content="Uplnk — Local-First AI Coding Assistant" />
+  <meta property="og:description" content="Open-source TUI coding assistant. Local LLMs, no cloud, no subscriptions. Claude Code quality on your own hardware." />
+  <meta property="og:image" content="landing/assets/uplnk-hero.png" />
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="Uplnk — Local-First AI Coding Assistant" />
+  <meta name="twitter:description" content="Open-source TUI coding assistant. Local LLMs, no cloud, no subscriptions." />
+  <meta name="twitter:image" content="landing/assets/uplnk-hero.png" />
+
+  <!-- Favicon -->
+  <link rel="icon" type="image/png" href="landing/assets/uplnk-favicon.png" />
+  <link rel="apple-touch-icon" href="landing/assets/uplnk-favicon.png" />
+
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=JetBrains+Mono:ital,wght@0,300;0,400;0,500;0,700;1,400&display=swap" rel="stylesheet" />
+
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            'bg-primary': 'var(--bg-primary)',
+            'bg-surface': 'var(--bg-surface)',
+            'bg-elevated': 'var(--bg-elevated)',
+            'border-subtle': 'var(--border)',
+            'brand':        '#F5A623',   /* amber — primary brand accent */
+            'accent-green': '#00FF88',   /* terminal phosphor — code output only */
+            'accent-amber': '#F5A623',
+            'accent-blue':  '#4488FF',
+            'text-primary': 'var(--text-primary)',
+            'text-secondary':'var(--text-secondary)',
+            'text-mono':    '#00FF88',
+          },
+          fontFamily: {
+            sans: ['Space Grotesk', 'system-ui', 'sans-serif'],
+            mono: ['JetBrains Mono', 'Fira Code', 'monospace'],
+          },
+          boxShadow: {
+            'glow-brand':    '0 0 20px rgba(245,166,35,0.35), 0 0 60px rgba(245,166,35,0.12)',
+            'glow-brand-sm': '0 0 10px rgba(245,166,35,0.4)',
+            'glow-green':    '0 0 20px rgba(0,255,136,0.25), 0 0 60px rgba(0,255,136,0.08)',
+            'glow-amber':    '0 0 20px rgba(245,166,35,0.3)',
+          },
+          animation: {
+            'blink': 'blink 1.2s step-end infinite',
+            'pulse-dot': 'pulse-dot 2s ease-in-out infinite',
+            'scanline': 'scanline 8s linear infinite',
+            'float': 'float 6s ease-in-out infinite',
+          },
+          keyframes: {
+            blink: { '0%, 100%': { opacity: 1 }, '50%': { opacity: 0 } },
+            'pulse-dot': { '0%, 100%': { opacity: 1, transform: 'scale(1)' }, '50%': { opacity: 0.6, transform: 'scale(0.85)' } },
+            scanline: { '0%': { transform: 'translateY(-100%)' }, '100%': { transform: 'translateY(100vh)' } },
+            float: { '0%, 100%': { transform: 'translateY(0px)' }, '50%': { transform: 'translateY(-8px)' } },
+          }
+        }
+      }
+    }
+  </script>
+
+  <style>
+    /* ── Dark mode (default) ── */
+    :root, html.dark {
+      --bg-primary:    #0A0A0F;
+      --bg-surface:    #12121A;
+      --bg-elevated:   #1A1A26;
+      --border:        #2A2A3E;
+      --brand:         #F5A623;   /* amber — primary brand */
+      --brand-dim:     rgba(245,166,35,0.12);
+      --brand-border:  rgba(245,166,35,0.35);
+      --accent-green:  #00FF88;   /* terminal phosphor — code output only */
+      --accent-blue:   #4488FF;
+      --text-primary:  #E8E8F0;
+      --text-secondary:#8888AA;
+      --glow-brand:    rgba(245,166,35,0.15);
+      --glow-green:    rgba(0,255,136,0.15);
+      --nav-bg:        rgba(10,10,15,0.88);
+      --nav-border:    rgba(42,42,62,0.6);
+    }
+
+    /* ── Light mode ── */
+    html.light {
+      --bg-primary:    #F2EAD8;
+      --bg-surface:    #EAE0C8;
+      --bg-elevated:   #DDD3B8;
+      --border:        #C8BC9E;
+      --brand:         #D4890F;   /* warm amber — saturated enough to pop on cream */
+      --brand-dim:     rgba(212,137,15,0.12);
+      --brand-border:  rgba(212,137,15,0.38);
+      --accent-green:  #1A7A4A;  /* forest green — readable on warm cream */
+      --accent-blue:   #2458B8;
+      --text-primary:  #1A1714;  /* near-black with warm undertone */
+      --text-secondary:#6B6356;  /* warm mid-tone, not cold grey */
+      --glow-brand:    rgba(212,137,15,0.18);
+      --glow-green:    rgba(26,122,74,0.15);
+      --nav-bg:        rgba(240,232,214,0.94);
+      --nav-border:    rgba(200,188,158,0.75);
+    }
+
+    /* ── Light mode body: warm golden radial atmosphere ── */
+    html.light body {
+      background: radial-gradient(ellipse 130% 90% at 50% -5%, #FFF5DC 0%, #F5EDD8 30%, #EDE2C8 65%, #E4D8BC 100%);
+      background-attachment: fixed;
+    }
+
+    /* ── Light mode scrollbar ── */
+    html.light ::-webkit-scrollbar-thumb { background: #C0B090; }
+    html.light ::-webkit-scrollbar-thumb:hover { background: #A89070; }
+
+    /* ── Light mode: hero Kirby dots use amber tones ── */
+    html.light .kirby-dots {
+      background-image: radial-gradient(circle, rgba(180,120,20,0.12) 1px, transparent 1px);
+    }
+    html.light .kirby-dots-amber {
+      background-image: radial-gradient(circle, rgba(180,120,20,0.10) 1px, transparent 1px);
+    }
+
+    /* ── Light mode: hero grid — amber/gold lines instead of green ── */
+    html.light .hero-grid {
+      background-image:
+        linear-gradient(rgba(180,120,20,0.10) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(180,120,20,0.10) 1px, transparent 1px);
+    }
+
+    /* ── Light mode: hero ambient glow orbs — warm amber atmosphere ── */
+    html.light #hero .absolute[style*="rgba(245,166,35"] {
+      background: radial-gradient(circle, rgba(212,137,15,0.10) 0%, transparent 70%) !important;
+    }
+
+    /* ── Light mode: terminal windows — dark interior, warm amber frame ── */
+    html.light .terminal-window {
+      border: 1px solid rgba(200,160,60,0.45);
+      box-shadow:
+        0 0 0 1px rgba(212,137,15,0.18),
+        0 20px 60px rgba(0,0,0,0.22),
+        0 0 40px rgba(212,137,15,0.08);
+    }
+
+    html.light .terminal-titlebar {
+      background: #1A1710;
+      border-bottom: 1px solid rgba(200,160,60,0.35);
+    }
+
+    /* ── Light mode: feature cards — warm amber hover shadow ── */
+    html.light .feature-card:hover {
+      transform: translateY(-3px);
+      box-shadow:
+        0 6px 24px rgba(180,120,20,0.14),
+        0 2px 8px rgba(140,90,10,0.10),
+        0 0 0 1px rgba(212,137,15,0.22);
+      border-color: rgba(212,137,15,0.40);
+    }
+
+    /* ── Light mode: code blocks — warm dark background, not cold black ── */
+    html.light .code-block {
+      background: #1A1814;
+      border-color: rgba(200,170,80,0.3);
+    }
+
+    html.light .code-block .flex.items-center.gap-3 {
+      background: rgba(10,8,4,0.5);
+      border-color: rgba(200,170,80,0.25);
+    }
+
+    /* ── Light mode: comparison table — warm amber Uplnk column ── */
+    html.light .compare-table th.uplnk-col {
+      background: rgba(212,137,15,0.12);
+      border-top-color: #D4890F;
+    }
+
+    html.light .compare-table td.uplnk-col {
+      background: rgba(212,137,15,0.06);
+    }
+
+    html.light .compare-table tr:hover td {
+      background: rgba(140,100,20,0.04);
+    }
+
+    html.light .compare-table tr:hover td.uplnk-col {
+      background: rgba(212,137,15,0.10);
+    }
+
+    html.light .compare-table td {
+      border-bottom-color: rgba(180,160,120,0.3);
+    }
+
+    /* ── Light mode: section dividers — warm amber tone ── */
+    html.light .section-divider {
+      background: linear-gradient(90deg, transparent, rgba(180,140,60,0.35), transparent);
+    }
+
+    /* ── Light mode: install command box ── */
+    html.light .install-cmd {
+      background: rgba(240,225,190,0.6);
+      border-color: rgba(212,137,15,0.45);
+    }
+
+    html.light .install-cmd:hover {
+      border-color: #D4890F;
+      box-shadow: 0 0 20px rgba(212,137,15,0.18);
+      background: rgba(240,225,190,0.85);
+    }
+
+    /* ── Light mode: CTA section glow ── */
+    html.light #cta .w-\[600px\] {
+      background: radial-gradient(ellipse, rgba(212,137,15,0.10) 0%, transparent 70%) !important;
+    }
+
+    /* ── Light mode: nav blur — warmer base ── */
+    html.light .nav-blur {
+      background: rgba(240,232,212,0.95);
+    }
+
+    /* ── Light mode: hero art section blends into warm bg ── */
+    html.light section[aria-hidden="true"][style*="background:#06060C"] {
+      background: #1A160E !important;
+    }
+
+    /* ── Light mode: step numbers — warm amber ring ── */
+    html.light .step-number {
+      border-color: rgba(212,137,15,0.45);
+      background: rgba(212,137,15,0.10);
+    }
+
+    /* ── Light mode: btn-primary — darker amber for legibility on cream ── */
+    html.light .btn-primary {
+      color: #FFF8EE;
+    }
+
+    html.light .btn-primary:hover {
+      box-shadow: 0 0 28px rgba(212,137,15,0.45), 0 4px 16px rgba(80,40,0,0.2);
+    }
+
+    /* ── Light mode: theme toggle active state ── */
+    html.light .theme-btn.active {
+      background: #D4890F;
+      color: #FFF8EE;
+    }
+
+    /* ── Light mode: uplnk watermark — slightly more visible ── */
+    html.light .uplnk-watermark {
+      opacity: 0.04;
+    }
+
+    /* ── Light mode: text-glow — scaled back for light surfaces ── */
+    html.light .text-glow {
+      text-shadow: 0 0 20px rgba(212,137,15,0.35), 0 0 40px rgba(212,137,15,0.12);
+    }
+
+    html.light .text-glow-amber {
+      text-shadow: 0 0 16px rgba(212,137,15,0.30);
+    }
+
+    /* ── Light mode: badge dot glow ── */
+    html.light .badge-dot {
+      box-shadow: 0 0 5px rgba(212,137,15,0.7);
+    }
+
+    /* ── Light mode: GitHub star button ── */
+    html.light #cta a[href*="github"] {
+      background: rgba(232,218,188,0.8);
+    }
+
+    * { box-sizing: border-box; }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      background-color: var(--bg-primary);
+      color: var(--text-primary);
+      font-family: 'Space Grotesk', system-ui, sans-serif;
+      overflow-x: hidden;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* ── Scrollbar ── */
+    ::-webkit-scrollbar { width: 6px; }
+    ::-webkit-scrollbar-track { background: var(--bg-primary); }
+    ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+    ::-webkit-scrollbar-thumb:hover { background: #3A3A5E; }
+
+    /* ── Selection ── */
+    ::selection { background: rgba(245,166,35,0.2); color: var(--brand); }
+
+    /* ── Kirby dots background ── */
+    .kirby-dots {
+      background-image: radial-gradient(circle, rgba(245,166,35,0.05) 1px, transparent 1px);
+      background-size: 28px 28px;
+    }
+
+    .kirby-dots-amber {
+      background-image: radial-gradient(circle, rgba(255,184,0,0.05) 1px, transparent 1px);
+      background-size: 24px 24px;
+    }
+
+    /* ── Scanlines ── */
+    .scanlines {
+      position: relative;
+      overflow: hidden;
+    }
+    .scanlines::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: repeating-linear-gradient(
+        to bottom,
+        transparent 0px,
+        transparent 3px,
+        rgba(0,0,0,0.08) 3px,
+        rgba(0,0,0,0.08) 4px
+      );
+      pointer-events: none;
+      z-index: 1;
+    }
+
+    /* ── Perspective grid ── */
+    .hero-grid {
+      position: absolute;
+      inset: 0;
+      background-image:
+        linear-gradient(rgba(0,255,136,0.04) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(0,255,136,0.04) 1px, transparent 1px);
+      background-size: 60px 60px;
+      mask-image: radial-gradient(ellipse 80% 60% at 50% 100%, black 20%, transparent 70%);
+      -webkit-mask-image: radial-gradient(ellipse 80% 60% at 50% 100%, black 20%, transparent 70%);
+    }
+
+    /* ── Terminal window ── */
+    .terminal-window {
+      background: #0D0D14;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      box-shadow: 0 0 0 1px rgba(0,255,136,0.06), 0 32px 80px rgba(0,0,0,0.8), 0 0 60px rgba(0,255,136,0.04);
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 13px;
+      line-height: 1.6;
+      overflow: hidden;
+    }
+
+    .terminal-titlebar {
+      background: #16161F;
+      border-bottom: 1px solid var(--border);
+      padding: 10px 16px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .terminal-dot {
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+    }
+
+    .terminal-body {
+      padding: 20px 24px;
+      min-height: 360px;
+      color: var(--text-primary);
+      overflow: hidden;
+    }
+
+    .term-green { color: var(--accent-green); }
+    .term-amber { color: var(--accent-amber); }
+    .term-blue { color: var(--accent-blue); }
+    .term-dim { color: var(--text-secondary); }
+    .term-white { color: #E8E8F0; }
+
+    .cursor-block {
+      display: inline-block;
+      width: 8px;
+      height: 14px;
+      background: var(--accent-green);
+      vertical-align: middle;
+      animation: blink 1.2s step-end infinite;
+      box-shadow: 0 0 8px var(--accent-green);
+    }
+
+    /* ── Feature cards ── */
+    .feature-card {
+      background: var(--bg-surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 28px;
+      transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .feature-card::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 1px;
+      background: linear-gradient(90deg, transparent, var(--brand-border), transparent);
+      opacity: 0;
+      transition: opacity 0.2s ease;
+    }
+
+    .feature-card:hover {
+      transform: translateY(-3px);
+      box-shadow: 0 8px 32px rgba(0,0,0,0.3), 0 0 20px rgba(245,166,35,0.08);
+      border-color: var(--brand-border);
+    }
+
+    .feature-card:hover::before { opacity: 1; }
+
+    /* ── Code block ── */
+    .code-block {
+      background: #080810;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 14px;
+      line-height: 1.7;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .code-block::before {
+      content: '';
+      position: absolute;
+      left: 0; top: 0; bottom: 0;
+      width: 3px;
+      background: linear-gradient(180deg, var(--accent-green), var(--accent-blue), var(--accent-amber));
+    }
+
+    /* ── Comparison table ── */
+    .compare-table {
+      border-collapse: separate;
+      border-spacing: 0;
+      width: 100%;
+    }
+
+    .compare-table th {
+      background: var(--bg-surface);
+      padding: 14px 20px;
+      text-align: left;
+      font-size: 13px;
+      font-weight: 600;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+    }
+
+    .compare-table th.uplnk-col {
+      color: var(--brand);
+      background: var(--brand-dim);
+      border-top: 2px solid var(--brand);
+    }
+
+    .compare-table td {
+      padding: 13px 20px;
+      border-bottom: 1px solid rgba(42,42,62,0.5);
+      font-size: 14px;
+    }
+
+    .compare-table tr:last-child td { border-bottom: none; }
+
+    .compare-table td.uplnk-col {
+      background: rgba(245,166,35,0.04);
+    }
+
+    .compare-table tr:hover td { background: rgba(255,255,255,0.02); }
+    .compare-table tr:hover td.uplnk-col { background: rgba(245,166,35,0.07); }
+
+    /* ── CTA button ── */
+    .btn-primary {
+      background: var(--accent-green);
+      color: #0A0A0F;
+      font-weight: 700;
+      border-radius: 8px;
+      padding: 14px 28px;
+      font-size: 15px;
+      letter-spacing: -0.01em;
+      transition: box-shadow 0.2s ease, transform 0.15s ease;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .btn-primary {
+      background: var(--brand);
+      color: #0A0A0F;
+      font-weight: 700;
+      border-radius: 8px;
+      padding: 14px 28px;
+      font-size: 15px;
+      letter-spacing: -0.01em;
+      transition: box-shadow 0.2s ease, transform 0.15s ease;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .btn-primary:hover {
+      box-shadow: 0 0 28px rgba(245,166,35,0.55), 0 4px 16px rgba(0,0,0,0.3);
+      transform: translateY(-1px);
+    }
+
+    .btn-primary:active { transform: translateY(0); }
+
+    .btn-outline {
+      border: 1px solid var(--border);
+      color: var(--text-primary);
+      font-weight: 500;
+      border-radius: 8px;
+      padding: 13px 24px;
+      font-size: 15px;
+      transition: border-color 0.2s ease, color 0.2s ease, background 0.2s ease;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .btn-outline:hover {
+      border-color: var(--brand-border);
+      color: var(--brand);
+      background: var(--brand-dim);
+    }
+
+    .btn-outline-green {
+      border: 1px solid var(--brand-border);
+      color: var(--brand);
+      font-weight: 600;
+      border-radius: 8px;
+      padding: 9px 20px;
+      font-size: 14px;
+      transition: box-shadow 0.2s ease, background 0.2s ease;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .btn-outline-green:hover {
+      background: var(--brand-dim);
+      box-shadow: 0 0 12px rgba(245,166,35,0.25);
+    }
+
+    /* ── Nav ── */
+    .nav-blur {
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      background: var(--nav-bg);
+      border-bottom: 1px solid var(--nav-border);
+    }
+
+    /* ── Glow text ── */
+    .text-glow {
+      text-shadow: 0 0 30px rgba(245,166,35,0.6), 0 0 60px rgba(245,166,35,0.2);
+    }
+
+    .text-glow-amber {
+      text-shadow: 0 0 20px rgba(245,166,35,0.5);
+    }
+
+    /* ── Badge ── */
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      border: 1px solid var(--brand-border);
+      border-radius: 4px;
+      padding: 6px 12px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 12px;
+      color: var(--brand);
+      background: var(--brand-dim);
+      letter-spacing: 0.08em;
+    }
+
+    .badge-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: var(--brand);
+      box-shadow: 0 0 6px var(--brand);
+      animation: pulse-dot 2s ease-in-out infinite;
+    }
+
+    /* ── Install command ── */
+    .install-cmd {
+      background: rgba(0,0,0,0.5);
+      border: 1px solid var(--brand-border);
+      border-radius: 8px;
+      padding: 16px 24px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 18px;
+      color: var(--brand);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      cursor: pointer;
+      transition: border-color 0.2s ease, box-shadow 0.2s ease;
+    }
+
+    .install-cmd:hover {
+      border-color: var(--brand);
+      box-shadow: 0 0 20px rgba(245,166,35,0.15);
+    }
+
+    /* ── Theme toggle ── */
+    .theme-toggle {
+      display: flex;
+      align-items: center;
+      gap: 2px;
+      background: var(--bg-surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 3px;
+    }
+
+    .theme-btn {
+      width: 28px;
+      height: 28px;
+      border-radius: 6px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--text-secondary);
+      transition: background 0.15s ease, color 0.15s ease;
+      cursor: pointer;
+      border: none;
+      background: transparent;
+    }
+
+    .theme-btn:hover { color: var(--text-primary); }
+
+    .theme-btn.active {
+      background: var(--brand);
+      color: #0A0A0F;
+    }
+
+    /* ── Divider ── */
+    .section-divider {
+      height: 1px;
+      background: linear-gradient(90deg, transparent, var(--border), transparent);
+    }
+
+    /* ── Big uplnk bg watermark ── */
+    .uplnk-watermark {
+      position: absolute;
+      opacity: 0.025;
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    /* ── Step number ── */
+    .step-number {
+      width: 36px;
+      height: 36px;
+      border: 1px solid rgba(245,166,35,0.4);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 13px;
+      color: var(--brand);
+      flex-shrink: 0;
+      background: var(--brand-dim);
+    }
+
+    /* ── Copy feedback ── */
+    .copy-feedback {
+      opacity: 0;
+      transition: opacity 0.3s ease;
+    }
+    .copy-feedback.show { opacity: 1; }
+
+    /* ── Reduced motion ── */
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after {
+        animation-duration: 0.01ms !important;
+        transition-duration: 0.01ms !important;
+      }
+    }
+
+    /* ── Mobile tweaks ── */
+    @media (max-width: 640px) {
+      .terminal-body { font-size: 11px; padding: 14px 16px; }
+      .code-block { font-size: 12px; }
+    }
+  </style>
+</head>
+
+<body class="bg-bg-primary text-text-primary">
+
+  <!-- ══════════════════════════════════════════════ NAV ══ -->
+  <header class="nav-blur fixed top-0 left-0 right-0 z-50">
+    <nav class="max-w-6xl mx-auto px-5 h-16 flex items-center justify-between">
+      <!-- Logo -->
+      <a href="#" class="flex items-center gap-3 group" aria-label="Uplnk home">
+        <!-- Uplnk SVG Mark -->
+        <svg width="32" height="36" viewBox="0 0 32 36" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+          <line x1="16" y1="0" x2="16" y2="5" stroke="var(--brand)" stroke-width="2" stroke-linecap="round"/>
+          <line x1="16" y1="1" x2="11" y2="4" stroke="var(--brand)" stroke-width="1.2" stroke-linecap="round" opacity="0.6"/>
+          <line x1="16" y1="1" x2="21" y2="4" stroke="var(--brand)" stroke-width="1.2" stroke-linecap="round" opacity="0.6"/>
+          <polygon points="16,5 20,11 19.5,18 12.5,18 12,11" fill="none" stroke="var(--brand)" stroke-width="1.8" stroke-linejoin="round"/>
+          <line x1="12.5" y1="9" x2="19.5" y2="9" stroke="var(--brand)" stroke-width="1.5" stroke-linecap="round"/>
+          <line x1="12.2" y1="13" x2="19.8" y2="13" stroke="var(--brand)" stroke-width="1.5" stroke-linecap="round"/>
+          <line x1="11.8" y1="17" x2="20.2" y2="17" stroke="var(--brand)" stroke-width="1.5" stroke-linecap="round"/>
+          <polygon points="12.5,18 11,22 21,22 19.5,18" fill="none" stroke="var(--brand)" stroke-width="1.8" stroke-linejoin="round"/>
+          <polygon points="11,22 8.5,27 23.5,27 21,22" fill="none" stroke="var(--brand)" stroke-width="1.8" stroke-linejoin="round"/>
+          <rect x="6" y="27" width="20" height="3" rx="1" fill="var(--brand)" opacity="0.8"/>
+          <rect x="6" y="30" width="7" height="6" rx="1" fill="none" stroke="var(--brand)" stroke-width="1.5"/>
+          <rect x="19" y="30" width="7" height="6" rx="1" fill="none" stroke="var(--brand)" stroke-width="1.5"/>
+        </svg>
+        <span class="text-xl font-bold tracking-tight text-text-primary transition-colors duration-200" style="letter-spacing:-0.03em; font-family:'Space Grotesk',sans-serif; group-hover:color:var(--brand);">UPLNK</span>
+      </a>
+
+      <!-- Nav right -->
+      <div class="flex items-center gap-4">
+
+        <!-- Theme toggle: system / light / dark -->
+        <div class="theme-toggle" role="group" aria-label="Color theme">
+          <button class="theme-btn" id="theme-system" onclick="setTheme('system')" aria-label="System theme" title="System">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg>
+          </button>
+          <button class="theme-btn" id="theme-light" onclick="setTheme('light')" aria-label="Light theme" title="Light">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg>
+          </button>
+          <button class="theme-btn" id="theme-dark" onclick="setTheme('dark')" aria-label="Dark theme" title="Dark">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/></svg>
+          </button>
+        </div>
+
+        <a href="https://pixelabs.net" target="_blank" rel="noopener" class="text-text-secondary hover:text-text-primary transition-colors text-sm font-medium" style="letter-spacing:-0.01em;">
+          PixelLabs
+        </a>
+        <a href="https://github.com/thepixelabs/uplnk" target="_blank" rel="noopener" class="text-text-secondary hover:text-text-primary transition-colors text-sm font-medium flex items-center gap-2">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 0C5.374 0 0 5.373 0 12c0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23A11.509 11.509 0 0112 5.803c1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576C20.566 21.797 24 17.3 24 12c0-6.627-5.373-12-12-12z"/></svg>
+          GitHub
+        </a>
+        <a href="#install" class="btn-outline-green font-mono text-sm">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><path d="M12 2v14m0 0l-4-4m4 4l4-4M2 20h20"/></svg>
+          Install
+        </a>
+      </div>
+    </nav>
+  </header>
+
+
+  <!-- ══════════════════════════════════════════════ HERO ══ -->
+  <section class="scanlines relative min-h-screen flex items-center pt-16 overflow-hidden" id="hero">
+
+    <!-- Hero grid background -->
+    <div class="hero-grid" aria-hidden="true"></div>
+
+    <!-- Big uplnk watermark -->
+    <svg class="uplnk-watermark" width="600" height="700" viewBox="0 0 32 36" style="top:50%;right:-5%;transform:translateY(-50%);" preserveAspectRatio="xMidYMid meet" aria-hidden="true">
+      <polygon points="16,5 20,11 19.5,18 12.5,18 12,11" fill="none" stroke="var(--brand)" stroke-width="0.5"/>
+      <line x1="12.5" y1="9" x2="19.5" y2="9" stroke="var(--brand)" stroke-width="0.4"/>
+      <line x1="12.2" y1="13" x2="19.8" y2="13" stroke="var(--brand)" stroke-width="0.4"/>
+      <line x1="11.8" y1="17" x2="20.2" y2="17" stroke="var(--brand)" stroke-width="0.4"/>
+      <polygon points="12.5,18 11,22 21,22 19.5,18" fill="none" stroke="var(--brand)" stroke-width="0.5"/>
+      <polygon points="11,22 8.5,27 23.5,27 21,22" fill="none" stroke="var(--brand)" stroke-width="0.5"/>
+      <rect x="6" y="27" width="20" height="3" fill="var(--brand)"/>
+      <line x1="16" y1="0" x2="16" y2="5" stroke="var(--brand)" stroke-width="0.5"/>
+      <line x1="16" y1="1" x2="11" y2="4" stroke="var(--brand)" stroke-width="0.3"/>
+      <line x1="16" y1="1" x2="21" y2="4" stroke="var(--brand)" stroke-width="0.3"/>
+    </svg>
+
+    <!-- Kirby dot overlay on hero -->
+    <div class="kirby-dots absolute inset-0 pointer-events-none" style="opacity:0.5" aria-hidden="true"></div>
+
+    <!-- Ambient glow orbs -->
+    <div class="absolute top-1/4 left-1/4 w-96 h-96 rounded-full pointer-events-none" style="background:radial-gradient(circle, rgba(245,166,35,0.07) 0%, transparent 70%); filter:blur(40px);" aria-hidden="true"></div>
+    <div class="absolute bottom-1/4 right-1/3 w-64 h-64 rounded-full pointer-events-none" style="background:radial-gradient(circle, rgba(68,136,255,0.05) 0%, transparent 70%); filter:blur(40px);" aria-hidden="true"></div>
+
+    <div class="relative z-10 max-w-6xl mx-auto px-5 py-20 w-full">
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-16 items-center">
+
+        <!-- Left column: copy -->
+        <div class="space-y-7">
+          <!-- Pre-headline badge -->
+          <div>
+            <span class="badge">
+              <span class="badge-dot" aria-hidden="true"></span>
+              LOCAL-FIRST AI
+            </span>
+          </div>
+
+          <!-- Provider list — speaks directly to people who know these tools -->
+          <p class="font-mono text-xs tracking-widest" style="color:var(--brand); letter-spacing:0.1em; opacity:0.75;">OLLAMA · VLLM · LLAMA.CPP · LM STUDIO</p>
+
+          <!-- H1 -->
+          <h1 class="text-4xl sm:text-5xl lg:text-5xl xl:text-6xl font-bold leading-tight tracking-tight" style="letter-spacing:-0.03em; line-height:1.08;">
+            Your models.<br/>
+            Your machine.<br/>
+            <span style="color:var(--brand);" class="text-glow">Full power.</span>
+          </h1>
+
+          <!-- Subheading -->
+          <p class="text-text-secondary text-lg leading-relaxed max-w-lg">
+            Uplnk is an open-source TUI coding assistant that runs entirely on your hardware. Claude Code quality — pointed at your local Ollama server. No cloud, no subscription, no data leaving your machine.
+          </p>
+
+          <!-- CTAs -->
+          <div class="flex flex-wrap gap-4 pt-1">
+            <a href="#install" class="btn-primary">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><path d="M12 2v14m0 0l-4-4m4 4l4-4M2 20h20"/></svg>
+              Install Uplnk
+            </a>
+            <a href="https://github.com/thepixelabs/uplnk" target="_blank" rel="noopener" class="btn-outline">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 0C5.374 0 0 5.373 0 12c0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23A11.509 11.509 0 0112 5.803c1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576C20.566 21.797 24 17.3 24 12c0-6.627-5.373-12-12-12z"/></svg>
+              View on GitHub
+            </a>
+          </div>
+
+          <!-- Works with -->
+          <div class="flex flex-wrap items-center gap-x-5 gap-y-2 pt-2 text-text-secondary text-sm font-mono">
+            <span class="text-xs uppercase tracking-widest" style="opacity:0.5;">Works with</span>
+            <span class="flex items-center gap-1.5"><span style="color:var(--accent-amber);">◆</span> Ollama</span>
+            <span class="flex items-center gap-1.5"><span style="color:var(--accent-amber);">◆</span> vLLM</span>
+            <span class="flex items-center gap-1.5"><span style="color:var(--accent-amber);">◆</span> LM Studio</span>
+            <span class="flex items-center gap-1.5"><span style="color:var(--accent-amber);">◆</span> llama.cpp</span>
+          </div>
+        </div>
+
+        <!-- Right column: terminal -->
+        <div class="relative">
+          <!-- Glow under terminal -->
+          <div class="absolute -inset-4 rounded-2xl pointer-events-none" style="background:radial-gradient(ellipse at center, rgba(0,255,136,0.08) 0%, transparent 70%); filter:blur(20px);" aria-hidden="true"></div>
+
+          <div class="terminal-window relative" role="img" aria-label="Uplnk terminal session demo">
+            <!-- Title bar -->
+            <div class="terminal-titlebar">
+              <div class="terminal-dot" style="background:#FF5F56;"></div>
+              <div class="terminal-dot" style="background:#FFBD2E;"></div>
+              <div class="terminal-dot" style="background:#27C93F;"></div>
+              <span class="flex-1 text-center text-xs font-mono" style="color:var(--text-secondary);">uplnk</span>
+            </div>
+            <!-- Terminal body with typewriter animation -->
+            <div class="terminal-body" id="terminal-output" aria-live="polite">
+              <!-- Populated by JS -->
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </section>
+
+
+  <!-- ══════════════════════════════════════════════ HERO ART ══ -->
+  <section class="relative overflow-hidden" aria-hidden="true" style="background:#06060C;">
+    <div class="relative w-full" style="max-height:520px; overflow:hidden;">
+      <!-- Gradient fade top -->
+      <div class="absolute top-0 left-0 right-0 z-10 pointer-events-none" style="height:120px; background:linear-gradient(to bottom, var(--bg-primary), transparent);"></div>
+      <!-- Hero illustration -->
+      <img
+        src="landing/assets/uplnk-hero.png"
+        alt="Uplnk — retro sci-fi transmission tower in a dark digital void"
+        class="w-full object-cover"
+        style="object-position:center 30%; filter:saturate(1.1) contrast(1.05);"
+        loading="eager"
+        decoding="async"
+      />
+      <!-- Gradient fade bottom -->
+      <div class="absolute bottom-0 left-0 right-0 z-10 pointer-events-none" style="height:180px; background:linear-gradient(to top, var(--bg-primary), transparent);"></div>
+      <!-- Side fades -->
+      <div class="absolute top-0 left-0 bottom-0 z-10 pointer-events-none" style="width:80px; background:linear-gradient(to right, var(--bg-primary), transparent);"></div>
+      <div class="absolute top-0 right-0 bottom-0 z-10 pointer-events-none" style="width:80px; background:linear-gradient(to left, var(--bg-primary), transparent);"></div>
+    </div>
+  </section>
+
+
+  <!-- ══════════════════════════════════════════════ THE SITUATION ══ -->
+  <section class="relative py-28 overflow-hidden" id="problem">
+    <div class="kirby-dots-amber absolute inset-0 pointer-events-none" aria-hidden="true"></div>
+
+    <div class="relative z-10 max-w-4xl mx-auto px-5">
+
+      <div class="text-center mb-16">
+        <p class="font-mono text-xs tracking-widest text-text-secondary uppercase mb-6">The situation</p>
+        <h2 class="text-4xl sm:text-5xl font-bold" style="letter-spacing:-0.03em;">
+          You've been here before.
+        </h2>
+      </div>
+
+      <!-- Three developer scenarios -->
+      <div class="space-y-6">
+
+        <!-- Scenario 1: The late-night debug -->
+        <div class="rounded-2xl p-8 border" style="background:var(--bg-surface); border-color:var(--border);">
+          <div class="flex items-start gap-6">
+            <div class="font-mono text-2xl font-bold flex-shrink-0" style="color:var(--brand); line-height:1;">01</div>
+            <div>
+              <p class="text-text-primary leading-relaxed mb-4">It's 11pm. You're debugging a production issue. You paste your auth middleware into the chat window. The response is exactly what you needed. Then you remember: you just sent your session token schema to a vendor's inference server. You close the tab and figure it out yourself.</p>
+              <p class="text-sm font-mono" style="color:var(--brand);">◆ With Uplnk: same conversation. Same response quality. The inference runs on your machine. The tokens don't leave.</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Scenario 2: The Aider experience -->
+        <div class="rounded-2xl p-8 border" style="background:var(--bg-surface); border-color:var(--border);">
+          <div class="flex items-start gap-6">
+            <div class="font-mono text-2xl font-bold flex-shrink-0" style="color:var(--brand); line-height:1;">02</div>
+            <div>
+              <p class="text-text-primary leading-relaxed mb-4">You installed Aider because it supports Ollama. It does — sort of. The streaming drops out halfway through a long response. The edit format confuses the 8B model. You spend 20 minutes reading error output instead of writing code. You paste the function into Jan.ai and keep going.</p>
+              <p class="text-sm font-mono" style="color:var(--brand);">◆ With Uplnk: the streaming layer handles local model latency. When a response stalls, you see why. When it succeeds, the output is syntax-highlighted and ready to use.</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Scenario 3: The security review -->
+        <div class="rounded-2xl p-8 border" style="background:var(--bg-surface); border-color:var(--border);">
+          <div class="flex items-start gap-6">
+            <div class="font-mono text-2xl font-bold flex-shrink-0" style="color:var(--brand); line-height:1;">03</div>
+            <div>
+              <p class="text-text-primary leading-relaxed mb-4">Your manager asks you to stop using Cursor for work. The security review found that source code is transmitted to third-party inference servers during normal use. You need an alternative that passes infosec review — and doesn't require explaining to the CISO what an ngrok tunnel is.</p>
+              <p class="text-sm font-mono" style="color:var(--brand);">◆ With Uplnk: local inference, no network egress, MIT-licensed source you can audit. The answer to your security team is two words: "runs locally."</p>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </section>
+
+
+  <div class="section-divider max-w-5xl mx-auto"></div>
+
+
+  <!-- ══════════════════════════════════════════════ FEATURES ══ -->
+  <section class="py-28" id="features">
+    <div class="max-w-6xl mx-auto px-5">
+
+      <div class="text-center mb-14">
+        <p class="font-mono text-xs tracking-widest text-text-secondary uppercase mb-4">Capabilities</p>
+        <h2 class="text-3xl sm:text-4xl font-bold" style="letter-spacing:-0.03em;">Everything you need.<br/><span class="text-accent-green">Nothing you don't.</span></h2>
+      </div>
+
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+
+        <!-- Card 1: TUI-Native -->
+        <div class="feature-card">
+          <div class="mb-5">
+            <svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+              <rect x="2" y="5" width="28" height="20" rx="3" stroke="var(--brand)" stroke-width="1.8"/>
+              <rect x="2" y="5" width="28" height="5" rx="3" fill="none" stroke="var(--brand)" stroke-width="1.8"/>
+              <circle cx="7" cy="7.5" r="1.2" fill="var(--brand)"/>
+              <circle cx="11" cy="7.5" r="1.2" fill="var(--brand)"/>
+              <circle cx="15" cy="7.5" r="1.2" fill="var(--brand)"/>
+              <path d="M7 17l4 3-4 3" stroke="var(--brand)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+              <line x1="14" y1="23" x2="22" y2="23" stroke="var(--brand)" stroke-width="1.8" stroke-linecap="round"/>
+            </svg>
+          </div>
+          <h3 class="font-bold text-lg mb-2">TUI-Native</h3>
+          <p class="text-text-secondary text-sm leading-relaxed">Runs inside your existing terminal. No browser, no Electron, no separate window stealing focus.</p>
+        </div>
+
+        <!-- Card 2: Local-First -->
+        <div class="feature-card">
+          <div class="mb-5">
+            <svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+              <circle cx="16" cy="16" r="13" stroke="var(--brand)" stroke-width="1.8"/>
+              <ellipse cx="16" cy="16" rx="6" ry="13" stroke="var(--brand)" stroke-width="1.4"/>
+              <line x1="3" y1="16" x2="29" y2="16" stroke="var(--brand)" stroke-width="1.4"/>
+              <line x1="5" y1="10" x2="27" y2="10" stroke="var(--brand)" stroke-width="1.2" stroke-dasharray="2 2"/>
+              <line x1="5" y1="22" x2="27" y2="22" stroke="var(--brand)" stroke-width="1.2" stroke-dasharray="2 2"/>
+              <path d="M16 3v5M16 24v5" stroke="var(--brand)" stroke-width="1.5" stroke-linecap="round"/>
+              <!-- strikethrough cloud hint -->
+              <line x1="24" y1="8" x2="8" y2="24" stroke="#FF6060" stroke-width="1.4" stroke-linecap="round" opacity="0.7"/>
+            </svg>
+          </div>
+          <h3 class="font-bold text-lg mb-2">Local-First</h3>
+          <p class="text-text-secondary text-sm leading-relaxed">Talk to Ollama, vLLM, LM Studio, or any OpenAI-compatible server. Your models, your rules, your hardware.</p>
+        </div>
+
+        <!-- Card 3: Reliable Streaming -->
+        <div class="feature-card">
+          <div class="mb-5">
+            <svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+              <path d="M4 16h5l3-8 4 16 3-11 2 3h7" stroke="var(--brand)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </div>
+          <h3 class="font-bold text-lg mb-2">Streaming That Doesn't Drop</h3>
+          <p class="text-text-secondary text-sm leading-relaxed">Built for local model latency. Uplnk handles timeouts, backpressure, and slow inference without freezing — you see output as it arrives, not after it fails.</p>
+        </div>
+
+        <!-- Card 4: File Context -->
+        <div class="feature-card">
+          <div class="mb-5">
+            <svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+              <path d="M4 10V7a2 2 0 012-2h6l3 3h11a2 2 0 012 2v13a2 2 0 01-2 2H6a2 2 0 01-2-2V10z" stroke="var(--brand)" stroke-width="1.8"/>
+              <line x1="10" y1="16" x2="22" y2="16" stroke="var(--brand)" stroke-width="1.5" stroke-linecap="round"/>
+              <line x1="10" y1="20" x2="18" y2="20" stroke="var(--brand)" stroke-width="1.5" stroke-linecap="round"/>
+              <path d="M20 22l2 2 4-4" stroke="var(--brand)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </div>
+          <h3 class="font-bold text-lg mb-2">File Context, Done Right</h3>
+          <p class="text-text-secondary text-sm leading-relaxed">Drag a file in or paste a snippet. Uplnk attaches it as context so your LLM answers about your actual code. <span style="color:var(--brand); font-size:0.7rem;" class="font-mono">Full codebase indexing → v0.5</span></p>
+        </div>
+
+        <!-- Card 5: SQLite History -->
+        <div class="feature-card">
+          <div class="mb-5">
+            <svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+              <ellipse cx="16" cy="8" rx="12" ry="4" stroke="var(--brand)" stroke-width="1.8"/>
+              <path d="M4 8v8c0 2.21 5.373 4 12 4s12-1.79 12-4V8" stroke="var(--brand)" stroke-width="1.8"/>
+              <path d="M4 16v8c0 2.21 5.373 4 12 4s12-1.79 12-4v-8" stroke="var(--brand)" stroke-width="1.8"/>
+              <line x1="10" y1="12" x2="14" y2="12" stroke="var(--brand)" stroke-width="1.4" stroke-linecap="round"/>
+              <line x1="10" y1="20" x2="14" y2="20" stroke="var(--brand)" stroke-width="1.4" stroke-linecap="round"/>
+            </svg>
+          </div>
+          <h3 class="font-bold text-lg mb-2">SQLite History</h3>
+          <p class="text-text-secondary text-sm leading-relaxed">Every conversation saved locally at <code class="font-mono text-accent-green text-xs">~/.uplnk/db.sqlite</code>. Portable, queryable, forever yours.</p>
+        </div>
+
+        <!-- Card 6: Zero Cloud -->
+        <div class="feature-card" style="border-color:rgba(245,166,35,0.2); background:linear-gradient(135deg, rgba(245,166,35,0.04), var(--bg-surface));">
+          <div class="mb-5">
+            <svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+              <path d="M16 3l2.5 5.5H24l-4.5 3.5 1.5 5.5L16 14l-5 3.5 1.5-5.5L8 8.5h5.5L16 3z" stroke="var(--brand)" stroke-width="1.8" stroke-linejoin="round"/>
+              <circle cx="16" cy="23" r="6" stroke="var(--brand)" stroke-width="1.8"/>
+              <path d="M13 23l2 2 4-4" stroke="var(--brand)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </div>
+          <h3 class="font-bold text-lg mb-2 text-accent-green">Zero Cloud</h3>
+          <p class="text-text-secondary text-sm leading-relaxed">No API keys sent to our servers. No telemetry without consent. No subscription required. Ever.</p>
+        </div>
+
+      </div>
+    </div>
+  </section>
+
+
+  <div class="section-divider max-w-5xl mx-auto"></div>
+
+
+  <!-- ══════════════════════════════════════════════ INSTALL ══ -->
+  <section class="relative py-28 overflow-hidden" id="install">
+    <div class="kirby-dots absolute inset-0 pointer-events-none" style="opacity:0.4;" aria-hidden="true"></div>
+
+    <div class="relative z-10 max-w-3xl mx-auto px-5">
+
+      <div class="text-center mb-12">
+        <p class="font-mono text-xs tracking-widest text-text-secondary uppercase mb-4">Get started in 60 seconds</p>
+        <h2 class="text-3xl sm:text-4xl font-bold" style="letter-spacing:-0.03em;">
+          Three commands.<br/><span style="color:var(--brand);">Running in under three minutes.</span>
+        </h2>
+      </div>
+
+      <!-- Code block -->
+      <div class="code-block" role="region" aria-label="Installation steps">
+        <!-- Step bar -->
+        <div class="flex items-center gap-3 px-6 py-3 border-b" style="border-color:var(--border); background:rgba(0,0,0,0.3);">
+          <div class="w-2.5 h-2.5 rounded-full" style="background:#FF5F56;"></div>
+          <div class="w-2.5 h-2.5 rounded-full" style="background:#FFBD2E;"></div>
+          <div class="w-2.5 h-2.5 rounded-full" style="background:#27C93F;"></div>
+          <span class="font-mono text-xs ml-2" style="color:var(--text-secondary);">shell</span>
+          <!-- Copy button -->
+          <button id="copy-install" class="ml-auto flex items-center gap-2 text-xs font-mono px-3 py-1.5 rounded transition-all duration-200" style="border:1px solid var(--border); color:var(--text-secondary);" onclick="copyInstall()" aria-label="Copy installation commands">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
+            <span id="copy-text">copy</span>
+          </button>
+        </div>
+
+        <div class="p-6 space-y-6 pl-10">
+
+          <!-- Step 1 -->
+          <div class="flex gap-5 items-start">
+            <div class="step-number mt-0.5" aria-hidden="true">1</div>
+            <div class="flex-1">
+              <p class="text-xs font-mono mb-2" style="color:var(--text-secondary);"># Install Uplnk globally</p>
+              <p class="font-mono"><span style="color:var(--text-secondary);">$</span> <span class="text-accent-green">npm</span> <span style="color:var(--text-primary);">install -g uplnk-dev</span></p>
+            </div>
+          </div>
+
+          <!-- Step 2 -->
+          <div class="flex gap-5 items-start">
+            <div class="step-number mt-0.5" aria-hidden="true">2</div>
+            <div class="flex-1">
+              <p class="text-xs font-mono mb-2" style="color:var(--text-secondary);"># Connect your local LLM</p>
+              <p class="font-mono"><span style="color:var(--text-secondary);">$</span> <span class="text-accent-green">uplnk</span> <span style="color:var(--text-primary);">config</span> <span style="color:var(--accent-amber);">--provider</span> <span style="color:var(--accent-blue);">ollama</span> <span style="color:var(--accent-amber);">--url</span> <span style="color:var(--accent-blue);">http://localhost:11434</span></p>
+            </div>
+          </div>
+
+          <!-- Step 3 -->
+          <div class="flex gap-5 items-start">
+            <div class="step-number mt-0.5" aria-hidden="true">3</div>
+            <div class="flex-1">
+              <p class="text-xs font-mono mb-2" style="color:var(--text-secondary);"># Start coding with AI</p>
+              <p class="font-mono"><span style="color:var(--text-secondary);">$</span> <span class="text-accent-green font-bold text-glow">uplnk</span></p>
+              <p class="font-mono mt-2" style="color:var(--text-secondary);">◆ Uplnk v0.1.0 — Connected: Ollama (llama3:8b) <span style="color:var(--accent-green);">●</span></p>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+      <p class="text-center text-text-secondary text-sm mt-6 font-mono">
+        Requires Node.js 20+ and a running Ollama/vLLM instance.
+        <a href="https://ollama.com" target="_blank" rel="noopener" class="text-accent-blue hover:underline ml-1">Get Ollama →</a>
+      </p>
+
+    </div>
+  </section>
+
+
+  <div class="section-divider max-w-5xl mx-auto"></div>
+
+
+  <!-- ══════════════════════════════════════════════ COMPARISON ══ -->
+  <section class="py-28" id="compare">
+    <div class="max-w-5xl mx-auto px-5">
+
+      <div class="text-center mb-12">
+        <p class="font-mono text-xs tracking-widest text-text-secondary uppercase mb-4">How it stacks up</p>
+        <h2 class="text-3xl sm:text-4xl font-bold" style="letter-spacing:-0.03em;">
+          The honest comparison.
+        </h2>
+      </div>
+
+      <!-- Legend -->
+      <div class="flex justify-center gap-6 mb-6 text-xs font-mono" style="color:var(--text-secondary);">
+        <span class="flex items-center gap-2"><span class="text-accent-green font-bold">✓</span> Supported</span>
+        <span class="flex items-center gap-2"><span style="color:#FF6060;" class="font-bold">✕</span> Not supported</span>
+        <span class="flex items-center gap-2"><span style="color:var(--brand);">~</span> Partial / cloud-only</span>
+      </div>
+
+      <div class="overflow-x-auto rounded-xl border" style="border-color:var(--border);">
+        <table class="compare-table" role="table">
+          <thead>
+            <tr>
+              <th class="text-text-secondary" style="min-width:220px;">Feature</th>
+              <th class="uplnk-col text-center">
+                <div class="flex flex-col items-center gap-1">
+                  <span style="color:var(--brand); font-weight:700;">UPLNK</span>
+                  <span class="text-xs font-mono font-normal" style="color:var(--text-secondary);">open-source</span>
+                </div>
+              </th>
+              <th class="text-center text-text-secondary">Aider</th>
+              <th class="text-center text-text-secondary">Continue.dev</th>
+              <th class="text-center text-text-secondary">Open WebUI</th>
+              <th class="text-center text-text-secondary">Cursor</th>
+            </tr>
+          </thead>
+          <tbody style="color:var(--text-secondary);">
+            <tr>
+              <td class="font-medium" style="color:var(--text-primary);">
+                Terminal UI (TUI)
+                <span class="block text-xs font-normal mt-0.5" style="color:var(--text-secondary);">Runs inside your existing terminal</span>
+              </td>
+              <td class="uplnk-col text-center"><span style="color:var(--brand);" class="text-lg font-bold">✓</span></td>
+              <td class="text-center"><span class="text-accent-green text-lg">✓</span></td>
+              <td class="text-center text-xs" style="color:var(--text-secondary);">IDE extension</td>
+              <td class="text-center text-xs" style="color:var(--text-secondary);">Web app</td>
+              <td class="text-center text-xs" style="color:var(--text-secondary);">IDE app</td>
+            </tr>
+            <tr>
+              <td class="font-medium" style="color:var(--text-primary);">
+                Local LLM native
+                <span class="block text-xs font-normal mt-0.5" style="color:var(--text-secondary);">Ollama, vLLM, llama.cpp first-class</span>
+              </td>
+              <td class="uplnk-col text-center"><span style="color:var(--brand);" class="text-lg font-bold">✓</span></td>
+              <td class="text-center"><span class="text-accent-green text-lg">✓</span></td>
+              <td class="text-center"><span class="text-accent-green text-lg">✓</span></td>
+              <td class="text-center"><span class="text-accent-green text-lg">✓</span></td>
+              <td class="text-center" style="color:#FF6060;">✕</td>
+            </tr>
+            <tr>
+              <td class="font-medium" style="color:var(--text-primary);">
+                MCP tool calling
+                <span class="block text-xs font-normal mt-0.5" style="color:var(--text-secondary);">Model Context Protocol — file browse + tools <span style="color:var(--brand);">(v0.5)</span></span>
+              </td>
+              <td class="uplnk-col text-center" title="Coming in v0.5"><span style="color:var(--brand);" class="text-lg font-bold">~</span></td>
+              <td class="text-center" style="color:#FF6060;">✕</td>
+              <td class="text-center"><span class="text-accent-green text-lg">✓</span></td>
+              <td class="text-center" style="color:var(--brand);">~</td>
+              <td class="text-center"><span class="text-accent-green text-lg">✓</span></td>
+            </tr>
+            <tr>
+              <td class="font-medium" style="color:var(--text-primary);">
+                Codebase-aware context
+                <span class="block text-xs font-normal mt-0.5" style="color:var(--text-secondary);">Full project indexing + .gitignore <span style="color:var(--brand);">(v0.5)</span></span>
+              </td>
+              <td class="uplnk-col text-center" title="Coming in v0.5"><span style="color:var(--brand);" class="text-lg font-bold">~</span></td>
+              <td class="text-center"><span class="text-accent-green text-lg">✓</span></td>
+              <td class="text-center"><span class="text-accent-green text-lg">✓</span></td>
+              <td class="text-center" style="color:#FF6060;">✕</td>
+              <td class="text-center"><span class="text-accent-green text-lg">✓</span></td>
+            </tr>
+            <tr>
+              <td class="font-medium" style="color:var(--text-primary);">
+                Portable local history
+                <span class="block text-xs font-normal mt-0.5" style="color:var(--text-secondary);">SQLite at <code class="font-mono text-xs">~/.uplnk/db.sqlite</code> — yours forever</span>
+              </td>
+              <td class="uplnk-col text-center"><span style="color:var(--brand);" class="text-lg font-bold">✓</span></td>
+              <td class="text-center" style="color:var(--brand);">~</td>
+              <td class="text-center" style="color:#FF6060;">✕</td>
+              <td class="text-center" style="color:var(--brand);">~</td>
+              <td class="text-center" style="color:#FF6060;">✕</td>
+            </tr>
+            <tr>
+              <td class="font-medium" style="color:var(--text-primary);">
+                Open source
+              </td>
+              <td class="uplnk-col text-center"><span style="color:var(--brand);" class="text-lg font-bold">✓</span></td>
+              <td class="text-center"><span class="text-accent-green text-lg">✓</span></td>
+              <td class="text-center"><span class="text-accent-green text-lg">✓</span></td>
+              <td class="text-center"><span class="text-accent-green text-lg">✓</span></td>
+              <td class="text-center" style="color:#FF6060;">✕</td>
+            </tr>
+            <tr>
+              <td class="font-medium" style="color:var(--text-primary);">
+                No subscription
+              </td>
+              <td class="uplnk-col text-center"><span style="color:var(--brand);" class="text-lg font-bold">✓</span></td>
+              <td class="text-center"><span class="text-accent-green text-lg">✓</span></td>
+              <td class="text-center"><span class="text-accent-green text-lg">✓</span></td>
+              <td class="text-center"><span class="text-accent-green text-lg">✓</span></td>
+              <td class="text-center" style="color:#FF6060;">✕</td>
+            </tr>
+            <tr>
+              <td class="font-medium" style="color:var(--text-primary);">
+                Runs fully offline / air-gapped
+              </td>
+              <td class="uplnk-col text-center"><span style="color:var(--brand);" class="text-lg font-bold">✓</span></td>
+              <td class="text-center"><span class="text-accent-green text-lg">✓</span></td>
+              <td class="text-center" style="color:var(--brand);">~</td>
+              <td class="text-center"><span class="text-accent-green text-lg">✓</span></td>
+              <td class="text-center" style="color:#FF6060;">✕</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <p class="text-center text-text-secondary text-xs mt-4 font-mono">For Uplnk, ~ = planned on the public roadmap (v0.5 or v1.0). For others, ~ = partial or requires workaround. Data based on public documentation, April 2026.</p>
+
+    </div>
+  </section>
+
+
+  <div class="section-divider max-w-5xl mx-auto"></div>
+
+
+  <!-- ══════════════════════════════════════════════ CTA ══ -->
+  <section class="relative py-32 overflow-hidden text-center kirby-dots" id="cta">
+
+    <!-- Big glow center -->
+    <div class="absolute inset-0 flex items-center justify-center pointer-events-none" aria-hidden="true">
+      <div class="w-[600px] h-[400px] rounded-full" style="background:radial-gradient(ellipse, rgba(245,166,35,0.07) 0%, transparent 70%); filter:blur(60px);"></div>
+    </div>
+
+    <div class="relative z-10 max-w-3xl mx-auto px-5">
+
+      <!-- Uplnk mark large -->
+      <div class="flex justify-center mb-8" aria-hidden="true">
+        <svg width="52" height="58" viewBox="0 0 32 36" fill="none" xmlns="http://www.w3.org/2000/svg" style="opacity:0.7; filter:drop-shadow(0 0 12px rgba(245,166,35,0.6));">
+          <line x1="16" y1="0" x2="16" y2="5" stroke="var(--brand)" stroke-width="2" stroke-linecap="round"/>
+          <line x1="16" y1="1" x2="11" y2="4" stroke="var(--brand)" stroke-width="1.2" stroke-linecap="round" opacity="0.6"/>
+          <line x1="16" y1="1" x2="21" y2="4" stroke="var(--brand)" stroke-width="1.2" stroke-linecap="round" opacity="0.6"/>
+          <polygon points="16,5 20,11 19.5,18 12.5,18 12,11" fill="none" stroke="var(--brand)" stroke-width="1.8" stroke-linejoin="round"/>
+          <line x1="12.5" y1="9" x2="19.5" y2="9" stroke="var(--brand)" stroke-width="1.5" stroke-linecap="round"/>
+          <line x1="12.2" y1="13" x2="19.8" y2="13" stroke="var(--brand)" stroke-width="1.5" stroke-linecap="round"/>
+          <line x1="11.8" y1="17" x2="20.2" y2="17" stroke="var(--brand)" stroke-width="1.5" stroke-linecap="round"/>
+          <polygon points="12.5,18 11,22 21,22 19.5,18" fill="none" stroke="var(--brand)" stroke-width="1.8" stroke-linejoin="round"/>
+          <polygon points="11,22 8.5,27 23.5,27 21,22" fill="none" stroke="var(--brand)" stroke-width="1.8" stroke-linejoin="round"/>
+          <rect x="6" y="27" width="20" height="3" rx="1" fill="var(--brand)" opacity="0.8"/>
+          <rect x="6" y="30" width="7" height="6" rx="1" fill="none" stroke="var(--brand)" stroke-width="1.5"/>
+          <rect x="19" y="30" width="7" height="6" rx="1" fill="none" stroke="var(--brand)" stroke-width="1.5"/>
+        </svg>
+      </div>
+
+      <h2 class="text-3xl sm:text-4xl lg:text-5xl font-bold mb-5" style="letter-spacing:-0.03em; line-height:1.1;">
+        Local LLMs deserve<br/><span class="text-accent-green text-glow">better tooling.</span>
+      </h2>
+
+      <p class="text-text-secondary text-lg mb-10 max-w-xl mx-auto">
+        Open source. MIT licensed. No tracking. No paywalls. Install it once and it's yours — no subscription, no vendor lock-in, no account required.
+      </p>
+
+      <!-- GitHub stars placeholder -->
+      <div class="flex justify-center mb-8">
+        <a href="https://github.com/thepixelabs/uplnk" target="_blank" rel="noopener" class="flex items-center gap-3 px-5 py-3 rounded-lg border text-sm font-mono transition-all duration-200 hover:border-opacity-80" style="border-color:var(--border); background:var(--bg-surface);" aria-label="Star Uplnk on GitHub">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" style="color:var(--accent-amber);" aria-hidden="true"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+          <span style="color:var(--text-secondary);">Star on GitHub</span>
+          <span class="px-2 py-0.5 rounded text-xs font-bold" style="background:rgba(255,184,0,0.1); color:var(--accent-amber); border:1px solid rgba(255,184,0,0.2);">★ — be first</span>
+        </a>
+      </div>
+
+      <!-- Big install command -->
+      <div class="max-w-md mx-auto">
+        <button
+          class="install-cmd w-full text-left"
+          onclick="copyMainInstall()"
+          aria-label="Click to copy: npm install -g uplnk-dev"
+        >
+          <span>
+            <span style="color:var(--text-secondary);">$</span>
+            <span class="ml-2">npm install -g uplnk-dev</span>
+          </span>
+          <span class="flex items-center gap-2 text-xs" style="color:var(--text-secondary);" aria-hidden="true">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
+            <span id="main-copy-text">copy</span>
+          </span>
+        </button>
+        <p class="text-text-secondary text-xs mt-3 font-mono">MIT License · Open source forever</p>
+      </div>
+
+    </div>
+  </section>
+
+
+  <!-- ══════════════════════════════════════════════ FOOTER ══ -->
+  <footer class="border-t py-12" style="border-color:var(--border);">
+    <div class="max-w-6xl mx-auto px-5">
+      <div class="flex flex-col sm:flex-row items-center justify-between gap-6">
+
+        <!-- Logo + tagline -->
+        <div class="flex items-center gap-3">
+          <svg width="22" height="26" viewBox="0 0 32 36" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" style="opacity:0.7;">
+            <line x1="16" y1="0" x2="16" y2="5" stroke="var(--brand)" stroke-width="2" stroke-linecap="round"/>
+            <polygon points="16,5 20,11 19.5,18 12.5,18 12,11" fill="none" stroke="var(--brand)" stroke-width="2" stroke-linejoin="round"/>
+            <line x1="12.5" y1="9" x2="19.5" y2="9" stroke="var(--brand)" stroke-width="1.5" stroke-linecap="round"/>
+            <line x1="12.2" y1="13" x2="19.8" y2="13" stroke="var(--brand)" stroke-width="1.5" stroke-linecap="round"/>
+            <polygon points="12.5,18 11,22 21,22 19.5,18" fill="none" stroke="var(--brand)" stroke-width="2" stroke-linejoin="round"/>
+            <polygon points="11,22 8.5,27 23.5,27 21,22" fill="none" stroke="var(--brand)" stroke-width="2" stroke-linejoin="round"/>
+            <rect x="6" y="27" width="20" height="3" rx="1" fill="var(--brand)" opacity="0.7"/>
+          </svg>
+          <div>
+            <div class="font-bold text-sm tracking-tight" style="font-family:'Space Grotesk',sans-serif; letter-spacing:-0.02em;">UPLNK</div>
+            <div class="text-xs font-mono" style="color:var(--text-secondary);">Local models. Studio-grade tooling. Yours to keep.</div>
+          </div>
+        </div>
+
+        <!-- Links -->
+        <nav class="flex flex-wrap items-center gap-6 text-sm" aria-label="Footer navigation">
+          <a href="https://pixelabs.net" target="_blank" rel="noopener" class="font-medium transition-colors" style="color:var(--brand);">PixelLabs ↗</a>
+          <a href="https://github.com/thepixelabs/uplnk" target="_blank" rel="noopener" class="text-text-secondary hover:text-text-primary transition-colors">GitHub</a>
+          <a href="https://github.com/thepixelabs/uplnk/wiki" target="_blank" rel="noopener" class="text-text-secondary hover:text-text-primary transition-colors">Docs</a>
+          <a href="https://github.com/thepixelabs/uplnk/issues" target="_blank" rel="noopener" class="text-text-secondary hover:text-text-primary transition-colors">Issues</a>
+          <a href="https://github.com/thepixelabs/uplnk/blob/main/LICENSE" target="_blank" rel="noopener" class="text-text-secondary hover:text-text-primary transition-colors">License</a>
+        </nav>
+
+      </div>
+    </div>
+  </footer>
+
+
+  <!-- ══════════════════════════════════════════════ JS ══ -->
+  <script>
+    // ── Terminal typewriter animation ───────────────────────────────
+    const terminalLines = [
+      { text: '$ uplnk', class: 'term-dim', delay: 0, speed: 60 },
+      { text: '', delay: 200 },
+      { text: '◆ Uplnk v0.1.0  Connected: Ollama (llama3:8b) ', class: 'term-green', trailingDot: true, delay: 100 },
+      { text: '─────────────────────────────────────────────', class: 'term-dim', delay: 80 },
+      { text: '', delay: 300 },
+      { text: 'you › why is the auth middleware O(n²)?', class: 'term-amber', delay: 200, speed: 45 },
+      { text: '', delay: 200 },
+      { text: 'uplnk › Scanning project...', class: 'term-dim', delay: 100, speed: 40 },
+      { text: '', delay: 400 },
+      { text: 'The issue is in middleware/auth.ts:47.', class: 'term-white', delay: 60 },
+      { text: 'For each request, you\'re iterating through', class: 'term-white', delay: 50 },
+      { text: 'all sessions to find a match:', class: 'term-white', delay: 50 },
+      { text: '', delay: 200 },
+      { text: '┌─────────────────────────────────────────┐', class: 'term-dim', delay: 30 },
+      { text: '│ // O(n²) - sessions grows unbounded     │', class: 'term-dim', delay: 30 },
+      { text: '│ const session = sessions.find(s =>      │', class: 'term-dim', delay: 30 },
+      { text: '│   s.token === req.headers.token)        │', class: 'term-dim', delay: 30 },
+      { text: '└─────────────────────────────────────────┘', class: 'term-dim', delay: 30 },
+      { text: '', delay: 200 },
+      { text: 'Fix: use a Map<token, Session> instead.', class: 'term-white', delay: 60 },
+      { text: 'Lookup becomes O(1). ', class: 'term-white', trailingCheck: true, delay: 60 },
+      { text: '', delay: 300 },
+      { text: 'you › ', class: 'term-amber', cursor: true, delay: 200 },
+    ];
+
+    const output = document.getElementById('terminal-output');
+    let lineIndex = 0;
+    let charIndex = 0;
+    let currentEl = null;
+
+    function typeChar() {
+      const line = terminalLines[lineIndex];
+      if (!line) return;
+
+      if (!currentEl) {
+        const p = document.createElement('p');
+        p.style.margin = '0';
+        p.style.whiteSpace = 'pre';
+
+        if (line.class) {
+          line.class.split(' ').forEach(c => p.classList.add(c));
+        }
+
+        if (line.text === '') {
+          output.appendChild(p);
+          currentEl = null;
+          lineIndex++;
+          setTimeout(typeChar, line.delay || 50);
+          return;
+        }
+
+        output.appendChild(p);
+        currentEl = p;
+        charIndex = 0;
+      }
+
+      const line2 = terminalLines[lineIndex];
+      if (charIndex < line2.text.length) {
+        currentEl.textContent = line2.text.slice(0, charIndex + 1);
+        charIndex++;
+
+        // Scroll terminal into view as it fills
+        output.scrollTop = output.scrollHeight;
+
+        const speed = line2.speed || 30;
+        setTimeout(typeChar, speed + Math.random() * 20);
+      } else {
+        // Line complete — add trailing elements
+        if (line2.trailingDot) {
+          const dot = document.createElement('span');
+          dot.style.cssText = 'display:inline-block;width:8px;height:8px;border-radius:50%;background:#00FF88;box-shadow:0 0 6px #00FF88;animation:pulse-dot 2s ease-in-out infinite;vertical-align:middle;';
+          currentEl.appendChild(dot);
+        }
+        if (line2.trailingCheck) {
+          const chk = document.createElement('span');
+          chk.className = 'term-green';
+          chk.textContent = '✓';
+          currentEl.appendChild(chk);
+        }
+        if (line2.cursor) {
+          const cur = document.createElement('span');
+          cur.className = 'cursor-block';
+          cur.setAttribute('aria-hidden', 'true');
+          currentEl.appendChild(cur);
+        }
+
+        currentEl = null;
+        lineIndex++;
+
+        const nextLine = terminalLines[lineIndex];
+        const delay = nextLine ? (nextLine.delay || 50) : 0;
+        if (lineIndex < terminalLines.length) {
+          setTimeout(typeChar, delay);
+        }
+      }
+    }
+
+    // Intersection observer — start animation when terminal scrolls into view
+    const terminalEl = document.getElementById('terminal-output');
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach(entry => {
+        if (entry.isIntersecting) {
+          observer.disconnect();
+          setTimeout(typeChar, 600);
+        }
+      });
+    }, { threshold: 0.3 });
+    observer.observe(terminalEl);
+
+
+    // ── Copy install commands ────────────────────────────────────────
+    const INSTALL_COMMANDS = `# 1. Install\nnpm install -g uplnk-dev\n\n# 2. Connect your local LLM\nuplnk config --provider ollama --url http://localhost:11434\n\n# 3. Start coding with AI\nuplnk`;
+
+    function copyInstall() {
+      navigator.clipboard.writeText(INSTALL_COMMANDS).then(() => {
+        const btn = document.getElementById('copy-install');
+        const txt = document.getElementById('copy-text');
+        txt.textContent = 'copied!';
+        btn.style.borderColor = 'rgba(245,166,35,0.5)';
+        btn.style.color = 'var(--accent-green)';
+        setTimeout(() => {
+          txt.textContent = 'copy';
+          btn.style.borderColor = '';
+          btn.style.color = '';
+        }, 2000);
+      }).catch(() => {
+        // Fallback for browsers without clipboard API
+        const txt = document.getElementById('copy-text');
+        txt.textContent = 'copy manually';
+        setTimeout(() => { txt.textContent = 'copy'; }, 2000);
+      });
+    }
+
+    function copyMainInstall() {
+      navigator.clipboard.writeText('npm install -g uplnk-dev').then(() => {
+        const txt = document.getElementById('main-copy-text');
+        txt.textContent = 'copied!';
+        setTimeout(() => { txt.textContent = 'copy'; }, 2000);
+      }).catch(() => {});
+    }
+
+
+    // ── Smooth reveal on scroll ──────────────────────────────────────
+    const revealEls = document.querySelectorAll('.feature-card, .compare-table, .code-block, section h2');
+
+    const revealObserver = new IntersectionObserver((entries) => {
+      entries.forEach(entry => {
+        if (entry.isIntersecting) {
+          entry.target.style.opacity = '1';
+          entry.target.style.transform = 'translateY(0)';
+          revealObserver.unobserve(entry.target);
+        }
+      });
+    }, { threshold: 0.1, rootMargin: '0px 0px -40px 0px' });
+
+    revealEls.forEach(el => {
+      el.style.opacity = '0';
+      el.style.transform = 'translateY(16px)';
+      el.style.transition = 'opacity 0.5s ease, transform 0.5s ease';
+      revealObserver.observe(el);
+    });
+
+
+    // ── Keyboard shortcut: Ctrl+K / Cmd+K focuses install ───────────
+    document.addEventListener('keydown', (e) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+        e.preventDefault();
+        document.getElementById('install').scrollIntoView({ behavior: 'smooth' });
+      }
+    });
+
+
+    // ── Theme toggle (system / light / dark) ─────────────────────────
+    const THEME_KEY = 'uplnk-theme';
+
+    function applyTheme(t) {
+      const root = document.documentElement;
+      root.classList.remove('light', 'dark');
+      if (t === 'light' || t === 'dark') root.classList.add(t);
+      // Update active button
+      ['system','light','dark'].forEach(id => {
+        const btn = document.getElementById('theme-' + id);
+        if (btn) btn.classList.toggle('active', id === t);
+      });
+      // Update nav bg when theme changes
+      const nav = document.querySelector('.nav-blur');
+      if (nav) nav.style.background = '';
+    }
+
+    function setTheme(t) {
+      localStorage.setItem(THEME_KEY, t);
+      applyTheme(t);
+    }
+
+    function initTheme() {
+      const saved = localStorage.getItem(THEME_KEY) || 'system';
+      applyTheme(saved);
+    }
+
+    // Listen for system preference changes (when in 'system' mode)
+    window.matchMedia('(prefers-color-scheme: light)').addEventListener('change', () => {
+      if (!localStorage.getItem(THEME_KEY) || localStorage.getItem(THEME_KEY) === 'system') {
+        applyTheme('system');
+      }
+    });
+
+    initTheme();
+  </script>
+
+</body>
+</html>
