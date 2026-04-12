@@ -4,13 +4,32 @@ import { ChatScreen } from './screens/ChatScreen.js';
 import { ModelSelectorScreen } from './screens/ModelSelectorScreen.js';
 import { ConversationListScreen } from './screens/ConversationListScreen.js';
 import { ProviderSelectorScreen } from './screens/ProviderSelectorScreen.js';
+import { AddProviderScreen } from './screens/AddProviderScreen.js';
+import type { AuthMode, ProviderKind } from 'pylon-providers';
 import { CommandPalette } from './components/layout/CommandPalette.js';
 import type { PaletteCommand } from './components/layout/CommandPalette.js';
 import { ErrorBanner } from './components/layout/ErrorBanner.js';
 import type { PylonError } from 'pylon-shared';
 import type { Config } from './lib/config.js';
 
-export type Screen = 'chat' | 'model-selector' | 'conversations' | 'provider-selector';
+export type Screen = 'chat' | 'model-selector' | 'conversations' | 'provider-selector' | 'add-provider' | 'edit-provider';
+
+interface EditingProvider {
+  id: string;
+  name: string;
+  kind: ProviderKind;
+  baseUrl: string;
+  authMode: AuthMode;
+  apiKey: string;
+  /**
+   * Un-resolved api_key column value. Optional so callers that don't have
+   * it (or pass undefined) still satisfy the type — the save path falls
+   * back to migratePlaintext when it's not provided.
+   */
+  rawApiKey?: string | null;
+  isDefault: boolean;
+  defaultModel: string | null;
+}
 
 export interface AppProps {
   initialModel?: string;
@@ -33,6 +52,17 @@ export function App({ initialModel = 'qwen2.5:7b', resumeConversationId, project
   const [globalError, setGlobalError] = useState<PylonError | null>(null);
   const [paletteOpen, setPaletteOpen] = useState(false);
 
+  // The active conversation id is lifted to App so we can remount ChatScreen
+  // via `key` whenever the user picks a different conversation (resume) or
+  // forks the current one. This avoids having ChatScreen manage two lifetimes.
+  const [activeConversationId, setActiveConversationId] = useState<string | undefined>(
+    resumeConversationId,
+  );
+
+  // Provider currently being edited via the AddProviderScreen-in-edit-mode
+  // path. Cleared on save/cancel.
+  const [editingProvider, setEditingProvider] = useState<EditingProvider | null>(null);
+
   useInput((input, key) => {
     // Ctrl+K opens/closes command palette
     if (key.ctrl && input === 'k') { setPaletteOpen((o) => !o); return; }
@@ -50,11 +80,31 @@ export function App({ initialModel = 'qwen2.5:7b', resumeConversationId, project
     setGlobalError(error);
   }, []);
 
+  /**
+   * Resume a specific conversation by id. Sets the active id and returns to
+   * the chat screen — ChatScreen's `key` is the id so React unmounts the old
+   * instance and remounts a fresh one that re-reads the new conversation
+   * from SQLite via `useConversation(resumeId)`.
+   */
+  const handleResumeConversation = useCallback((conversationId: string) => {
+    setActiveConversationId(conversationId);
+    setCurrentScreen('chat');
+  }, []);
+
+  /**
+   * Called by ChatScreen when the user runs /fork. The new conversation id
+   * is already written to SQLite (in ChatScreen's handler); all we do here is
+   * remount ChatScreen on the new id.
+   */
+  const handleForkedTo = useCallback((newConversationId: string) => {
+    setActiveConversationId(newConversationId);
+  }, []);
+
   // Palette commands — registered here at App level so they have access to navigation state
   const paletteCommands: PaletteCommand[] = [
     {
       id: 'model-selector', name: 'Switch model', shortcut: '/model',
-      description: 'Choose a different Ollama model', group: 'chat',
+      description: 'Choose a different model', group: 'chat',
       execute: () => setCurrentScreen('model-selector'),
     },
     {
@@ -63,9 +113,19 @@ export function App({ initialModel = 'qwen2.5:7b', resumeConversationId, project
       execute: () => setCurrentScreen('provider-selector'),
     },
     {
+      id: 'add-provider', name: 'Add provider', shortcut: '/add-provider',
+      description: 'Connect to a remote model server', group: 'chat',
+      execute: () => setCurrentScreen('add-provider'),
+    },
+    {
       id: 'conversations', name: 'Conversation history', shortcut: 'Ctrl+L',
       description: 'Browse and resume past conversations', group: 'chat',
       execute: () => setCurrentScreen('conversations'),
+    },
+    {
+      id: 'fork', name: 'Fork current conversation', shortcut: '/fork',
+      description: 'Branch a new conversation from the latest message', group: 'chat',
+      execute: () => handleNavigate('fork'),
     },
     {
       id: 'export-md', name: 'Export as Markdown', shortcut: '/export',
@@ -78,24 +138,24 @@ export function App({ initialModel = 'qwen2.5:7b', resumeConversationId, project
       execute: () => handleNavigate('export:json'),
     },
     {
-      id: 'tpl-code-review', name: 'Template: Code Reviewer',
-      description: 'Switch to code review persona', group: 'templates',
-      execute: () => handleNavigate('template:code-reviewer'),
+      id: 'tpl-code-review', name: 'Role: Code Reviewer',
+      description: 'Switch to code review persona', group: 'roles',
+      execute: () => handleNavigate('role:code-reviewer'),
     },
     {
-      id: 'tpl-refactor', name: 'Template: Refactoring Partner',
-      description: 'Switch to refactoring persona', group: 'templates',
-      execute: () => handleNavigate('template:refactoring-partner'),
+      id: 'tpl-refactor', name: 'Role: Refactoring Partner',
+      description: 'Switch to refactoring persona', group: 'roles',
+      execute: () => handleNavigate('role:refactoring-partner'),
     },
     {
-      id: 'tpl-debug', name: 'Template: Debug Assistant',
-      description: 'Switch to debug persona', group: 'templates',
-      execute: () => handleNavigate('template:debug-assistant'),
+      id: 'tpl-debug', name: 'Role: Debug Assistant',
+      description: 'Switch to debug persona', group: 'roles',
+      execute: () => handleNavigate('role:debug-assistant'),
     },
     {
-      id: 'tpl-clear', name: 'Clear template',
-      description: 'Remove active system prompt template', group: 'templates',
-      execute: () => handleNavigate('template:clear'),
+      id: 'tpl-clear', name: 'Clear role',
+      description: 'Remove active role', group: 'roles',
+      execute: () => handleNavigate('role:clear'),
     },
   ];
 
@@ -111,8 +171,12 @@ export function App({ initialModel = 'qwen2.5:7b', resumeConversationId, project
 
       {!paletteOpen && currentScreen === 'chat' && (
         <ChatScreen
+          // `key` on the conversation id forces a clean remount on resume /
+          // fork — clears streaming state, tool-call counter, artifact panel,
+          // history ref.
+          key={activeConversationId ?? 'new'}
           initialModel={activeModel}
-          {...(resumeConversationId !== undefined ? { resumeConversationId } : {})}
+          {...(activeConversationId !== undefined ? { resumeConversationId: activeConversationId } : {})}
           {...(projectDir !== undefined ? { projectDir } : {})}
           {...(config !== undefined ? { config } : {})}
           {...(activeProvider !== null ? {
@@ -122,6 +186,7 @@ export function App({ initialModel = 'qwen2.5:7b', resumeConversationId, project
           onNavigate={handleNavigate}
           onError={handleError}
           onCommand={handleNavigate}
+          onForkedTo={handleForkedTo}
         />
       )}
 
@@ -135,7 +200,7 @@ export function App({ initialModel = 'qwen2.5:7b', resumeConversationId, project
 
       {!paletteOpen && currentScreen === 'conversations' && (
         <ConversationListScreen
-          onSelect={() => setCurrentScreen('chat')}
+          onSelect={handleResumeConversation}
           onBack={() => setCurrentScreen('chat')}
         />
       )}
@@ -148,6 +213,32 @@ export function App({ initialModel = 'qwen2.5:7b', resumeConversationId, project
             setCurrentScreen('chat');
           }}
           onBack={() => setCurrentScreen('chat')}
+          onAdd={() => setCurrentScreen('add-provider')}
+          onEdit={(p) => {
+            setEditingProvider(p);
+            setCurrentScreen('edit-provider');
+          }}
+        />
+      )}
+
+      {!paletteOpen && currentScreen === 'add-provider' && (
+        <AddProviderScreen
+          onDone={() => setCurrentScreen('provider-selector')}
+          onCancel={() => setCurrentScreen('provider-selector')}
+        />
+      )}
+
+      {!paletteOpen && currentScreen === 'edit-provider' && editingProvider !== null && (
+        <AddProviderScreen
+          editing={editingProvider}
+          onDone={() => {
+            setEditingProvider(null);
+            setCurrentScreen('provider-selector');
+          }}
+          onCancel={() => {
+            setEditingProvider(null);
+            setCurrentScreen('provider-selector');
+          }}
         />
       )}
     </Box>

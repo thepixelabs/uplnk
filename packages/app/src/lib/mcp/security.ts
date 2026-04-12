@@ -1,5 +1,5 @@
 /**
- * MCP Security Layer — Three-layer defense (ref: 11-security-threat-model.md)
+ * MCP Security Layer — Three-layer defense
  *
  * Layer 1: Tool call validator (this file) — deterministic, synchronous
  * Layer 2: Human-in-the-loop (ApprovalDialog component) — for command-exec
@@ -238,7 +238,7 @@ const BLOCKED_COMMAND_PATTERNS: RegExp[] = [
 ];
 
 /**
- * Per-argument blocked patterns (FINDING-002).
+ * Per-argument blocked patterns.
  * Each entry is [pattern, description] for human-readable denial reasons.
  * These are checked against individual args, not the joined command string,
  * to catch injection attempts that only surface within a single argument.
@@ -287,7 +287,7 @@ export interface CommandValidation {
 
 /**
  * Validate each argument in `args` against the per-argument blocked pattern
- * list (FINDING-002). Returns the first violation found, or { allowed: true }
+ * list. Returns the first violation found, or { allowed: true }
  * when all arguments are clean.
  *
  * This is intentionally separate from the full-command pattern check in
@@ -410,7 +410,7 @@ export function validateCommand(
     };
   }
 
-  // Per-argument metacharacter/injection validation (FINDING-002)
+  // Per-argument metacharacter/injection validation
   const argsResult = validateCommandArgs(cmd.command, cmd.args);
   if (!argsResult.allowed) {
     return argsResult;

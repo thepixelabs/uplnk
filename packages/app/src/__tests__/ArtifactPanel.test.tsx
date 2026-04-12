@@ -41,7 +41,7 @@ function stripAnsi(str: string): string {
  * Yield to the micro/macro task queues so React can flush state updates and
  * Ink can process pending renders.
  */
-const tick = () => new Promise<void>((r) => setImmediate(r));
+const tick = () => new Promise<void>((r) => setImmediate(() => setImmediate(r)));
 
 function makeArtifact(overrides: Partial<Artifact> = {}): Artifact {
   return {

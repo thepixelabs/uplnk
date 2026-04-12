@@ -193,9 +193,10 @@ describe('saveConfig', () => {
     version: 1,
     theme: 'dark',
     telemetry: { enabled: false },
-    mcp: { allowedPaths: [], commandExecEnabled: false, commandAllowlistAdditions: [] },
+    mcp: { allowedPaths: [], commandExecEnabled: false, commandAllowlistAdditions: [], servers: [] },
+    providers: [],
     git: { enabled: true },
-    rag: { enabled: false },
+    rag: { enabled: false, autoDetect: false },
     updates: { enabled: true, packageName: 'pylon-dev' },
   };
 
@@ -229,9 +230,10 @@ describe('saveConfig', () => {
       defaultProviderId: 'my-provider',
       defaultModel: 'mistral',
       telemetry: { enabled: false },
-      mcp: { allowedPaths: ['/home/user/projects'], commandExecEnabled: true, commandAllowlistAdditions: [] },
+      mcp: { allowedPaths: ['/home/user/projects'], commandExecEnabled: true, commandAllowlistAdditions: [], servers: [] },
+      providers: [],
       git: { enabled: true },
-      rag: { enabled: false },
+      rag: { enabled: false, autoDetect: false },
       updates: { enabled: true, packageName: 'pylon-dev' },
     };
 
@@ -320,6 +322,10 @@ describe('getOrCreateConfig', () => {
       apiKey: 'ollama',
       defaultModel: 'llama3.2',
       isDefault: true,
+      authMode: 'none',
+      lastTestedAt: null,
+      lastTestStatus: null,
+      lastTestDetail: null,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     });

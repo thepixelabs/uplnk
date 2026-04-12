@@ -2,16 +2,96 @@
 import { render } from 'ink';
 import React from 'react';
 import { parseArgs } from 'node:util';
-import { appendFileSync } from 'node:fs';
+import { appendFileSync, mkdirSync } from 'node:fs';
+import { join } from 'node:path';
+import { homedir } from 'node:os';
 import { App } from '../src/index.js';
 import { WORDMARK } from '../src/lib/colors.js';
 import { runMigrations } from 'pylon-db';
 
+// ─── IPv4-first global fetch dispatcher ──────────────────────────────────────
+// Node's undici-based fetch tries addresses in DNS return order. When a
+// hostname (e.g. a LAN alias like "pixelmusic") resolves to both a link-local
+// IPv6 address (fe80::) and an IPv4 address, it tries IPv6 first. Link-local
+// IPv6 without a scope-ID is not routable, so the connection hangs until the
+// AbortController timeout fires — IPv4 never gets a chance.
+//
+// --dns-result-order=ipv4first only affects the legacy net/http core modules,
+// not undici. The correct fix is a custom Agent with an overridden lookup that
+// reorders results to put AF_INET (IPv4) before AF_INET6 before undici races
+// them. We set this once here so every fetch call in the process — including
+// those inside the AI SDK's streamText — inherits the same behaviour.
+{
+  const { Agent, setGlobalDispatcher } = await import('undici');
+  const { lookup: dnsLookup } = await import('node:dns');
+
+  // Note: we deliberately avoid `typeof dnsLookup` here. The Node `dns.lookup`
+  // type carries a `__promisify__` brand that a hand-written function literal
+  // cannot satisfy under `exactOptionalPropertyTypes`. The undici Agent
+  // `connect.lookup` option only checks the call signature, not the brand,
+  // so an unbranded function value works at runtime.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const ipv4FirstLookup = ((hostname: string, optionsOrCb: any, maybeCallback: any) => {
+    // dns.lookup can be called as (host, callback) or (host, options, callback).
+    const callback = typeof optionsOrCb === 'function' ? optionsOrCb : maybeCallback!;
+    const options  = typeof optionsOrCb === 'object' && optionsOrCb !== null ? optionsOrCb : {};
+
+    // Always request all addresses so we can sort IPv4 before IPv6.
+    dnsLookup(hostname, { ...options, all: true, family: 0 }, (err, addresses) => {
+      if (err != null || !Array.isArray(addresses) || addresses.length === 0) {
+        (callback as (err: NodeJS.ErrnoException | null, address: string, family: number) => void)(
+          err, '', 0,
+        );
+        return;
+      }
+      // Sort: IPv4 (family 4) before IPv6 (family 6).
+      const sorted = [...addresses].sort((a, b) => a.family - b.family);
+
+      // undici v7 Happy Eyeballs calls lookup with { all: true } and expects
+      // the callback in array form: (err, LookupAddress[]).
+      // When called with { all: false } (or no options), it expects single form:
+      // (err, address, family). We must mirror the form the caller requested.
+      const wantsAll = typeof optionsOrCb === 'object' && optionsOrCb !== null
+        && (optionsOrCb as { all?: boolean }).all === true;
+
+      if (wantsAll) {
+        (callback as (err: NodeJS.ErrnoException | null, addresses: { address: string; family: number }[]) => void)(
+          null, sorted,
+        );
+      } else {
+        const { address, family } = sorted[0]!;
+        (callback as (err: NodeJS.ErrnoException | null, address: string, family: number) => void)(
+          null, address, family,
+        );
+      }
+    });
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  }) as any;
+
+  // autoSelectFamily=false disables undici's own Happy Eyeballs so it uses
+  // exactly the single address our lookup returns instead of racing IPv4/IPv6.
+  setGlobalDispatcher(new Agent({ connect: { lookup: ipv4FirstLookup, autoSelectFamily: false } }));
+}
+
+// Crash log lives in the user's private `~/.pylon` directory, NOT in
+// `/tmp`. `/tmp` is world-writable on POSIX systems, which opens a
+// symlink-race / local-information-disclosure class of attacks on
+// multi-user machines. `~/.pylon` is created by getOrCreateConfig()
+// with inherited umask (typically 0o700 via the parent mkdir below)
+// and is already our single source of truth for per-user Pylon state.
+const CRASH_LOG_PATH = join(homedir(), '.pylon', 'crash.log');
+try { mkdirSync(join(homedir(), '.pylon'), { recursive: true, mode: 0o700 }); } catch { /* handled below */ }
+
 // Synchronous handlers so nothing is missed regardless of crash type.
-// Check /tmp/pylon-crash.log after reproducing the bug.
 const logCrash = (label: string, err: unknown) => {
   const msg = err instanceof Error ? err.stack ?? err.message : String(err);
-  try { appendFileSync('/tmp/pylon-crash.log', `\n--- ${label} ${new Date().toISOString()} ---\n${msg}\n`); } catch {}
+  try {
+    appendFileSync(
+      CRASH_LOG_PATH,
+      `\n--- ${label} ${new Date().toISOString()} ---\n${msg}\n`,
+      { mode: 0o600 },
+    );
+  } catch { /* swallow — crash logging must never throw */ }
 };
 process.on('uncaughtException',    (err) => { logCrash('UNCAUGHT', err);   process.exit(1); });
 process.on('unhandledRejection',   (err) => { logCrash('REJECTION', err);  process.exit(1); });
@@ -49,10 +129,12 @@ USAGE
   pylon [command] [options]
 
 COMMANDS
-  chat            Start or resume a conversation (default)
-  doctor          Run preflight checks
-  config          Open config in $EDITOR
-  conversations   List saved conversations
+  chat                          Start or resume a conversation (default)
+  doctor                        Run preflight checks
+  doctor migrate-secrets        Migrate legacy plaintext API keys into the secrets backend
+  doctor prune-secrets          Drop orphaned refs from the secrets store
+  config                        Open config in $EDITOR
+  conversations                 List saved conversations
 
 PLUGIN COMMANDS
   --plugin install <url-or-json>   Install a community MCP plugin
@@ -74,6 +156,34 @@ OPTIONS
 const [subcommand] = positionals;
 
 if (subcommand === 'doctor') {
+  // `pylon doctor migrate-secrets` and `pylon doctor prune-secrets` are
+  // sub-subcommands taken from the next positional. The plain `pylon doctor`
+  // form runs the original 4-check preflight. An UNKNOWN action exits with
+  // an explicit error so a typo doesn't silently run the wrong command
+  // (e.g. `pylon doctor purge-secrets` should fail loudly, not run the
+  // 4-check preflight and exit 0).
+  const action = positionals[1];
+  const KNOWN_DOCTOR_ACTIONS = new Set(['migrate-secrets', 'prune-secrets']);
+  if (action !== undefined && !KNOWN_DOCTOR_ACTIONS.has(action)) {
+    process.stderr.write(
+      `pylon: unknown doctor action '${action}'.\n` +
+      `       Valid actions: ${Array.from(KNOWN_DOCTOR_ACTIONS).join(', ')}\n` +
+      `       Run 'pylon doctor' (no arguments) for the standard preflight checks.\n`,
+    );
+    process.exit(1);
+  }
+  if (action === 'migrate-secrets') {
+    runMigrations();
+    const { runMigrateSecrets } = await import('../src/lib/doctor.js');
+    await runMigrateSecrets();
+    process.exit(0);
+  }
+  if (action === 'prune-secrets') {
+    runMigrations();
+    const { runPruneSecrets } = await import('../src/lib/doctor.js');
+    await runPruneSecrets();
+    process.exit(0);
+  }
   const { runDoctor } = await import('../src/lib/doctor.js');
   await runDoctor();
   process.exit(0);
@@ -82,7 +192,7 @@ if (subcommand === 'doctor') {
 // ─── config subcommand ────────────────────────────────────────────────────────
 if (subcommand === 'config') {
   if (values['confirm-command-exec'] === true) {
-    // BC-3 (FINDING-004): interactive confirmation stamps commandExecConfirmedAt
+    //: interactive confirmation stamps commandExecConfirmedAt
     // so the runtime knows the user deliberately enabled command execution.
     const { getOrCreateConfig: getConfig, saveConfig } = await import('../src/lib/config.js');
     const cfgResult = getConfig();
@@ -236,16 +346,61 @@ if (values.theme === 'light') {
   process.env['PYLON_THEME'] = 'dark';
 }
 
+// ─── Alternate screen (full-screen TUI mode) ─────────────────────────────────
+// Enter the alternate screen buffer so Pylon takes over the terminal without
+// touching the user's scroll history. The original content is restored on exit.
+// Skipped when stdout is not a TTY (piped output, CI, --version, etc.) — all
+// early-exit paths above this point call process.exit() before reaching here.
+let altScreenActive = false;
+
+function enterAltScreen(): void {
+  if (!process.stdout.isTTY) return;
+  altScreenActive = true;
+  process.stdout.write('\x1b[?1049h'); // enter alternate screen buffer
+  process.stdout.write('\x1b[2J');     // clear screen
+  process.stdout.write('\x1b[H');      // move cursor to top-left
+}
+
+function exitAltScreen(): void {
+  if (!altScreenActive) return;
+  altScreenActive = false;
+  process.stdout.write('\x1b[?1049l'); // exit alternate screen — restores previous content
+}
+
+// Always restore on process exit, regardless of how we got here.
+process.on('exit', exitAltScreen);
+
+enterAltScreen();
+
 process.on('SIGTERM', () => process.exit(0));
 process.on('SIGHUP', () => process.exit(0));
 
 runMigrations();
 
+// Initialise the secrets backend BEFORE config load, because config load
+// runs seedConfigProviders() which may need to resolve `apiKeySecretRef`
+// values, and because ChatScreen reads secrets during first render. Backend
+// selection order: @napi-rs/keyring → encrypted file → plaintext warning.
+const { initSecretsBackend } = await import('../src/lib/secrets.js');
+await initSecretsBackend();
+
 // Load config here — before render — so a corrupt config file causes a clean
 // exit with a human-readable error rather than a React render crash.
 // C4 fix: arch-critical-fixes Phase 1.
-const { getOrCreateConfig } = await import('../src/lib/config.js');
+const { getOrCreateConfig, maybeAutoEnableRag } = await import('../src/lib/config.js');
 const configResult = getOrCreateConfig();
+if (configResult.ok) {
+  // Auto-detect a local Ollama embedder and turn on RAG without requiring
+  // the user to edit config.json. Skipped when `rag.autoDetect=false` or
+  // when RAG is already explicitly enabled. Capped at 1.5s — the probe
+  // must never block startup measurably.
+  const enabled = await maybeAutoEnableRag(configResult.config);
+  if (enabled) {
+    process.stderr.write(
+      `[pylon] RAG auto-enabled — found ${configResult.config.rag.embed?.model ?? 'embedder'} on local Ollama\n`,
+    );
+  }
+}
 if (!configResult.ok) {
   process.stderr.write(
     `\npylon: CONFIG_INVALID — ${configResult.error}\n` +
@@ -254,7 +409,7 @@ if (!configResult.ok) {
   process.exit(1);
 }
 
-// BC-3 (FINDING-004): warn when commandExecEnabled=true but the user never ran
+//: warn when commandExecEnabled=true but the user never ran
 // pylon config --confirm-command-exec.  A config file dropped silently (e.g.
 // by a malicious package postinstall) must not enable command execution without
 // explicit user consent.  The flag is enforced again in useMcp/McpManager, but
@@ -297,14 +452,20 @@ try {
 } catch (err) {
   // Ink rejects waitUntilExit when its internal error boundary catches a
   // React render error. The error has already been displayed via Ink's
-  // ErrorOverview. Write it to stderr so tsx can surface it, then exit.
-  const { appendFileSync } = await import('node:fs');
+  // ErrorOverview. Write it to the crash log (same private path as the
+  // uncaught handlers above), surface the path to stderr, and exit.
   const stamp = new Date().toISOString();
   const msg = err instanceof Error ? err.stack ?? err.message : String(err);
-  appendFileSync('/tmp/pylon-crash.log', `\n--- ${stamp} ---\n${msg}\n`);
-  process.stderr.write(`\npylon crashed — see /tmp/pylon-crash.log\n`);
+  try {
+    appendFileSync(CRASH_LOG_PATH, `\n--- RENDER ${stamp} ---\n${msg}\n`, { mode: 0o600 });
+  } catch { /* swallow */ }
+  process.stderr.write(`\npylon crashed — see ${CRASH_LOG_PATH}\n`);
   process.exit(1);
 }
+
+// Restore the terminal before printing anything post-exit so the update notice
+// appears in the normal scroll buffer, not the alternate screen.
+exitAltScreen();
 
 // Print update notice after TUI exits (doesn't interrupt the session).
 const updateResult = await updateCheckPromise;

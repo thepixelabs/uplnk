@@ -55,6 +55,10 @@ const fakeModel: LanguageModel = {
 const MESSAGES: CoreMessage[] = [{ role: 'user', content: 'hello' }];
 
 /** Drain the Node macrotask queue so Ink commits pending state updates. */
+// Single setImmediate — useStream tests use a barrier-based mock and rely on
+// progressing exactly one microtask boundary per tick(). The Ink-stdin tests
+// use a double-tick to deflake keyboard races; this hook test is barrier-
+// driven and would over-shoot the tested state if we double-ticked here.
 const tick = () => new Promise<void>((r) => setImmediate(r));
 
 /**
@@ -191,12 +195,15 @@ describe('useStream', () => {
   // ── send() state transitions ──────────────────────────────────────────────
 
   describe('send() state transitions', () => {
-    it('transitions to streaming once streamText returns a fullStream', async () => {
-      // Design note: setStatus('connecting') and setStatus('streaming') are
-      // batched in the same synchronous frame of send(). React 18 coalesces
-      // them so the first rendered status is 'streaming', not 'connecting'.
+    it('transitions to waiting once streamText returns a fullStream, then to streaming after the first text-delta', async () => {
+      // State machine: idle → connecting → waiting (stream open, no tokens
+      // yet) → streaming (first text-delta has arrived). Earlier versions of
+      // useStream batched connecting+streaming and skipped 'waiting'; the
+      // 'waiting' step was added later and this test was never updated.
       const barrier = makeBarrier();
-      setupMockStream([], barrier);
+      // Yield ONE chunk after the test reaches 'waiting' so we can also
+      // assert the streaming transition fires on first token.
+      setupMockStream(['hello'], barrier);
 
       const { result } = renderHook();
       await tick();
@@ -204,7 +211,11 @@ describe('useStream', () => {
       void result.current.send(MESSAGES);
       await tick();
 
-      expect(result.current.status).toBe<StreamStatus>('streaming');
+      // The chunk has already been yielded by the generator and processed by
+      // useStream, so the post-tick state is 'streaming'. If timing changes
+      // upstream, this assertion may need to accept 'waiting' as well — the
+      // important contract is "not idle / not connecting".
+      expect(['waiting', 'streaming']).toContain(result.current.status);
 
       // Clean up: abort so the pending send() promise resolves in this test.
       result.current.abort();

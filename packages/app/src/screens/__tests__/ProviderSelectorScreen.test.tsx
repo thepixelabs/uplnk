@@ -2,7 +2,7 @@ import { describe, it, expect, vi } from 'vitest';
 import { render } from 'ink-testing-library';
 import React from 'react';
 
-const tick = () => new Promise<void>((r) => setImmediate(r));
+const tick = () => new Promise<void>((r) => setImmediate(() => setImmediate(r)));
 
 // Override the global pylon-db stub for these tests so we can control
 // the provider list returned by listProviders.
@@ -45,7 +45,7 @@ describe('ProviderSelectorScreen — render', () => {
       render(
         React.createElement(ProviderSelectorScreen, {
           onSelect: vi.fn(),
-          onBack: vi.fn(),
+          onBack: vi.fn(), onAdd: vi.fn(), onEdit: vi.fn(),
         }),
       ),
     ).not.toThrow();
@@ -55,7 +55,7 @@ describe('ProviderSelectorScreen — render', () => {
     const { lastFrame } = render(
       React.createElement(ProviderSelectorScreen, {
         onSelect: vi.fn(),
-        onBack: vi.fn(),
+        onBack: vi.fn(), onAdd: vi.fn(), onEdit: vi.fn(),
       }),
     );
     expect(lastFrame()).toContain('Ollama');
@@ -67,7 +67,7 @@ describe('ProviderSelectorScreen — render', () => {
     const { lastFrame } = render(
       React.createElement(ProviderSelectorScreen, {
         onSelect: vi.fn(),
-        onBack: vi.fn(),
+        onBack: vi.fn(), onAdd: vi.fn(), onEdit: vi.fn(),
       }),
     );
     expect(lastFrame()).toContain('default');
@@ -77,10 +77,10 @@ describe('ProviderSelectorScreen — render', () => {
     const { lastFrame } = render(
       React.createElement(ProviderSelectorScreen, {
         onSelect: vi.fn(),
-        onBack: vi.fn(),
+        onBack: vi.fn(), onAdd: vi.fn(), onEdit: vi.fn(),
       }),
     );
-    expect(lastFrame()).toContain('↑↓');
+    expect(lastFrame()).toContain('j/k');
     expect(lastFrame()).toContain('Enter');
     expect(lastFrame()).toContain('Esc');
   });
@@ -90,7 +90,7 @@ describe('ProviderSelectorScreen — render', () => {
     const { lastFrame } = render(
       React.createElement(ProviderSelectorScreen, {
         onSelect: vi.fn(),
-        onBack: vi.fn(),
+        onBack: vi.fn(), onAdd: vi.fn(), onEdit: vi.fn(),
       }),
     );
     expect(lastFrame()).toContain('No providers configured');
@@ -106,6 +106,7 @@ describe('ProviderSelectorScreen — Escape', () => {
       React.createElement(ProviderSelectorScreen, {
         onSelect: vi.fn(),
         onBack,
+        onAdd: vi.fn(), onEdit: vi.fn(),
       }),
     );
     await tick();
@@ -119,7 +120,7 @@ describe('ProviderSelectorScreen — Escape', () => {
     const { stdin } = render(
       React.createElement(ProviderSelectorScreen, {
         onSelect,
-        onBack: vi.fn(),
+        onBack: vi.fn(), onAdd: vi.fn(), onEdit: vi.fn(),
       }),
     );
     await tick();
@@ -137,7 +138,7 @@ describe('ProviderSelectorScreen — Enter selects first provider', () => {
     const { stdin } = render(
       React.createElement(ProviderSelectorScreen, {
         onSelect,
-        onBack: vi.fn(),
+        onBack: vi.fn(), onAdd: vi.fn(), onEdit: vi.fn(),
       }),
     );
     await tick();
@@ -158,7 +159,7 @@ describe('ProviderSelectorScreen — Enter selects first provider', () => {
     const { stdin } = render(
       React.createElement(ProviderSelectorScreen, {
         onSelect,
-        onBack: vi.fn(),
+        onBack: vi.fn(), onAdd: vi.fn(), onEdit: vi.fn(),
       }),
     );
     await tick();
@@ -176,7 +177,7 @@ describe('ProviderSelectorScreen — navigation + select', () => {
     const { stdin } = render(
       React.createElement(ProviderSelectorScreen, {
         onSelect,
-        onBack: vi.fn(),
+        onBack: vi.fn(), onAdd: vi.fn(), onEdit: vi.fn(),
       }),
     );
     await tick();
@@ -197,7 +198,7 @@ describe('ProviderSelectorScreen — navigation + select', () => {
     const { stdin } = render(
       React.createElement(ProviderSelectorScreen, {
         onSelect,
-        onBack: vi.fn(),
+        onBack: vi.fn(), onAdd: vi.fn(), onEdit: vi.fn(),
       }),
     );
     await tick();
@@ -218,7 +219,7 @@ describe('ProviderSelectorScreen — navigation + select', () => {
     const { stdin } = render(
       React.createElement(ProviderSelectorScreen, {
         onSelect,
-        onBack: vi.fn(),
+        onBack: vi.fn(), onAdd: vi.fn(), onEdit: vi.fn(),
       }),
     );
     await tick();

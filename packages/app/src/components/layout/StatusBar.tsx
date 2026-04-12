@@ -12,6 +12,7 @@ interface Props {
 const STATUS_LABELS: Record<StreamStatus, string> = {
   idle: '●',
   connecting: '○ connecting…',
+  waiting: '◌ waiting for model…',
   streaming: '▶ streaming',
   'tool-running': '⚙ running tool',
   done: '✓',
@@ -21,6 +22,7 @@ const STATUS_LABELS: Record<StreamStatus, string> = {
 const STATUS_COLORS: Record<StreamStatus, string> = {
   idle: 'gray',
   connecting: 'yellow',
+  waiting: 'yellow',
   streaming: 'green',
   'tool-running': 'cyan',
   done: 'green',
