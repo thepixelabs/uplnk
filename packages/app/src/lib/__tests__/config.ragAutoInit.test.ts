@@ -65,6 +65,8 @@ function makeConfig(overrides: Partial<Config['rag']> = {}): Config {
       autoDetect: true,
       ...overrides,
     },
+    relayMode: { enabled: false },
+    networkScanner: { timeoutMs: 2000, concurrency: 16 },
   } satisfies Config;
 }
 

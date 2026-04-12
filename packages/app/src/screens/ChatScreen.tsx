@@ -52,6 +52,8 @@ const DEFAULT_CONFIG: Config = {
   rag: { enabled: false, autoDetect: false },
   updates: { enabled: true, packageName: 'uplnk' },
   // modelRouter is intentionally absent — defaults to disabled
+  relayMode: { enabled: false },
+  networkScanner: { timeoutMs: 2000, concurrency: 16 },
 };
 
 export function ChatScreen({ initialModel, resumeConversationId, projectDir, overrideBaseUrl, overrideApiKey, config: configProp, onError, onCommand, onForkedTo }: Props) {
