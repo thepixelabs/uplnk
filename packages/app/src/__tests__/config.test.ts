@@ -198,6 +198,8 @@ describe('saveConfig', () => {
     git: { enabled: true },
     rag: { enabled: false, autoDetect: false },
     updates: { enabled: true, packageName: 'uplnk' },
+    relayMode: { enabled: false },
+    networkScanner: { timeoutMs: 2000, concurrency: 16 },
   };
 
   it('creates the uplnk directory with recursive: true before writing', () => {
@@ -235,6 +237,8 @@ describe('saveConfig', () => {
       git: { enabled: true },
       rag: { enabled: false, autoDetect: false },
       updates: { enabled: true, packageName: 'uplnk' },
+      relayMode: { enabled: false },
+      networkScanner: { timeoutMs: 2000, concurrency: 16 },
     };
 
     saveConfig(configWithExtras);

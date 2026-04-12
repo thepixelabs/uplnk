@@ -203,6 +203,35 @@ const ConfigSchema = z.object({
         .optional(),
     })
     .default({}),
+  /**
+   * Relay mode — Scout/Anchor two-phase workflow. Disabled by default.
+   * When enabled, the relay picker is accessible from the chat screen.
+   */
+  relayMode: z
+    .object({
+      enabled: z.boolean().default(false),
+      defaultRelayId: z.string().optional(),
+    })
+    .default({}),
+  /**
+   * Network scanner settings. Used by the /scan command and the
+   * NetworkScanScreen. Subnet scanning requires explicit user consent
+   * (confirmed via `uplnk config --confirm-subnet`).
+   */
+  networkScanner: z
+    .object({
+      /**
+       * ISO timestamp set when the user confirms subnet scanning via
+       * `uplnk config --confirm-subnet`. Required for subnet scope to
+       * be reachable in the TUI.
+       */
+      subnetConfirmedAt: z.string().optional(),
+      /** Per-host probe timeout in milliseconds. */
+      timeoutMs: z.number().int().positive().default(2000),
+      /** Maximum concurrent probe connections. */
+      concurrency: z.number().int().positive().default(16),
+    })
+    .default({}),
 });
 
 export type Config = z.infer<typeof ConfigSchema>;

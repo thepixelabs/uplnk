@@ -179,6 +179,8 @@ const DEFAULT_CONFIG = {
   git: { enabled: true },
   rag: { enabled: false, autoDetect: false },
   updates: { enabled: false, packageName: 'uplnk' },
+  relayMode: { enabled: false },
+  networkScanner: { timeoutMs: 2000, concurrency: 16 },
 };
 
 function renderChatScreen(overrides: Partial<React.ComponentProps<typeof ChatScreen>> = {}) {

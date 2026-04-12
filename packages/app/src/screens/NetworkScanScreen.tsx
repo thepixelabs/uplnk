@@ -15,6 +15,12 @@ import { useNetworkScan } from '../hooks/useNetworkScan.js';
 interface Props {
   onBack: () => void;
   scope?: 'localhost' | 'subnet';
+  /**
+   * ISO timestamp from config.networkScanner.subnetConfirmedAt.
+   * When present and the user presses 'r' to rescan, subnet scope is
+   * offered automatically without re-confirming via the CLI flag.
+   */
+  subnetConfirmedAt?: string;
 }
 
 const SPINNER_FRAMES = ['⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', '⠇', '⠏'];
@@ -61,7 +67,7 @@ function truncateModel(models: string[]): string {
   return `${first} +${String(models.length - 1)}`;
 }
 
-export function NetworkScanScreen({ onBack, scope }: Props) {
+export function NetworkScanScreen({ onBack, scope, subnetConfirmedAt }: Props) {
   const { servers, status, hostsProbed, totalHosts, errorMessage, startScan, cancelScan, reset } =
     useNetworkScan();
 
@@ -144,7 +150,11 @@ export function NetworkScanScreen({ onBack, scope }: Props) {
       reset();
       setAdded(new Set());
       setCursor(0);
-      startScan(scope ?? 'localhost');
+      // If the user has confirmed subnet scanning and no explicit scope was
+      // passed in, upgrade to subnet on rescan.
+      const rescanScope =
+        scope ?? (subnetConfirmedAt !== undefined ? 'subnet' : 'localhost');
+      startScan(rescanScope);
       return;
     }
   });
