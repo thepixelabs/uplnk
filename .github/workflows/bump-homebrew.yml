@@ -1,0 +1,78 @@
+name: Bump Homebrew Formula
+
+on:
+  release:
+    types: [published]
+
+jobs:
+  bump:
+    # Only run for stable releases (no pre-release suffix)
+    if: "!contains(github.event.release.tag_name, '-')"
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Generate GitHub App token
+        id: app-token
+        uses: actions/create-github-app-token@v1
+        with:
+          app-id: ${{ secrets.HOMEBREW_BUMP_APP_ID }}
+          private-key: ${{ secrets.HOMEBREW_BUMP_APP_KEY }}
+          # Scoped to the tap repo only — this App has no write access elsewhere.
+          repositories: homebrew-tap
+
+      - name: Wait for npm publish propagation
+        run: |
+          VERSION="${{ github.event.release.tag_name }}"
+          VERSION="${VERSION#v}"
+          echo "Waiting for pylon-dev@${VERSION} on npm..."
+          for i in $(seq 1 30); do
+            if npm view "pylon-dev@${VERSION}" version 2>/dev/null | grep -q "${VERSION}"; then
+              echo "Version ${VERSION} is live on npm."
+              exit 0
+            fi
+            echo "  attempt ${i}/30 — not yet available, sleeping 10s"
+            sleep 10
+          done
+          echo "ERROR: Timed out waiting for npm publish"
+          exit 1
+
+      - name: Compute sha256 of npm tarball
+        id: sha
+        run: |
+          VERSION="${{ github.event.release.tag_name }}"
+          VERSION="${VERSION#v}"
+          URL="https://registry.npmjs.org/pylon-dev/-/pylon-dev-${VERSION}.tgz"
+          SHA=$(curl -fsSL "${URL}" | shasum -a 256 | cut -d' ' -f1)
+          echo "sha256=${SHA}" >> "$GITHUB_OUTPUT"
+          echo "url=${URL}"    >> "$GITHUB_OUTPUT"
+          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+
+      - name: Checkout homebrew-tap
+        uses: actions/checkout@v4
+        with:
+          repository: pixelicous/homebrew-tap
+          token: ${{ steps.app-token.outputs.token }}
+
+      - name: Update formula url + sha256
+        run: |
+          sed -i \
+            -e 's|url ".*"|url "${{ steps.sha.outputs.url }}"|' \
+            -e 's|sha256 ".*"|sha256 "${{ steps.sha.outputs.sha256 }}"|' \
+            Formula/pylon.rb
+
+      - name: Open PR
+        uses: peter-evans/create-pull-request@v6
+        with:
+          token: ${{ steps.app-token.outputs.token }}
+          commit-message: "pylon: bump to ${{ steps.sha.outputs.version }}"
+          branch: "bump/pylon-${{ steps.sha.outputs.version }}"
+          title: "pylon: bump to ${{ steps.sha.outputs.version }}"
+          body: |
+            Automated version bump triggered by release `${{ github.event.release.tag_name }}`.
+
+            - npm tarball: `${{ steps.sha.outputs.url }}`
+            - sha256: `${{ steps.sha.outputs.sha256 }}`
+
+            This PR was opened by the pylon-homebrew-bump GitHub App.
+            It will auto-merge once `brew audit --strict --online` passes.
+          labels: version-bump
