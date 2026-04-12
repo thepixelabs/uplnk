@@ -180,10 +180,6 @@ function applyHunks(original: string, modified: string, hunks: Hunk[]): string {
   // Build full diff with hunk assignments
   const fullDiff = lcsLineDiff(aLines, bLines);
 
-  // Map each diff position to its hunk (if any)
-  const hunkRanges = new Map<number, { hunk: Hunk; inRange: boolean }>();
-  // (simplified: iterate through hunks and their line ranges)
-
   // Determine which hunk contains each diff index
   let hunkForIdx = new Array(fullDiff.length).fill(-1) as number[];
   for (const hunk of hunks) {
@@ -214,7 +210,7 @@ function applyHunks(original: string, modified: string, hunks: Hunk[]): string {
   const resultLines: string[] = [];
   for (let idx = 0; idx < fullDiff.length; idx++) {
     const dl = fullDiff[idx]!;
-    const hunkId = hunkForIdx[idx];
+    const hunkId = hunkForIdx[idx] ?? -1;
     const hunk = hunkId >= 0 ? hunks.find((h) => h.id === hunkId) : undefined;
     const status = hunk?.status ?? 'pending';
 
@@ -245,10 +241,6 @@ const HunkView = memo(function HunkView({ hunk, isSelected }: HunkViewProps) {
     hunk.status === 'accepted' ? '✓' :
     hunk.status === 'rejected' ? '✗' :
     isSelected                  ? '▶' : ' ';
-  const statusColor =
-    hunk.status === 'accepted' ? 'green' :
-    hunk.status === 'rejected' ? 'red'   :
-    isSelected                  ? 'cyan'  : 'gray';
   const headerColor =
     hunk.status === 'accepted' ? 'green' :
     hunk.status === 'rejected' ? 'red'   :

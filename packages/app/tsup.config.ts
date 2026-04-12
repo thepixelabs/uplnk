@@ -1,14 +1,16 @@
 import { defineConfig } from 'tsup';
 
 export default defineConfig([
-  // Binary entry — written directly to bin/ so package.json "bin" field resolves correctly.
-  // The shebang banner is unconditional within this entry config.
+  // Binary entry — compiled to dist/ to keep bin/ as source-only.
+  // package.json "bin" field points to dist/uplnk.js.
+  // splitting: false ensures a single self-contained file with no stray chunks.
   {
     entry: { uplnk: 'bin/uplnk.ts' },
-    outDir: 'bin',
+    outDir: 'dist',
     format: ['esm'],
     target: 'node20',
     bundle: true,
+    splitting: false,
     dts: false,
     clean: false,
     // better-sqlite3 is a native addon — cannot be bundled.
@@ -26,6 +28,7 @@ export default defineConfig([
     format: ['esm'],
     target: 'node20',
     bundle: true,
+    splitting: false,
     dts: true,
     clean: true,
     external: ['better-sqlite3', 'ink', 'react'],
