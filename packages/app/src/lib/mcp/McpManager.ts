@@ -44,7 +44,7 @@ const _serverCmd = _isTsSource ? 'tsx' : process.execPath;
 export const BUILTIN_FILE_BROWSE_ID = '__pylon_builtin_file_browse__';
 export const BUILTIN_COMMAND_EXEC_ID = '__pylon_builtin_command_exec__';
 export const BUILTIN_GIT_ID = '__pylon_builtin_git__';
-export const BUILTIN_RAG_ID = '__pylon_builtin_rag__';
+export const BUILTIN_RAG_ID = '__uplnk_builtin_rag__';
 
 // ─── Audit log types ──────────────────────────────────────────────────────────
 
