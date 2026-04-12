@@ -1,17 +1,17 @@
 {
-  "name": "pylon-workspace",
+  "name": "uplnk-workspace",
   "private": true,
   "version": "0.0.0",
   "packageManager": "pnpm@9.15.0",
   "scripts": {
-    "dev": "pnpm --filter pylon-dev dev",
-    "build": "pnpm --filter pylon-dev build",
+    "dev": "pnpm --filter uplnk dev",
+    "build": "pnpm --filter uplnk build",
     "typecheck": "pnpm -r typecheck",
     "lint": "pnpm -r lint",
     "test": "pnpm -r test",
     "test:integration": "pnpm -r test:integration",
-    "docker:build": "docker build -t pylon-dev .",
-    "docker:run": "docker run -it -v ~/.pylon:/home/pylon/.pylon pylon-dev"
+    "docker:build": "docker build -t uplnk-dev .",
+    "docker:run": "docker run -it -v ~/.uplnk:/home/uplnk/.uplnk uplnk-dev"
   },
   "engines": {
     "node": ">=20.0.0",
@@ -19,5 +19,9 @@
   },
   "volta": {
     "node": "22.22.2"
+  },
+  "devDependencies": {
+    "eslint-plugin-react-hooks": "^7.0.1",
+    "typescript-eslint": "^8.58.1"
   }
 }

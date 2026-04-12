@@ -75,8 +75,8 @@ function lcsLineDiff(aLines: string[], bLines: string[]): RawDiffLine[] {
   const result: RawDiffLine[] = [];
   let i = m;
   let j = n;
-  let origLine = m;
-  let modLine = n;
+  const origLine = m;
+  const modLine = n;
 
   while (i > 0 || j > 0) {
     if (i > 0 && j > 0 && aLines[i - 1] === bLines[j - 1]) {
@@ -181,7 +181,7 @@ function applyHunks(original: string, modified: string, hunks: Hunk[]): string {
   const fullDiff = lcsLineDiff(aLines, bLines);
 
   // Determine which hunk contains each diff index
-  let hunkForIdx = new Array(fullDiff.length).fill(-1) as number[];
+  const hunkForIdx = new Array(fullDiff.length).fill(-1) as number[];
   for (const hunk of hunks) {
     // Find where this hunk's first changed line appears in the full diff
     const firstChanged = hunk.lines.find((l) => l.kind !== 'unchanged');

@@ -28,6 +28,7 @@ export type TelemetryEventName =
 
 // ─── Per-Event Property Shapes ────────────────────────────────────────────────
 
+// eslint-disable-next-line @typescript-eslint/no-empty-object-type
 export interface AppStartProperties {
   // No additional properties — the envelope carries all needed signal.
 }

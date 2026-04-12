@@ -272,6 +272,6 @@ describe('wrapRagTools — mcp_rag_search security', () => {
 
 describe('BUILTIN_RAG_ID constant', () => {
   it('has the expected sentinel value', () => {
-    expect(BUILTIN_RAG_ID).toBe('__pylon_builtin_rag__');
+    expect(BUILTIN_RAG_ID).toBe('__uplnk_builtin_rag__');
   });
 });
