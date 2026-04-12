@@ -1,0 +1,18 @@
+services:
+  pylon:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: pylon-dev
+    # Ink requires an interactive TTY — always run with `docker compose run pylon`
+    # or `docker run -it`. `docker compose up` will not produce a usable TUI.
+    stdin_open: true
+    tty: true
+    volumes:
+      # Persists DB and config across container restarts.
+      # Non-root user 'pylon' owns /home/pylon inside the container.
+      - "${HOME}/.pylon:/home/pylon/.pylon"
+    environment:
+      # Default targets Docker Desktop host gateway (macOS/Windows).
+      # Linux users: set to http://172.17.0.1:11434/v1 or use host networking.
+      - OLLAMA_BASE_URL=${OLLAMA_BASE_URL:-http://host.docker.internal:11434/v1}

@@ -30,6 +30,40 @@ const HINTS: Record<PylonErrorCode, string> = {
     'No config found. Run `pylon` and follow the setup prompts.',
 };
 
+// Minimal structural view of @ai-sdk/provider's APICallError. We duck-type
+// instead of importing to avoid coupling this module to the SDK's error
+// class (which also keeps the error-mapping cheap to unit-test).
+interface ApiCallErrorLike {
+  name: string;
+  message: string;
+  statusCode?: number;
+  url?: string;
+  cause?: unknown;
+}
+
+function isApiCallError(err: unknown): err is ApiCallErrorLike {
+  return (
+    typeof err === 'object' &&
+    err !== null &&
+    'name' in err &&
+    (err as { name: unknown }).name === 'AI_APICallError'
+  );
+}
+
+// Walk an error's `cause` chain looking for a Node system error code (e.g.
+// ECONNREFUSED emitted by undici). The AI SDK wraps `TypeError: fetch failed`
+// into an `APICallError` whose message starts with "Cannot connect to API: …"
+// and whose `cause` is the original undici error — so to classify reliably we
+// need to inspect the cause, not the outer message.
+function findSystemErrorCode(err: unknown, depth = 0): string | undefined {
+  if (depth > 5 || typeof err !== 'object' || err === null) return undefined;
+  const maybeCode = (err as { code?: unknown }).code;
+  if (typeof maybeCode === 'string') return maybeCode;
+  const cause = (err as { cause?: unknown }).cause;
+  if (cause !== undefined) return findSystemErrorCode(cause, depth + 1);
+  return undefined;
+}
+
 export function toPylonError(err: unknown): PylonError {
   if (
     typeof err === 'object' &&
@@ -43,7 +77,38 @@ export function toPylonError(err: unknown): PylonError {
 
   const message = err instanceof Error ? err.message : String(err);
 
-  // Try to infer code from error message patterns
+  // Prefer structural classification on AI SDK APICallError when available:
+  // statusCode is authoritative and cause carries the underlying network
+  // error from undici (ECONNREFUSED, ENOTFOUND, ETIMEDOUT, …).
+  if (isApiCallError(err)) {
+    const sysCode = findSystemErrorCode(err);
+    if (
+      sysCode === 'ECONNREFUSED' ||
+      sysCode === 'ENOTFOUND' ||
+      sysCode === 'ECONNRESET' ||
+      sysCode === 'EHOSTUNREACH' ||
+      sysCode === 'ENETUNREACH'
+    ) {
+      return { code: 'PROVIDER_UNREACHABLE', message, hint: HINTS.PROVIDER_UNREACHABLE, cause: err };
+    }
+    if (sysCode === 'ETIMEDOUT' || sysCode === 'UND_ERR_CONNECT_TIMEOUT') {
+      return { code: 'STREAM_TIMEOUT', message, hint: HINTS.STREAM_TIMEOUT, cause: err };
+    }
+    const status = err.statusCode;
+    if (status === 401 || status === 403) {
+      return { code: 'PROVIDER_AUTH_FAILED', message, hint: HINTS.PROVIDER_AUTH_FAILED, cause: err };
+    }
+    if (status === 404) {
+      return { code: 'MODEL_NOT_FOUND', message, hint: HINTS.MODEL_NOT_FOUND, cause: err };
+    }
+    if (status === 429) {
+      return { code: 'PROVIDER_RATE_LIMITED', message, hint: HINTS.PROVIDER_RATE_LIMITED, cause: err };
+    }
+    // Fall through to message-pattern matching for unknown APICallErrors.
+  }
+
+  // Fallback: inspect the stringified message. Covers plain Error objects
+  // thrown outside the SDK layer (e.g. JSON parse failures, custom throws).
   if (message.includes('ECONNREFUSED') || message.includes('ENOTFOUND')) {
     return { code: 'PROVIDER_UNREACHABLE', message, hint: HINTS.PROVIDER_UNREACHABLE, cause: err };
   }

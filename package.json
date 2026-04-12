@@ -9,7 +9,9 @@
     "typecheck": "pnpm -r typecheck",
     "lint": "pnpm -r lint",
     "test": "pnpm -r test",
-    "test:integration": "pnpm -r test:integration"
+    "test:integration": "pnpm -r test:integration",
+    "docker:build": "docker build -t pylon-dev .",
+    "docker:run": "docker run -it -v ~/.pylon:/home/pylon/.pylon pylon-dev"
   },
   "engines": {
     "node": ">=20.0.0",
