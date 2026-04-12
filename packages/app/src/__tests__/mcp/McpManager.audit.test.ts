@@ -36,12 +36,12 @@ vi.mock('@modelcontextprotocol/sdk/client/streamableHttp.js', () => ({
 
 // ─── uplnk-db mock — makes getUplnkDir return our temp dir ───────────────────
 
-vi.mock('uplnk-db', () => ({
+vi.mock('@uplnk/db', () => ({
   db: {},
   getUplnkDir: vi.fn(() => '/tmp/audit-test-default'),
 }));
 
-import { getUplnkDir } from 'uplnk-db';
+import { getUplnkDir } from '@uplnk/db';
 import { McpManager } from '../../lib/mcp/McpManager.js';
 import { createDefaultPolicy } from '../../lib/mcp/security.js';
 import type { AuditEntry } from '../../lib/mcp/McpManager.js';
@@ -94,6 +94,7 @@ function writeFileOfSize(filePath: string, bytes: number): void {
   // Write in 1MB chunks to avoid a giant string allocation.
   const chunk = Buffer.alloc(Math.min(bytes, 1024 * 1024), 0x41); // 'A'
   let remaining = bytes;
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
   const fs = require('node:fs') as typeof import('node:fs');
   fs.writeFileSync(filePath, ''); // truncate / create
   while (remaining > 0) {

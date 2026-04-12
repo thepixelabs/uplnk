@@ -23,8 +23,8 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { z } from 'zod';
-import { db } from 'uplnk-db';
-import { runMigrations } from 'uplnk-db';
+import { db } from '@uplnk/db';
+import { runMigrations } from '@uplnk/db';
 import { Indexer } from '../../rag/indexer.js';
 import { createEmbedder, deserializeEmbedding, cosineSimilarity } from '../../rag/embedder.js';
 

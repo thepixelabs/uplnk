@@ -15,7 +15,7 @@ vi.mock('node:fs', () => ({
   mkdirSync: vi.fn(),
 }));
 
-vi.mock('uplnk-db', () => ({
+vi.mock('@uplnk/db', () => ({
   db: {},
   getUplnkDir: vi.fn(() => '/home/testuser/.uplnk'),
   upsertProviderConfig: vi.fn(),
@@ -25,7 +25,7 @@ vi.mock('uplnk-db', () => ({
 // ─── Imports after mocks are registered ───────────────────────────────────────
 
 import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';
-import { getUplnkDir, upsertProviderConfig, getDefaultProvider } from 'uplnk-db';
+import { getUplnkDir, upsertProviderConfig, getDefaultProvider } from '@uplnk/db';
 import { loadConfig, saveConfig, getOrCreateConfig, getConfigPath } from '../lib/config.js';
 import type { Config } from '../lib/config.js';
 
@@ -197,7 +197,7 @@ describe('saveConfig', () => {
     providers: [],
     git: { enabled: true },
     rag: { enabled: false, autoDetect: false },
-    updates: { enabled: true, packageName: 'uplnk-dev' },
+    updates: { enabled: true, packageName: 'uplnk' },
   };
 
   it('creates the uplnk directory with recursive: true before writing', () => {
@@ -234,7 +234,7 @@ describe('saveConfig', () => {
       providers: [],
       git: { enabled: true },
       rag: { enabled: false, autoDetect: false },
-      updates: { enabled: true, packageName: 'uplnk-dev' },
+      updates: { enabled: true, packageName: 'uplnk' },
     };
 
     saveConfig(configWithExtras);

@@ -314,7 +314,7 @@ describe('McpManager', () => {
       await mgr.connect(SERVER_CONFIG);
 
       expect(Client).toHaveBeenCalledWith(
-        { name: 'uplnk', version: '0.1.0' },
+        { name: 'uplnk', version: '0.3.0' },
         { capabilities: {} },
       );
     });

@@ -6,15 +6,15 @@
  * `searchConversations()`. Enter resumes the cursor's conversation; Esc
  * returns to chat without changing anything.
  *
- * Visual language matches the rest of Uplnk's screens: `▶ ` cursor, blue
+ * Visual language matches the rest of uplnk's screens: `▶ ` cursor, blue
  * `#60A5FA` on selection, dimColor secondary text. No box-drawing borders on
  * list rows.
  */
 
 import { useMemo, useState } from 'react';
 import { Box, Text, useInput } from 'ink';
-import { db, listConversations, searchConversations } from 'uplnk-db';
-import type { Conversation } from 'uplnk-db';
+import { db, listConversations, searchConversations } from '@uplnk/db';
+import type { Conversation } from '@uplnk/db';
 
 interface Props {
   /** Called with the conversation id when the user picks one. */

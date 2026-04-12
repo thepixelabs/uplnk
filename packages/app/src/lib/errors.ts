@@ -1,4 +1,4 @@
-import type { UplnkError, UplnkErrorCode } from 'uplnk-shared';
+import type { UplnkError, UplnkErrorCode } from '@uplnk/shared';
 
 const HINTS: Record<UplnkErrorCode, string> = {
   PROVIDER_UNREACHABLE:
@@ -21,7 +21,7 @@ const HINTS: Record<UplnkErrorCode, string> = {
   MCP_TOOL_LOOP_LIMIT:
     'The model called tools too many times in a row. Simplify your request.',
   SQLITE_BUSY:
-    'Database is busy. Close any other Uplnk instances and try again.',
+    'Database is busy. Close any other uplnk instances and try again.',
   DB_MIGRATION_FAILED:
     'Database migration failed. Run `uplnk doctor` or delete ~/.uplnk/db.sqlite to reset.',
   CONFIG_INVALID:
@@ -129,3 +129,7 @@ export function toUplnkError(err: unknown): UplnkError {
     cause: err,
   };
 }
+
+// Backward-compat alias — remove in v0.4
+/** @deprecated Use toUplnkError */
+export const toUplnkError = toUplnkError;

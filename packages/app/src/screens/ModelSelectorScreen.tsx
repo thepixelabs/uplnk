@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { Box, Text, useInput } from 'ink';
-import { db, getDefaultProvider } from 'uplnk-db';
-import type { Model, ProviderConfig as PyProviderConfig, AuthMode } from 'uplnk-providers';
+import { db, getDefaultProvider } from '@uplnk/db';
+import type { Model, ProviderConfig as PyProviderConfig, AuthMode } from '@uplnk/providers';
 import { useModelSelector } from '../hooks/useModelSelector.js';
 import { resolveSecret } from '../lib/secrets.js';
 

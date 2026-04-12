@@ -42,5 +42,5 @@ export const colors = {
   },
 } as const;
 
-/** The Uplnk wordmark — renders as structural column cross-section */
+/** The uplnk wordmark — renders as structural column cross-section */
 export const WORDMARK = colors.primary('▐') + colors.primary.bold('█') + colors.primary('▌') + ' ' + chalk.bold('UPLNK');

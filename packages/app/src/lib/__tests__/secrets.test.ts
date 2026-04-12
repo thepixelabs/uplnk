@@ -19,12 +19,12 @@ import { tmpdir } from 'node:os';
 // ─── Mock uplnk-db so tests control the uplnkDir ─────────────────────────────
 // Per-file vi.mock takes precedence over the global setup.ts stub.
 
-vi.mock('uplnk-db', () => ({
+vi.mock('@uplnk/db', () => ({
   db: {},
   getUplnkDir: vi.fn(() => '/tmp/uplnk-secrets-test-default/.uplnk'),
 }));
 
-import { getUplnkDir } from 'uplnk-db';
+import { getUplnkDir } from '@uplnk/db';
 import {
   SECRET_REF_PREFIX,
   isSecretRef,
@@ -237,6 +237,7 @@ describe('EncryptedFileBackend', () => {
 
     new __EncryptedFileBackendForTests(tmpDir);
 
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
     const files = require('node:fs').readdirSync(tmpDir) as string[];
     const hasBackup = files.some((f: string) => f.startsWith('secrets.enc.corrupt-'));
     expect(hasBackup).toBe(true);

@@ -42,11 +42,11 @@ vi.mock('node:os', async () => {
 // every export that application code currently imports from uplnk-db.
 //
 // Tests that need specific return values override per-describe via vi.mocked()
-// or re-declare the mock entirely with vi.mock('uplnk-db', () => ({ ... })).
+// or re-declare the mock entirely with vi.mock('@uplnk/db', () => ({ ... })).
 //
 // The names here must match the actual exports in packages/db/src/index.ts.
 
-vi.mock('uplnk-db', () => ({
+vi.mock('@uplnk/db', () => ({
   db: {},
   // Schema tables (used as query builder inputs — export empty objects)
   ragChunks: {},

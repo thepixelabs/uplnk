@@ -1,10 +1,10 @@
 class Uplnk < Formula
-  desc "Terminal-native LLM developer assistant"
-  homepage "https://github.com/pixelicous/uplnk"
+  desc "Terminal-native AI chat client — local-first, privacy-first"
+  homepage "https://github.com/uplnk/uplnk"
   # url and sha256 are updated by the automated bump workflow on each release.
   # Do not edit these manually — they are managed by .github/workflows/bump-homebrew.yml
   # in the source repository.
-  url "https://registry.npmjs.org/uplnk-dev/-/uplnk-dev-0.1.0.tgz"
+  url "https://registry.npmjs.org/uplnk/-/uplnk-0.1.0.tgz"
   sha256 "PLACEHOLDER_REPLACE_ON_FIRST_PUBLISH"
   license :cannot_represent
 
@@ -22,10 +22,10 @@ class Uplnk < Formula
 
   def caveats
     <<~EOS
-      Uplnk requires a running LLM provider (Ollama, vLLM, LM Studio, or any
+      uplnk requires a running LLM provider (Ollama, vLLM, LM Studio, or any
       OpenAI-compatible endpoint).
 
-      Quick start with Ollama:
+      Quick start::
         brew install ollama
         ollama serve &
         ollama pull llama3.2

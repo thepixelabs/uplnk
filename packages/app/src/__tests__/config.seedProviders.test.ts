@@ -19,7 +19,7 @@ vi.mock('node:fs', () => ({
   mkdirSync: vi.fn(),
 }));
 
-vi.mock('uplnk-db', () => ({
+vi.mock('@uplnk/db', () => ({
   db: {},
   getUplnkDir: vi.fn(() => '/home/testuser/.uplnk'),
   upsertProviderConfig: vi.fn(),
@@ -37,7 +37,7 @@ import {
   getDefaultProvider,
   getProviderById,
   setDefaultProvider,
-} from 'uplnk-db';
+} from '@uplnk/db';
 import { getOrCreateConfig } from '../lib/config.js';
 
 // ─── Typed helpers ────────────────────────────────────────────────────────────

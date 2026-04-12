@@ -1,7 +1,7 @@
 import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { z } from 'zod';
-import { db, getUplnkDir, upsertProviderConfig, getDefaultProvider, getProviderById, setDefaultProvider } from 'uplnk-db';
+import { db, getUplnkDir, upsertProviderConfig, getDefaultProvider, getProviderById, setDefaultProvider } from '@uplnk/db';
 import { migratePlaintext, isSecretRef } from './secrets.js';
 
 // ─── Schema ───────────────────────────────────────────────────────────────────
@@ -129,7 +129,7 @@ const ConfigSchema = z.object({
     .object({
       enabled: z.boolean().default(true),
       /** npm package name to check — defaults to the current package name */
-      packageName: z.string().default('uplnk-dev'),
+      packageName: z.string().default('uplnk'),
     })
     .default({}),
   /**
@@ -353,7 +353,7 @@ function seedConfigProviders(configProviders: Config['providers']): void {
  * trusted source AND point at a local-only address. Anything else opens
  * an SSRF window: an attacker who can set `OLLAMA_BASE_URL` (malicious
  * dotfile, postinstall script, shared machine) could otherwise force the
- * Uplnk process to fetch from arbitrary internal addresses.
+ * uplnk process to fetch from arbitrary internal addresses.
  *
  * Returns the canonicalised base URL on success, or `null` if the URL
  * fails validation. Allowed hosts: `localhost`, `127.0.0.1`, `::1`. Any

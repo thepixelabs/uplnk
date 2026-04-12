@@ -14,7 +14,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
 // ─── uplnk-db mock (supplements global setup.ts stub) ────────────────────────
 
-vi.mock('uplnk-db', () => ({
+vi.mock('@uplnk/db', () => ({
   db: {},
   getUplnkDir: vi.fn(() => '/tmp/uplnk-test-home/.uplnk'),
   getUplnkDbPath: vi.fn(() => '/tmp/uplnk-test-home/.uplnk/db.sqlite'),
@@ -58,7 +58,7 @@ function makeConfig(overrides: Partial<Config['rag']> = {}): Config {
       servers: [],
     },
     git: { enabled: true },
-    updates: { enabled: true, packageName: 'uplnk-dev' },
+    updates: { enabled: true, packageName: 'uplnk' },
     providers: [],
     rag: {
       enabled: false,

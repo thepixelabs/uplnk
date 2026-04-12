@@ -1,6 +1,7 @@
 {
-  "name": "uplnk-providers",
+  "name": "@uplnk/providers",
   "version": "0.1.0",
+  "license": "SEE LICENSE IN LICENSE",
   "type": "module",
   "exports": {
     ".": "./src/index.ts"
@@ -9,7 +10,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "uplnk-catalog": "workspace:*"
+    "@uplnk/catalog": "workspace:*"
   },
   "devDependencies": {
     "typescript": "^5.7.0"

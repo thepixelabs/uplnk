@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Box, Text, useApp, useInput } from 'ink';
 import type { CoreMessage, LanguageModel } from 'ai';
 import { createLanguageModel } from '../lib/languageModelFactory.js';
-import { db, getDefaultProvider, insertMessage, updateMessageContent, forkConversation, updateConversationTitle } from 'uplnk-db';
+import { db, getDefaultProvider, insertMessage, updateMessageContent, forkConversation, updateConversationTitle } from '@uplnk/db';
 import { resolveSecret } from '../lib/secrets.js';
 import { useStream } from '../hooks/useStream.js';
 import { useConversation } from '../hooks/useConversation.js';
@@ -22,7 +22,7 @@ import { Header } from '../components/layout/Header.js';
 import { StatusBar } from '../components/layout/StatusBar.js';
 import { ArtifactPanel } from '../components/artifacts/ArtifactPanel.js';
 import { ApprovalDialog } from '../components/mcp/ApprovalDialog.js';
-import type { UplnkError } from 'uplnk-shared';
+import type { UplnkError } from '@uplnk/shared';
 
 interface Props {
   initialModel?: string;
@@ -50,7 +50,7 @@ const DEFAULT_CONFIG: Config = {
   providers: [],
   git: { enabled: true },
   rag: { enabled: false, autoDetect: false },
-  updates: { enabled: true, packageName: 'uplnk-dev' },
+  updates: { enabled: true, packageName: 'uplnk' },
   // modelRouter is intentionally absent — defaults to disabled
 };
 

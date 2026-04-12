@@ -1,6 +1,7 @@
 {
-  "name": "uplnk-catalog",
+  "name": "@uplnk/catalog",
   "version": "0.1.0",
+  "license": "SEE LICENSE IN LICENSE",
   "type": "module",
   "exports": {
     ".": "./src/index.ts"

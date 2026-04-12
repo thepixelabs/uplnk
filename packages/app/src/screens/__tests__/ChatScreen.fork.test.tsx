@@ -41,7 +41,7 @@ const mockCreateConversation = vi.hoisted(() =>
   })),
 );
 
-vi.mock('uplnk-db', () => ({
+vi.mock('@uplnk/db', () => ({
   db: {},
   getDefaultProvider: mockGetDefaultProvider,
   forkConversation: mockForkConversation,
@@ -142,7 +142,7 @@ vi.mock('../../lib/config.js', () => ({
       mcp: { allowedPaths: [], commandExecEnabled: false, commandAllowlistAdditions: [], servers: [] },
       git: { enabled: true },
       rag: { enabled: false, autoDetect: false },
-      updates: { enabled: false, packageName: 'uplnk-dev' },
+      updates: { enabled: false, packageName: 'uplnk' },
     },
   })),
 }));
@@ -178,7 +178,7 @@ const DEFAULT_CONFIG = {
   providers: [],
   git: { enabled: true },
   rag: { enabled: false, autoDetect: false },
-  updates: { enabled: false, packageName: 'uplnk-dev' },
+  updates: { enabled: false, packageName: 'uplnk' },
 };
 
 function renderChatScreen(overrides: Partial<React.ComponentProps<typeof ChatScreen>> = {}) {

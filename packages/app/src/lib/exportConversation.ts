@@ -7,7 +7,7 @@
 
 import { writeFileSync, mkdirSync } from 'node:fs';
 import { join, dirname } from 'node:path';
-import type { Message } from 'uplnk-db';
+import type { Message } from '@uplnk/db';
 
 export type ExportFormat = 'markdown' | 'json';
 

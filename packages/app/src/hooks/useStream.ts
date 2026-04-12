@@ -1,7 +1,7 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
 import { streamText } from 'ai';
 import type { LanguageModel, CoreMessage, Tool } from 'ai';
-import type { UplnkError } from 'uplnk-shared';
+import type { UplnkError } from '@uplnk/shared';
 import { toUplnkError } from '../lib/errors.js';
 
 export type StreamStatus =

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import type { Model, ProviderConfig as PyProviderConfig } from 'uplnk-providers';
-import { makeProvider, mergeWithCatalog, ProviderError } from 'uplnk-providers';
-import { loadCatalog } from 'uplnk-catalog';
+import type { Model, ProviderConfig as PyProviderConfig } from '@uplnk/providers';
+import { makeProvider, mergeWithCatalog, ProviderError } from '@uplnk/providers';
+import { loadCatalog } from '@uplnk/catalog';
 
 export interface UseModelSelectorResult {
   installed: Model[];

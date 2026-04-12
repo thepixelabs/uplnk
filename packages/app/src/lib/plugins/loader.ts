@@ -7,7 +7,7 @@
  */
 
 import { join } from 'node:path';
-import { getUplnkDir } from 'uplnk-db';
+import { getUplnkDir } from '@uplnk/db';
 import { PluginRegistry } from './registry.js';
 import type { McpServerConfig } from '../mcp/McpManager.js';
 

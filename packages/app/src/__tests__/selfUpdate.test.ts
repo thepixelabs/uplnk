@@ -79,19 +79,19 @@ afterEach(() => {
 
 describe('checkForUpdate', () => {
   it('returns null when enabled is false', async () => {
-    const result = await checkForUpdate({ packageName: 'uplnk-dev', enabled: false });
+    const result = await checkForUpdate({ packageName: 'uplnk', enabled: false });
     expect(result).toBeNull();
   });
 
   it('returns null when UPLNK_NO_UPDATE=1', async () => {
     process.env['UPLNK_NO_UPDATE'] = '1';
-    const result = await checkForUpdate({ packageName: 'uplnk-dev', enabled: true });
+    const result = await checkForUpdate({ packageName: 'uplnk', enabled: true });
     expect(result).toBeNull();
   });
 
   it('returns null when CI=true', async () => {
     process.env['CI'] = 'true';
-    const result = await checkForUpdate({ packageName: 'uplnk-dev', enabled: true });
+    const result = await checkForUpdate({ packageName: 'uplnk', enabled: true });
     expect(result).toBeNull();
   });
 
@@ -100,7 +100,7 @@ describe('checkForUpdate', () => {
     const oneMinuteAgo = new Date(Date.now() - 60_000).toISOString();
     mockCacheFile({ lastChecked: oneMinuteAgo, latestVersion: '1.2.3' });
 
-    const result = await checkForUpdate({ packageName: 'uplnk-dev', enabled: true });
+    const result = await checkForUpdate({ packageName: 'uplnk', enabled: true });
 
     // execFile should NOT have been called
     expect(childProcess.execFile).not.toHaveBeenCalled();
@@ -116,7 +116,7 @@ describe('checkForUpdate', () => {
     mockCacheFile({ lastChecked: twentyFiveHoursAgo, latestVersion: '1.2.3' });
     mockExecFile('"2.0.0"');
 
-    const result = await checkForUpdate({ packageName: 'uplnk-dev', enabled: true });
+    const result = await checkForUpdate({ packageName: 'uplnk', enabled: true });
 
     expect(childProcess.execFile).toHaveBeenCalled();
     expect(result?.updateAvailable).toBe(true);
@@ -127,20 +127,20 @@ describe('checkForUpdate', () => {
     mockCacheFile(null);
     mockExecFile('"1.5.0"');
 
-    const result = await checkForUpdate({ packageName: 'uplnk-dev', enabled: true });
+    const result = await checkForUpdate({ packageName: 'uplnk', enabled: true });
 
     expect(childProcess.execFile).toHaveBeenCalled();
     expect(result?.updateAvailable).toBe(true);
     expect(result?.currentVersion).toBe('1.2.3');
     expect(result?.latestVersion).toBe('1.5.0');
-    expect(result?.updateCommand).toContain('uplnk-dev');
+    expect(result?.updateCommand).toContain('uplnk');
   });
 
   it('returns updateAvailable=false when already at latest', async () => {
     mockCacheFile(null);
     mockExecFile('"1.2.3"');
 
-    const result = await checkForUpdate({ packageName: 'uplnk-dev', enabled: true });
+    const result = await checkForUpdate({ packageName: 'uplnk', enabled: true });
 
     expect(result?.updateAvailable).toBe(false);
     expect(result?.updateCommand).toBeNull();
@@ -150,7 +150,7 @@ describe('checkForUpdate', () => {
     mockCacheFile(null);
     mockExecFileError('Network timeout');
 
-    const result = await checkForUpdate({ packageName: 'uplnk-dev', enabled: true });
+    const result = await checkForUpdate({ packageName: 'uplnk', enabled: true });
 
     expect(result).toBeNull();
   });
@@ -159,7 +159,7 @@ describe('checkForUpdate', () => {
     mockCacheFile(null);
     mockExecFile('"2.0.0"');
 
-    await checkForUpdate({ packageName: 'uplnk-dev', enabled: true });
+    await checkForUpdate({ packageName: 'uplnk', enabled: true });
 
     expect(fs.writeFileSync).toHaveBeenCalledWith(
       expect.stringContaining('update-check.json'),
@@ -189,13 +189,13 @@ describe('performUpdate', () => {
     );
 
     const lines: string[] = [];
-    await performUpdate('uplnk-dev', (line) => lines.push(line));
+    await performUpdate('uplnk', (line) => lines.push(line));
 
-    expect(lines[0]).toContain('npm install -g uplnk-dev');
+    expect(lines[0]).toContain('npm install -g uplnk');
     expect(lines[lines.length - 1]).toContain('Update complete');
     expect(childProcess.execFile).toHaveBeenCalledWith(
       'npm',
-      expect.arrayContaining(['install', '-g', 'uplnk-dev']),
+      expect.arrayContaining(['install', '-g', 'uplnk']),
       expect.anything(),
       expect.any(Function),
     );
@@ -210,12 +210,12 @@ describe('performUpdate', () => {
     );
 
     const lines: string[] = [];
-    await performUpdate('uplnk-dev', (line) => lines.push(line));
+    await performUpdate('uplnk', (line) => lines.push(line));
 
-    expect(lines[0]).toContain('pnpm add -g uplnk-dev');
+    expect(lines[0]).toContain('pnpm add -g uplnk');
     expect(childProcess.execFile).toHaveBeenCalledWith(
       'pnpm',
-      expect.arrayContaining(['add', '-g', 'uplnk-dev']),
+      expect.arrayContaining(['add', '-g', 'uplnk']),
       expect.anything(),
       expect.any(Function),
     );
@@ -230,12 +230,12 @@ describe('performUpdate', () => {
     );
 
     const lines: string[] = [];
-    await performUpdate('uplnk-dev', (line) => lines.push(line));
+    await performUpdate('uplnk', (line) => lines.push(line));
 
-    expect(lines[0]).toContain('yarn global add uplnk-dev');
+    expect(lines[0]).toContain('yarn global add uplnk');
     expect(childProcess.execFile).toHaveBeenCalledWith(
       'yarn',
-      expect.arrayContaining(['global', 'add', 'uplnk-dev']),
+      expect.arrayContaining(['global', 'add', 'uplnk']),
       expect.anything(),
       expect.any(Function),
     );
@@ -248,7 +248,7 @@ describe('performUpdate', () => {
       },
     );
 
-    await expect(performUpdate('uplnk-dev', () => undefined)).rejects.toThrow('Command failed');
+    await expect(performUpdate('uplnk', () => undefined)).rejects.toThrow('Command failed');
   });
 });
 
@@ -270,8 +270,8 @@ describe('detectPackageManager via updateCommand output', () => {
     mockCacheFile(null);
     mockExecFile('"2.0.0"');
 
-    const result = await checkForUpdate({ packageName: 'uplnk-dev', enabled: true });
-    expect(result?.updateCommand).toBe('npm install -g uplnk-dev');
+    const result = await checkForUpdate({ packageName: 'uplnk', enabled: true });
+    expect(result?.updateCommand).toBe('npm install -g uplnk');
   });
 
   it('updateCommand uses pnpm when user agent is pnpm', async () => {
@@ -279,8 +279,8 @@ describe('detectPackageManager via updateCommand output', () => {
     mockCacheFile(null);
     mockExecFile('"2.0.0"');
 
-    const result = await checkForUpdate({ packageName: 'uplnk-dev', enabled: true });
-    expect(result?.updateCommand).toBe('pnpm add -g uplnk-dev');
+    const result = await checkForUpdate({ packageName: 'uplnk', enabled: true });
+    expect(result?.updateCommand).toBe('pnpm add -g uplnk');
   });
 
   it('updateCommand uses yarn when user agent is yarn', async () => {
@@ -288,8 +288,8 @@ describe('detectPackageManager via updateCommand output', () => {
     mockCacheFile(null);
     mockExecFile('"2.0.0"');
 
-    const result = await checkForUpdate({ packageName: 'uplnk-dev', enabled: true });
-    expect(result?.updateCommand).toBe('yarn global add uplnk-dev');
+    const result = await checkForUpdate({ packageName: 'uplnk', enabled: true });
+    expect(result?.updateCommand).toBe('yarn global add uplnk');
   });
 });
 
@@ -298,7 +298,7 @@ describe('isNewer (via checkForUpdate behaviour)', () => {
     mockCacheFile({ lastChecked: new Date(0).toISOString(), latestVersion: '1.2.4' });
     mockExecFile('"1.2.4"');
 
-    const result = await checkForUpdate({ packageName: 'uplnk-dev', enabled: true });
+    const result = await checkForUpdate({ packageName: 'uplnk', enabled: true });
     expect(result?.updateAvailable).toBe(true);
   });
 
@@ -306,7 +306,7 @@ describe('isNewer (via checkForUpdate behaviour)', () => {
     mockCacheFile(null);
     mockExecFile('"1.3.0"');
 
-    const result = await checkForUpdate({ packageName: 'uplnk-dev', enabled: true });
+    const result = await checkForUpdate({ packageName: 'uplnk', enabled: true });
     expect(result?.updateAvailable).toBe(true);
   });
 
@@ -314,7 +314,7 @@ describe('isNewer (via checkForUpdate behaviour)', () => {
     mockCacheFile(null);
     mockExecFile('"1.1.0"');
 
-    const result = await checkForUpdate({ packageName: 'uplnk-dev', enabled: true });
+    const result = await checkForUpdate({ packageName: 'uplnk', enabled: true });
     expect(result?.updateAvailable).toBe(false);
   });
 });

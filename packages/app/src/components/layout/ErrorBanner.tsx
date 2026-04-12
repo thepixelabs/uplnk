@@ -1,5 +1,5 @@
 import { Box, Text, useInput } from 'ink';
-import type { UplnkError } from 'uplnk-shared';
+import type { UplnkError } from '@uplnk/shared';
 
 interface Props {
   error: UplnkError;

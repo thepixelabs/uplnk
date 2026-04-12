@@ -37,7 +37,7 @@ const {
   };
 });
 
-vi.mock('uplnk-db', () => ({
+vi.mock('@uplnk/db', () => ({
   db: mockDb,
   listProviders: mockListProviders,
   setProviderApiKey: mockSetProviderApiKey,

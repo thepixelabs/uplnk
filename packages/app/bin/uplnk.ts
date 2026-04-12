@@ -7,7 +7,7 @@ import { join } from 'node:path';
 import { homedir } from 'node:os';
 import { App } from '../src/index.js';
 import { WORDMARK } from '../src/lib/colors.js';
-import { runMigrations } from 'uplnk-db';
+import { runMigrations } from '@uplnk/db';
 
 // ─── IPv4-first global fetch dispatcher ──────────────────────────────────────
 // Node's undici-based fetch tries addresses in DNS return order. When a
@@ -78,7 +78,7 @@ import { runMigrations } from 'uplnk-db';
 // symlink-race / local-information-disclosure class of attacks on
 // multi-user machines. `~/.uplnk` is created by getOrCreateConfig()
 // with inherited umask (typically 0o700 via the parent mkdir below)
-// and is already our single source of truth for per-user Uplnk state.
+// and is already our single source of truth for per-user uplnk state.
 const CRASH_LOG_PATH = join(homedir(), '.uplnk', 'crash.log');
 try { mkdirSync(join(homedir(), '.uplnk'), { recursive: true, mode: 0o700 }); } catch { /* handled below */ }
 
@@ -347,7 +347,7 @@ if (values.theme === 'light') {
 }
 
 // ─── Alternate screen (full-screen TUI mode) ─────────────────────────────────
-// Enter the alternate screen buffer so Uplnk takes over the terminal without
+// Enter the alternate screen buffer so uplnk takes over the terminal without
 // touching the user's scroll history. The original content is restored on exit.
 // Skipped when stdout is not a TTY (piped output, CI, --version, etc.) — all
 // early-exit paths above this point call process.exit() before reaching here.

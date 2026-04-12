@@ -30,7 +30,7 @@ import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { validateFilePath, validateCommand, validateFileSize } from './security.js';
 import type { FileAccessPolicy } from './security.js';
-import { getUplnkDir } from 'uplnk-db';
+import { getUplnkDir } from '@uplnk/db';
 
 // ─── Built-in server resolution ──────────────────────────────────────────────
 
@@ -262,7 +262,7 @@ export class McpManager {
     }
 
     const client = new Client(
-      { name: 'uplnk', version: '0.1.0' },
+      { name: 'uplnk', version: '0.3.0' },
       { capabilities: {} },
     );
 

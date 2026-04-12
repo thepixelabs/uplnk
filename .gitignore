@@ -1,5 +1,6 @@
 node_modules
 dist
+packages/app/bin/*.js
 .turbo
 *.db
 *.db-journal

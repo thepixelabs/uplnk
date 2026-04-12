@@ -7,7 +7,7 @@
  *   1. KeyringBackend       — delegates to the OS keychain via a dynamic
  *                             `@napi-rs/keyring` import. Only used if the
  *                             module resolves at runtime (it is NOT a
- *                             hard dependency of uplnk-dev). Users who
+ *                             hard dependency of uplnk). Users who
  *                             want real keychain storage install it via
  *                             `pnpm add @napi-rs/keyring` or `npm i -g`.
  *
@@ -44,7 +44,7 @@ import {
 } from 'node:fs';
 import { join } from 'node:path';
 import { randomBytes, createCipheriv, createDecipheriv } from 'node:crypto';
-import { getUplnkDir } from 'uplnk-db';
+import { getUplnkDir } from '@uplnk/db';
 
 export interface SecretsBackend {
   readonly name: 'keyring' | 'encrypted-file' | 'plaintext';
@@ -316,7 +316,7 @@ class PlaintextBackend implements SecretsBackend {
  *
  * The ref format is `@secret:<hex>` (same as the other backends) but the
  * underlying store is the OS keychain keyed under the service name
- * `uplnk-dev` and the account name equal to the hex portion of the ref.
+ * `uplnk` and the account name equal to the hex portion of the ref.
  */
 interface KeyringModule {
   Entry: new (service: string, account: string) => {
@@ -347,7 +347,7 @@ async function tryLoadKeyring(): Promise<KeyringModule | null> {
 
 class KeyringBackend implements SecretsBackend {
   readonly name = 'keyring' as const;
-  private static readonly SERVICE = 'uplnk-dev';
+  private static readonly SERVICE = 'uplnk';
 
   constructor(private readonly keyring: KeyringModule) {}
 

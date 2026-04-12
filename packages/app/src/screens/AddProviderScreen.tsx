@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Box, Text, useInput } from 'ink';
-import { db, upsertProviderConfig, setDefaultProvider, recordProviderTest } from 'uplnk-db';
-import type { AuthMode, ProviderConfig as PyProviderConfig, ProviderKind } from 'uplnk-providers';
-import { makeProvider, PROVIDER_KIND_OPTIONS, ProviderError } from 'uplnk-providers';
+import { db, upsertProviderConfig, setDefaultProvider, recordProviderTest } from '@uplnk/db';
+import type { AuthMode, ProviderConfig as PyProviderConfig, ProviderKind } from '@uplnk/providers';
+import { makeProvider, PROVIDER_KIND_OPTIONS, ProviderError } from '@uplnk/providers';
 import { migratePlaintext, isSecretRef, getSecretsBackend } from '../lib/secrets.js';
 
 interface Props {

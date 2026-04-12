@@ -1,4 +1,4 @@
-// Uplnk database schema — SQLite via Drizzle ORM
+// uplnk database schema — SQLite via Drizzle ORM
 // Driver: better-sqlite3 (synchronous)
 // Location: ~/.uplnk/db.sqlite
 
@@ -59,6 +59,7 @@ export const conversations = sqliteTable(
     modelId: text('model_id'),
     totalInputTokens: integer('total_input_tokens').notNull().default(0),
     totalOutputTokens: integer('total_output_tokens').notNull().default(0),
+    relayId: text('relay_id'),
     createdAt: text('created_at').notNull().default(isoTimestamp()),
     updatedAt: text('updated_at').notNull().default(isoTimestamp()),
     deletedAt: text('deleted_at'),
@@ -155,6 +156,43 @@ export const ragChunks = sqliteTable(
   ],
 );
 
+// ─── Relay Runs ────────────────────────────────────────────────────────────────
+
+export const relayRuns = sqliteTable(
+  'relay_runs',
+  {
+    id: text('id').primaryKey(),
+    relayId: text('relay_id').notNull(),
+    relayName: text('relay_name').notNull(),
+    conversationId: text('conversation_id').references(() => conversations.id, {
+      onDelete: 'set null',
+    }),
+    input: text('input').notNull(),
+    scoutOutput: text('scout_output'),
+    anchorOutput: text('anchor_output'),
+    scoutProviderId: text('scout_provider_id').notNull(),
+    scoutModel: text('scout_model').notNull(),
+    anchorProviderId: text('anchor_provider_id').notNull(),
+    anchorModel: text('anchor_model').notNull(),
+    status: text('status').notNull(),
+    scoutInputTokens: integer('scout_input_tokens'),
+    scoutOutputTokens: integer('scout_output_tokens'),
+    anchorInputTokens: integer('anchor_input_tokens'),
+    anchorOutputTokens: integer('anchor_output_tokens'),
+    errorMessage: text('error_message'),
+    startedAt: text('started_at').notNull().default(isoTimestamp()),
+    completedAt: text('completed_at'),
+  },
+  (table) => [
+    index('relay_runs_relay_id_idx').on(table.relayId),
+    index('relay_runs_started_at_idx').on(table.startedAt),
+    check(
+      'relay_run_status_check',
+      sql`${table.status} IN ('running', 'completed', 'failed', 'cancelled')`,
+    ),
+  ],
+);
+
 // ─── Inferred types ────────────────────────────────────────────────────────────
 
 export type ProviderConfig = typeof providerConfigs.$inferSelect;
@@ -171,3 +209,6 @@ export type NewArtifact = typeof artifacts.$inferInsert;
 
 export type RagChunk = typeof ragChunks.$inferSelect;
 export type NewRagChunk = typeof ragChunks.$inferInsert;
+
+export type RelayRun = typeof relayRuns.$inferSelect;
+export type NewRelayRun = typeof relayRuns.$inferInsert;

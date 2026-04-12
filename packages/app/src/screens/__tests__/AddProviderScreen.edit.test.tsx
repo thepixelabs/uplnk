@@ -20,7 +20,7 @@ const tick = () => new Promise<void>((r) => setImmediate(() => setImmediate(r)))
 
 // ─── Mocks ────────────────────────────────────────────────────────────────────
 
-vi.mock('uplnk-db', () => ({
+vi.mock('@uplnk/db', () => ({
   db: {},
   upsertProviderConfig: vi.fn(),
   setDefaultProvider: vi.fn(),
@@ -37,8 +37,8 @@ vi.mock('../../lib/secrets.js', () => ({
 
 // makeProvider touches the network during testConnection; mock at the
 // uplnk-providers boundary so the TestStep never dials out.
-vi.mock('uplnk-providers', async () => {
-  const actual = await vi.importActual<typeof import('uplnk-providers')>('uplnk-providers');
+vi.mock('@uplnk/providers', async () => {
+  const actual = await vi.importActual<typeof import('@uplnk/providers')>('@uplnk/providers');
   return {
     ...actual,
     makeProvider: vi.fn(() => ({

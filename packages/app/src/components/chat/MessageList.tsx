@@ -18,7 +18,7 @@
 
 import { memo } from 'react';
 import { Box, Text, Static } from 'ink';
-import type { Message } from 'uplnk-db';
+import type { Message } from '@uplnk/db';
 import { MarkdownMessage } from './MarkdownMessage.js';
 import type { Artifact } from '../artifacts/ArtifactPanel.js';
 
