@@ -4,8 +4,8 @@
  * chunkText is a pure function, tested without any mocks.
  * Indexer class tests mock node:fs to avoid real filesystem access.
  *
- * pylon-db is mocked globally by src/__tests__/setup.ts (ragChunks export
- * added there). We do NOT re-declare the pylon-db mock here to avoid
+ * uplnk-db is mocked globally by src/__tests__/setup.ts (ragChunks export
+ * added there). We do NOT re-declare the uplnk-db mock here to avoid
  * conflicting with the global setup.
  */
 

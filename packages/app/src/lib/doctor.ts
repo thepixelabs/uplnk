@@ -1,6 +1,6 @@
 import chalk from 'chalk';
 import { accessSync, constants } from 'node:fs';
-import { db, getPylonDir, getPylonDbPath, listProviders, setProviderApiKey } from 'pylon-db';
+import { db, getPylonDir, getPylonDbPath, listProviders, setProviderApiKey } from 'uplnk-db';
 import { initSecretsBackend, getSecretsBackend, isSecretRef, migratePlaintext } from './secrets.js';
 
 interface Check {
@@ -33,7 +33,7 @@ const checks: Check[] = [
     name: 'SQLite database',
     run: async () => {
       try {
-        const { db } = await import('pylon-db');
+        const { db } = await import('uplnk-db');
         db.get('SELECT 1');
         return { ok: true, detail: getPylonDbPath() };
       } catch (err) {
@@ -71,7 +71,7 @@ export async function runDoctor(): Promise<void> {
   if (allOk) {
     console.log(chalk.green('All checks passed. Pylon is ready.\n'));
   } else {
-    console.log(chalk.yellow('Some checks failed. Fix the issues above and re-run `pylon doctor`.\n'));
+    console.log(chalk.yellow('Some checks failed. Fix the issues above and re-run `uplnk doctor`.\n'));
     process.exit(1);
   }
 }

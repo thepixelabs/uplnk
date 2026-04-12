@@ -1,5 +1,5 @@
 /**
- * Plugin loader — reads all installed plugins from ~/.pylon/plugins/ at startup
+ * Plugin loader — reads all installed plugins from ~/.uplnk/plugins/ at startup
  * and adds them to the MCP server list.
  *
  * Called from bin/pylon.ts after config load, before App render.
@@ -7,7 +7,7 @@
  */
 
 import { join } from 'node:path';
-import { getPylonDir } from 'pylon-db';
+import { getPylonDir } from 'uplnk-db';
 import { PluginRegistry } from './registry.js';
 import type { McpServerConfig } from '../mcp/McpManager.js';
 

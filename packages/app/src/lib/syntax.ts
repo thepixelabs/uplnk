@@ -31,7 +31,7 @@ interface Token {
 // ─── Color map ────────────────────────────────────────────────────────────────
 
 const NO_COLOR = process.env['NO_COLOR'] !== undefined;
-const LIGHT_THEME = process.env['PYLON_THEME'] === 'light';
+const LIGHT_THEME = process.env['UPLNK_THEME'] === 'light';
 
 function color(dark: string, light?: string): (s: string) => string {
   if (NO_COLOR) return (s) => s;

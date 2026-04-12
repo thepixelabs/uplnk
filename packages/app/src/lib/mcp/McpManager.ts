@@ -30,7 +30,7 @@ import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { validateFilePath, validateCommand, validateFileSize } from './security.js';
 import type { FileAccessPolicy } from './security.js';
-import { getPylonDir } from 'pylon-db';
+import { getPylonDir } from 'uplnk-db';
 
 // ─── Built-in server resolution ──────────────────────────────────────────────
 
@@ -49,7 +49,7 @@ export const BUILTIN_RAG_ID = '__pylon_builtin_rag__';
 // ─── Audit log types ──────────────────────────────────────────────────────────
 
 /**
- * Shape of a single audit log entry written to ~/.pylon/mcp-audit.log.
+ * Shape of a single audit log entry written to ~/.uplnk/mcp-audit.log.
  *
  * Security rules for the args field:
  * - Include ONLY structural metadata: paths, command names, boolean flags, byte counts.
@@ -161,7 +161,7 @@ export class McpManager {
   constructor(config: McpManagerConfig) {
     this.config = config;
     const pylonDir = getPylonDir();
-    // Ensure ~/.pylon exists. Normally created by getOrCreateConfig() in config.ts,
+    // Ensure ~/.uplnk exists. Normally created by getOrCreateConfig() in config.ts,
     // but McpManager may be instantiated in test contexts before that runs.
     try {
       mkdirSync(pylonDir, { recursive: true });
@@ -175,7 +175,7 @@ export class McpManager {
   // ─── Audit log ──────────────────────────────────────────────────────────────
 
   /**
-   * Append a single JSONL entry to ~/.pylon/mcp-audit.log.
+   * Append a single JSONL entry to ~/.uplnk/mcp-audit.log.
    *
    * Uses appendFileSync (synchronous) so the entry is written before control
    * returns to the caller — entries cannot be silently dropped on process exit

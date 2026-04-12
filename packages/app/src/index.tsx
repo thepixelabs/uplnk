@@ -5,11 +5,11 @@ import { ModelSelectorScreen } from './screens/ModelSelectorScreen.js';
 import { ConversationListScreen } from './screens/ConversationListScreen.js';
 import { ProviderSelectorScreen } from './screens/ProviderSelectorScreen.js';
 import { AddProviderScreen } from './screens/AddProviderScreen.js';
-import type { AuthMode, ProviderKind } from 'pylon-providers';
+import type { AuthMode, ProviderKind } from 'uplnk-providers';
 import { CommandPalette } from './components/layout/CommandPalette.js';
 import type { PaletteCommand } from './components/layout/CommandPalette.js';
 import { ErrorBanner } from './components/layout/ErrorBanner.js';
-import type { PylonError } from 'pylon-shared';
+import type { PylonError } from 'uplnk-shared';
 import type { Config } from './lib/config.js';
 
 export type Screen = 'chat' | 'model-selector' | 'conversations' | 'provider-selector' | 'add-provider' | 'edit-provider';

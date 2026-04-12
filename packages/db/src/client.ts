@@ -6,7 +6,7 @@ import { join } from 'node:path';
 import * as schema from './schema.js';
 
 export function getPylonDir(): string {
-  return join(homedir(), '.pylon');
+  return join(homedir(), '.uplnk');
 }
 
 export function getPylonDbPath(): string {

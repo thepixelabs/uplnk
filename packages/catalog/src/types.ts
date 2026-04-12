@@ -1,7 +1,7 @@
 /**
- * Provider kind, duplicated here (not imported from pylon-providers) so the
+ * Provider kind, duplicated here (not imported from uplnk-providers) so the
  * catalog package has no dependency on the providers package. Strings are
- * kept in sync with `ProviderKind` in `pylon-providers`.
+ * kept in sync with `ProviderKind` in `uplnk-providers`.
  */
 export type CatalogProviderKind =
   | 'ollama'

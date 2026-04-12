@@ -1,7 +1,7 @@
 import chalk, { type ChalkInstance } from 'chalk';
 
 const NO_COLOR = process.env['NO_COLOR'] !== undefined;
-const LIGHT_THEME = process.env['PYLON_THEME'] === 'light';
+const LIGHT_THEME = process.env['UPLNK_THEME'] === 'light';
 
 function c(dark: ChalkInstance, light?: ChalkInstance): ChalkInstance {
   if (NO_COLOR) return chalk;
@@ -43,4 +43,4 @@ export const colors = {
 } as const;
 
 /** The Pylon wordmark — renders as structural column cross-section */
-export const WORDMARK = colors.primary('▐') + colors.primary.bold('█') + colors.primary('▌') + ' ' + chalk.bold('PYLON');
+export const WORDMARK = colors.primary('▐') + colors.primary.bold('█') + colors.primary('▌') + ' ' + chalk.bold('UPLNK');

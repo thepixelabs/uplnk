@@ -132,7 +132,7 @@ interface UseMcpOptions {
   commandExecEnabled: boolean;
   /**
    *: commandExecEnabled is only honoured when this is a
-   * valid ISO timestamp set by `pylon config --confirm-command-exec`.
+   * valid ISO timestamp set by `uplnk config --confirm-command-exec`.
    * When absent, command execution is disabled regardless of the flag value.
    */
   commandExecConfirmedAt?: string;
@@ -269,7 +269,7 @@ export function useMcp({
       try {
         fromPlugins = loadPluginConfigs();
       } catch {
-        // Corrupted ~/.pylon/plugins directory must not break MCP startup.
+        // Corrupted ~/.uplnk/plugins directory must not break MCP startup.
       }
       const merged = mergeMcpConfigs(configServers, fromMcpJson, fromPlugins);
       for (const warn of merged.warnings) {

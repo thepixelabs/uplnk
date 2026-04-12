@@ -3,7 +3,7 @@ import { mkdtempSync, rmSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { exportConversation } from '../exportConversation.js';
-import type { Message } from 'pylon-db';
+import type { Message } from 'uplnk-db';
 
 // Minimal message fixtures — enough to exercise the exporter
 const makeMessage = (id: string, role: Message['role'], content: string): Message => ({

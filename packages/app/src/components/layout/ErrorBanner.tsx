@@ -1,5 +1,5 @@
 import { Box, Text, useInput } from 'ink';
-import type { PylonError } from 'pylon-shared';
+import type { PylonError } from 'uplnk-shared';
 
 interface Props {
   error: PylonError;

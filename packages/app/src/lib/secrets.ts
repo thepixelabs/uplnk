@@ -7,14 +7,14 @@
  *   1. KeyringBackend       — delegates to the OS keychain via a dynamic
  *                             `@napi-rs/keyring` import. Only used if the
  *                             module resolves at runtime (it is NOT a
- *                             hard dependency of pylon-dev). Users who
+ *                             hard dependency of uplnk). Users who
  *                             want real keychain storage install it via
  *                             `pnpm add @napi-rs/keyring` or `npm i -g`.
  *
  *   2. EncryptedFileBackend — AES-256-GCM encrypted blob at
- *                             `~/.pylon/secrets.enc`, with a per-user
+ *                             `~/.uplnk/secrets.enc`, with a per-user
  *                             random 256-bit key stored at
- *                             `~/.pylon/.secret-key` (chmod 600). Has no
+ *                             `~/.uplnk/.secret-key` (chmod 600). Has no
  *                             native deps — works everywhere, including
  *                             air-gapped environments.
  *
@@ -31,7 +31,7 @@
  * A `ref` is an opaque string — callers should not assume its shape.
  * `setSecret` returns a fresh ref; `getSecret(ref)` returns the cleartext.
  * `deleteSecret(ref)` removes the entry. `describeBackend()` returns a
- * short label used by `pylon doctor` to report which backend is active.
+ * short label used by `uplnk doctor` to report which backend is active.
  */
 
 import {
@@ -44,7 +44,7 @@ import {
 } from 'node:fs';
 import { join } from 'node:path';
 import { randomBytes, createCipheriv, createDecipheriv } from 'node:crypto';
-import { getPylonDir } from 'pylon-db';
+import { getPylonDir } from 'uplnk-db';
 
 export interface SecretsBackend {
   readonly name: 'keyring' | 'encrypted-file' | 'plaintext';
@@ -62,7 +62,7 @@ export interface SecretsBackend {
   deleteSecretsBulk(refs: string[]): number;
   /**
    * List every ref this backend is currently storing. Used by
-   * `pylon doctor prune-secrets` to find orphaned refs.
+   * `uplnk doctor prune-secrets` to find orphaned refs.
    *
    * Returns `null` when the backend cannot enumerate (the OS keychain API
    * does not expose a "list accounts" operation in a portable way). Pruning
@@ -100,8 +100,8 @@ type EncryptedStore = Record<string, EncryptedEntry>;
 
 /**
  * AES-256-GCM encrypted store backed by two files:
- *   - ~/.pylon/.secret-key    — 32-byte random key, chmod 600
- *   - ~/.pylon/secrets.enc    — JSON record of {ref: {iv, tag, ciphertext}}
+ *   - ~/.uplnk/.secret-key    — 32-byte random key, chmod 600
+ *   - ~/.uplnk/secrets.enc    — JSON record of {ref: {iv, tag, ciphertext}}
  *
  * Why AES-GCM: authenticated encryption. The tag catches tampering, which
  * matters because the encrypted store is a plain file an attacker with
@@ -227,7 +227,7 @@ class EncryptedFileBackend implements SecretsBackend {
 
   /**
    * Delete multiple refs in a single persist() call. Used by
-   * `pylon doctor prune-secrets` to avoid O(N) write amplification when
+   * `uplnk doctor prune-secrets` to avoid O(N) write amplification when
    * pruning a large orphan set.
    */
   deleteSecretsBulk(refs: string[]): number {
@@ -316,7 +316,7 @@ class PlaintextBackend implements SecretsBackend {
  *
  * The ref format is `@secret:<hex>` (same as the other backends) but the
  * underlying store is the OS keychain keyed under the service name
- * `pylon-dev` and the account name equal to the hex portion of the ref.
+ * `uplnk` and the account name equal to the hex portion of the ref.
  */
 interface KeyringModule {
   Entry: new (service: string, account: string) => {
@@ -347,7 +347,7 @@ async function tryLoadKeyring(): Promise<KeyringModule | null> {
 
 class KeyringBackend implements SecretsBackend {
   readonly name = 'keyring' as const;
-  private static readonly SERVICE = 'pylon-dev';
+  private static readonly SERVICE = 'uplnk';
 
   constructor(private readonly keyring: KeyringModule) {}
 
@@ -432,7 +432,7 @@ function pickBackendSync(): SecretsBackend {
 /**
  * Pick the best available backend for this machine:
  * 1. `@napi-rs/keyring` if the module resolves → OS keychain
- * 2. EncryptedFileBackend at `~/.pylon/secrets.enc` → AES-256-GCM file
+ * 2. EncryptedFileBackend at `~/.uplnk/secrets.enc` → AES-256-GCM file
  * 3. PlaintextBackend → in-memory with visible warning
  *
  * Call this once at app startup. Subsequent calls return the same instance.

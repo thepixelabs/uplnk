@@ -56,7 +56,7 @@ vi.mock('node:fs', async (importOriginal) => {
     ...actual,
     statSync: (...args: unknown[]) => mockStatSync(...args),
     realpathSync: (p: string) => p, // identity — no real FS in unit tests
-    mkdirSync: vi.fn(),             // suppress ~/.pylon mkdir in constructor
+    mkdirSync: vi.fn(),             // suppress ~/.uplnk mkdir in constructor
     appendFileSync: vi.fn(),        // suppress audit log writes in tests
   };
 });

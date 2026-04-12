@@ -6,9 +6,9 @@
  * npm_config_user_agent env var).
  *
  * Update check is skipped when:
- *   - PYLON_NO_UPDATE=1 env var is set
+ *   - UPLNK_NO_UPDATE=1 env var is set
  *   - config.updates.enabled is false
- *   - last check was < 24h ago (throttled via ~/.pylon/update-check.json)
+ *   - last check was < 24h ago (throttled via ~/.uplnk/update-check.json)
  *   - running in CI (CI=true env var)
  */
 
@@ -39,7 +39,7 @@ interface UpdateCheckCache {
 
 // ─── Helpers ───────────────────────────────────────────────────────────────
 
-const CACHE_PATH = join(homedir(), '.pylon', 'update-check.json');
+const CACHE_PATH = join(homedir(), '.uplnk', 'update-check.json');
 const CHECK_INTERVAL_MS = 24 * 60 * 60 * 1000; // 24 hours
 const NPM_REGISTRY_TIMEOUT_MS = 2000;
 
@@ -147,7 +147,7 @@ export async function checkForUpdate(opts: {
   // Skip in CI or when explicitly disabled
   if (
     !opts.enabled ||
-    process.env['PYLON_NO_UPDATE'] === '1' ||
+    process.env['UPLNK_NO_UPDATE'] === '1' ||
     process.env['CI'] === 'true'
   ) {
     return null;

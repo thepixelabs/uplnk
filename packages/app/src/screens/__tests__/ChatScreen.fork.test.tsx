@@ -2,13 +2,13 @@
  * Tests for the /fork command wired through ChatScreen → handleFork.
  *
  * Strategy:
- *  - Mock pylon-db fully (global setup already does this; we override here)
+ *  - Mock uplnk-db fully (global setup already does this; we override here)
  *  - Mock useStream, useConversation, useMcp, and the heavy dependencies so
  *    ChatScreen renders without a real provider or network
  *  - Simulate /fork via ChatInput stdin.write()
  *  - Assert forkConversation called with correct args and onForkedTo fired
  *
- * ChatScreen wires a lot of dependencies — we mock at the boundary of pylon-db
+ * ChatScreen wires a lot of dependencies — we mock at the boundary of uplnk-db
  * and the hook layer, not at internal collaborators.
  */
 
@@ -41,7 +41,7 @@ const mockCreateConversation = vi.hoisted(() =>
   })),
 );
 
-vi.mock('pylon-db', () => ({
+vi.mock('uplnk-db', () => ({
   db: {},
   getDefaultProvider: mockGetDefaultProvider,
   forkConversation: mockForkConversation,
@@ -59,7 +59,7 @@ vi.mock('pylon-db', () => ({
   upsertProviderConfig: vi.fn(),
   runMigrations: vi.fn(),
   getPylonDir: vi.fn(() => '/tmp/pylon-test-home/.pylon'),
-  getPylonDbPath: vi.fn(() => '/tmp/pylon-test-home/.pylon/db.sqlite'),
+  getPylonDbPath: vi.fn(() => '/tmp/pylon-test-home/.uplnk/db.sqlite'),
   ragChunks: {},
 }));
 
@@ -142,7 +142,7 @@ vi.mock('../../lib/config.js', () => ({
       mcp: { allowedPaths: [], commandExecEnabled: false, commandAllowlistAdditions: [], servers: [] },
       git: { enabled: true },
       rag: { enabled: false, autoDetect: false },
-      updates: { enabled: false, packageName: 'pylon-dev' },
+      updates: { enabled: false, packageName: 'uplnk' },
     },
   })),
 }));
@@ -178,7 +178,7 @@ const DEFAULT_CONFIG = {
   providers: [],
   git: { enabled: true },
   rag: { enabled: false, autoDetect: false },
-  updates: { enabled: false, packageName: 'pylon-dev' },
+  updates: { enabled: false, packageName: 'uplnk' },
 };
 
 function renderChatScreen(overrides: Partial<React.ComponentProps<typeof ChatScreen>> = {}) {

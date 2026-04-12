@@ -13,8 +13,8 @@
 
 import { useMemo, useState } from 'react';
 import { Box, Text, useInput } from 'ink';
-import { db, listConversations, searchConversations } from 'pylon-db';
-import type { Conversation } from 'pylon-db';
+import { db, listConversations, searchConversations } from 'uplnk-db';
+import type { Conversation } from 'uplnk-db';
 
 interface Props {
   /** Called with the conversation id when the user picks one. */

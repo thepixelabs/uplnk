@@ -1,7 +1,7 @@
 /**
  * Tests for packages/app/src/lib/config.ts
  *
- * Strategy: mock at the system boundary (node:fs and pylon-db). Never mock
+ * Strategy: mock at the system boundary (node:fs and uplnk-db). Never mock
  * internal collaborators. Each test has a single reason to fail.
  */
 
@@ -15,7 +15,7 @@ vi.mock('node:fs', () => ({
   mkdirSync: vi.fn(),
 }));
 
-vi.mock('pylon-db', () => ({
+vi.mock('uplnk-db', () => ({
   db: {},
   getPylonDir: vi.fn(() => '/home/testuser/.pylon'),
   upsertProviderConfig: vi.fn(),
@@ -25,7 +25,7 @@ vi.mock('pylon-db', () => ({
 // ─── Imports after mocks are registered ───────────────────────────────────────
 
 import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';
-import { getPylonDir, upsertProviderConfig, getDefaultProvider } from 'pylon-db';
+import { getPylonDir, upsertProviderConfig, getDefaultProvider } from 'uplnk-db';
 import { loadConfig, saveConfig, getOrCreateConfig, getConfigPath } from '../lib/config.js';
 import type { Config } from '../lib/config.js';
 
@@ -197,7 +197,7 @@ describe('saveConfig', () => {
     providers: [],
     git: { enabled: true },
     rag: { enabled: false, autoDetect: false },
-    updates: { enabled: true, packageName: 'pylon-dev' },
+    updates: { enabled: true, packageName: 'uplnk' },
   };
 
   it('creates the pylon directory with recursive: true before writing', () => {
@@ -234,7 +234,7 @@ describe('saveConfig', () => {
       providers: [],
       git: { enabled: true },
       rag: { enabled: false, autoDetect: false },
-      updates: { enabled: true, packageName: 'pylon-dev' },
+      updates: { enabled: true, packageName: 'uplnk' },
     };
 
     saveConfig(configWithExtras);

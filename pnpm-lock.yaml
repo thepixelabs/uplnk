@@ -31,21 +31,21 @@ importers:
       ink:
         specifier: ^5.0.0
         version: 5.2.1(@types/react@18.3.28)(react@18.3.1)
-      pylon-catalog:
-        specifier: workspace:*
-        version: link:../catalog
-      pylon-db:
-        specifier: workspace:*
-        version: link:../db
-      pylon-providers:
-        specifier: workspace:*
-        version: link:../providers
-      pylon-shared:
-        specifier: workspace:*
-        version: link:../shared
       react:
         specifier: ^18.3.1
         version: 18.3.1
+      uplnk-catalog:
+        specifier: workspace:*
+        version: link:../catalog
+      uplnk-db:
+        specifier: workspace:*
+        version: link:../db
+      uplnk-providers:
+        specifier: workspace:*
+        version: link:../providers
+      uplnk-shared:
+        specifier: workspace:*
+        version: link:../shared
       zod:
         specifier: ^3.23.8
         version: 3.25.76
@@ -123,7 +123,7 @@ importers:
 
   packages/providers:
     dependencies:
-      pylon-catalog:
+      uplnk-catalog:
         specifier: workspace:*
         version: link:../catalog
     devDependencies:

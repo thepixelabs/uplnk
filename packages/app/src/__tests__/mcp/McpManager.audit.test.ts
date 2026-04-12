@@ -4,7 +4,7 @@
  * Strategy:
  * - Use a real temp dir for the pylon dir so actual file I/O is exercised.
  * - Mock only the module boundaries we don't own: MCP SDK Client/Transport
- *   (prevents child-process spawning), pylon-db/getPylonDir (controls path).
+ *   (prevents child-process spawning), uplnk-db/getPylonDir (controls path).
  * - node:fs is NOT mocked here — rotation depends on real statSync / renameSync.
  * - logToolCall is private; we access it via a type cast so we can write
  *   audit entries directly without going through the full connect() lifecycle.
@@ -34,14 +34,14 @@ vi.mock('@modelcontextprotocol/sdk/client/streamableHttp.js', () => ({
   StreamableHTTPClientTransport: vi.fn().mockImplementation(() => ({})),
 }));
 
-// ─── pylon-db mock — makes getPylonDir return our temp dir ───────────────────
+// ─── uplnk-db mock — makes getPylonDir return our temp dir ───────────────────
 
-vi.mock('pylon-db', () => ({
+vi.mock('uplnk-db', () => ({
   db: {},
   getPylonDir: vi.fn(() => '/tmp/audit-test-default'),
 }));
 
-import { getPylonDir } from 'pylon-db';
+import { getPylonDir } from 'uplnk-db';
 import { McpManager } from '../../lib/mcp/McpManager.js';
 import { createDefaultPolicy } from '../../lib/mcp/security.js';
 import type { AuditEntry } from '../../lib/mcp/McpManager.js';

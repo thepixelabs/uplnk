@@ -1,7 +1,7 @@
 /**
  * PluginRegistry — install/uninstall/list community MCP plugin manifests.
  *
- * Plugins are stored as individual JSON files in ~/.pylon/plugins/<id>.json.
+ * Plugins are stored as individual JSON files in ~/.uplnk/plugins/<id>.json.
  * Each file contains a validated PluginManifest. At startup, all manifests
  * are loaded and converted to McpServerConfig entries so McpManager can
  * connect to them alongside the built-in servers.

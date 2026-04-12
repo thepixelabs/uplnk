@@ -1,5 +1,5 @@
 import type { Model, ProviderKind } from './types.js';
-import type { CatalogEntry } from 'pylon-catalog';
+import type { CatalogEntry } from 'uplnk-catalog';
 
 /**
  * Canonicalize a model id for lookup in the catalog.

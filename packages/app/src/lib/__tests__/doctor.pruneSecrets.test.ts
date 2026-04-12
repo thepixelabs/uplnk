@@ -1,7 +1,7 @@
 /**
  * Tests for runPruneSecrets() in packages/app/src/lib/doctor.ts
  *
- * Strategy: mock pylon-db and secrets.ts at the module boundary.
+ * Strategy: mock uplnk-db and secrets.ts at the module boundary.
  * Observable behaviour: which refs get deleted, which are retained,
  * and the no-op path when the backend cannot enumerate refs.
  */
@@ -49,12 +49,12 @@ const {
   };
 });
 
-vi.mock('pylon-db', () => ({
+vi.mock('uplnk-db', () => ({
   db: mockDb,
   listProviders: mockListProviders,
   setProviderApiKey: vi.fn(),
   getPylonDir: vi.fn(() => '/tmp/pylon-test-home/.pylon'),
-  getPylonDbPath: vi.fn(() => '/tmp/pylon-test-home/.pylon/db.sqlite'),
+  getPylonDbPath: vi.fn(() => '/tmp/pylon-test-home/.uplnk/db.sqlite'),
 }));
 
 vi.mock('../secrets.js', () => ({

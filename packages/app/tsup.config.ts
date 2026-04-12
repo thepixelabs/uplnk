@@ -4,7 +4,7 @@ export default defineConfig([
   // Binary entry — written directly to bin/ so package.json "bin" field resolves correctly.
   // The shebang banner is unconditional within this entry config.
   {
-    entry: { pylon: 'bin/pylon.ts' },
+    entry: { uplnk: 'bin/uplnk.ts' },
     outDir: 'bin',
     format: ['esm'],
     target: 'node20',

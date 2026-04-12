@@ -6,7 +6,7 @@
  *    environment. A thin HookWrapper component captures the hook return value
  *    in a ref — the same renderHookViaInk pattern used by useArtifacts.test.ts
  *    and ChatInput.test.tsx.
- *  - `pylon-db` is mocked at the module boundary. The global setup.ts provides
+ *  - `uplnk-db` is mocked at the module boundary. The global setup.ts provides
  *    a baseline stub; this file overrides it with a vi.mock() factory that
  *    exposes per-test vi.fn() refs via vi.hoisted().
  *  - Each test has exactly one reason to fail.
@@ -31,7 +31,7 @@ const mocks = vi.hoisted(() => ({
   touchConversation: vi.fn(),
 }));
 
-vi.mock('pylon-db', () => ({
+vi.mock('uplnk-db', () => ({
   db: mocks.db,
   createConversation: mocks.createConversation,
   getConversation: mocks.getConversation,

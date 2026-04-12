@@ -1,7 +1,7 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
 import { streamText } from 'ai';
 import type { LanguageModel, CoreMessage, Tool } from 'ai';
-import type { PylonError } from 'pylon-shared';
+import type { PylonError } from 'uplnk-shared';
 import { toPylonError } from '../lib/errors.js';
 
 export type StreamStatus =

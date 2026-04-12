@@ -1,7 +1,7 @@
 /**
  * Tests for runMigrateSecrets() in packages/app/src/lib/doctor.ts
  *
- * Strategy: mock pylon-db and secrets.ts at the module boundary.
+ * Strategy: mock uplnk-db and secrets.ts at the module boundary.
  * Observable behaviour: which rows trigger migratePlaintext + setProviderApiKey,
  * which are silently skipped, and idempotency on the second pass.
  */
@@ -37,12 +37,12 @@ const {
   };
 });
 
-vi.mock('pylon-db', () => ({
+vi.mock('uplnk-db', () => ({
   db: mockDb,
   listProviders: mockListProviders,
   setProviderApiKey: mockSetProviderApiKey,
   getPylonDir: vi.fn(() => '/tmp/pylon-test-home/.pylon'),
-  getPylonDbPath: vi.fn(() => '/tmp/pylon-test-home/.pylon/db.sqlite'),
+  getPylonDbPath: vi.fn(() => '/tmp/pylon-test-home/.uplnk/db.sqlite'),
 }));
 
 vi.mock('../secrets.js', () => ({

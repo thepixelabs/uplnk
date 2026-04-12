@@ -1,6 +1,6 @@
 // Pylon database schema — SQLite via Drizzle ORM
 // Driver: better-sqlite3 (synchronous)
-// Location: ~/.pylon/db.sqlite
+// Location: ~/.uplnk/db.sqlite
 
 import {
   sqliteTable,

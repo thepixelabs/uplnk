@@ -1,10 +1,10 @@
-import type { PylonError, PylonErrorCode } from 'pylon-shared';
+import type { PylonError, PylonErrorCode } from 'uplnk-shared';
 
 const HINTS: Record<PylonErrorCode, string> = {
   PROVIDER_UNREACHABLE:
-    'Check that Ollama is running: `ollama serve`. Run `pylon doctor` for a full diagnosis.',
+    'Check that Ollama is running: `ollama serve`. Run `uplnk doctor` for a full diagnosis.',
   PROVIDER_AUTH_FAILED:
-    'Check your API key in ~/.pylon/config.json or run `pylon config`.',
+    'Check your API key in ~/.uplnk/config.json or run `uplnk config`.',
   MODEL_NOT_FOUND:
     'Run `ollama list` to see available models. Pull one with `ollama pull <model>`.',
   PROVIDER_RATE_LIMITED: 'Request was rate-limited. Wait a moment and try again.',
@@ -15,17 +15,17 @@ const HINTS: Record<PylonErrorCode, string> = {
   STREAM_INVALID_RESPONSE:
     'Unexpected response from the provider. Check provider compatibility in the docs.',
   MCP_PROCESS_FAILED:
-    'An MCP tool server crashed. Check `pylon doctor` for details.',
+    'An MCP tool server crashed. Check `uplnk doctor` for details.',
   MCP_TOOL_DENIED:
-    'Tool call was blocked by the security policy. Review security.pathAllowlist in ~/.pylon/config.json.',
+    'Tool call was blocked by the security policy. Review security.pathAllowlist in ~/.uplnk/config.json.',
   MCP_TOOL_LOOP_LIMIT:
     'The model called tools too many times in a row. Simplify your request.',
   SQLITE_BUSY:
     'Database is busy. Close any other Pylon instances and try again.',
   DB_MIGRATION_FAILED:
-    'Database migration failed. Run `pylon doctor` or delete ~/.pylon/db.sqlite to reset.',
+    'Database migration failed. Run `uplnk doctor` or delete ~/.uplnk/db.sqlite to reset.',
   CONFIG_INVALID:
-    'Config file is invalid. Run `pylon config` to edit it or delete ~/.pylon/config.json to reset.',
+    'Config file is invalid. Run `uplnk config` to edit it or delete ~/.uplnk/config.json to reset.',
   CONFIG_NOT_FOUND:
     'No config found. Run `pylon` and follow the setup prompts.',
 };
