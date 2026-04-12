@@ -1,0 +1,12 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "outDir": "./dist",
+    "paths": {
+      "uplnk-db": ["../db/src/index.ts"],
+      "uplnk-shared": ["../shared/src/index.ts"]
+    }
+  },
+  "include": ["src/**/*", "bin/**/*", "../db/src/**/*", "../shared/src/**/*"],
+  "exclude": ["node_modules", "dist"]
+}

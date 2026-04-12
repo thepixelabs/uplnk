@@ -1,0 +1,8 @@
+node_modules
+dist
+.turbo
+*.db
+*.db-journal
+.uplnk
+*.db-shm
+*.db-wal
