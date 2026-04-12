@@ -32,7 +32,7 @@ import { ChatInput } from '../components/chat/ChatInput.js';
  * Using setImmediate (Node macrotask) is important: promises alone (microtasks)
  * do not give Ink's Scheduler enough time to commit the frame.
  */
-const tick = () => new Promise<void>((r) => setImmediate(r));
+const tick = () => new Promise<void>((r) => setImmediate(() => setImmediate(r)));
 
 /**
  * Build a rendered ChatInput instance with spy callbacks and return it

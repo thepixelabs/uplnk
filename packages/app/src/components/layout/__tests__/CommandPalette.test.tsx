@@ -4,7 +4,7 @@ import React from 'react';
 import { CommandPalette } from '../CommandPalette.js';
 import type { PaletteCommand } from '../CommandPalette.js';
 
-const tick = () => new Promise<void>((r) => setImmediate(r));
+const tick = () => new Promise<void>((r) => setImmediate(() => setImmediate(r)));
 
 // ─── Fixtures ─────────────────────────────────────────────────────────────────
 

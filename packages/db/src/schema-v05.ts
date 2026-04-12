@@ -361,8 +361,8 @@ export type NewProviderConfig = typeof providerConfigs.$inferInsert;
 export type Project = typeof projects.$inferSelect;
 export type NewProject = typeof projects.$inferInsert;
 
-export type SystemPromptTemplate = typeof systemPromptTemplates.$inferSelect;
-export type NewSystemPromptTemplate = typeof systemPromptTemplates.$inferInsert;
+export type Role = typeof systemPromptTemplates.$inferSelect;
+export type NewRole = typeof systemPromptTemplates.$inferInsert;
 
 export type Conversation = typeof conversations.$inferSelect;
 export type NewConversation = typeof conversations.$inferInsert;

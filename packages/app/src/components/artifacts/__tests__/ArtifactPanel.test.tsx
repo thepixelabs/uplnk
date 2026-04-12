@@ -4,7 +4,7 @@ import React from 'react';
 import { ArtifactPanel } from '../ArtifactPanel.js';
 import type { Artifact } from '../ArtifactPanel.js';
 
-const tick = () => new Promise<void>((r) => setImmediate(r));
+const tick = () => new Promise<void>((r) => setImmediate(() => setImmediate(r)));
 
 const mockArtifact: Artifact = {
   id: 'test-1',
