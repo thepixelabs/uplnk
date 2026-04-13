@@ -1,5 +1,5 @@
 /**
- * telemetry.ts — Anonymous opt-in usage telemetry for Pylon.
+ * telemetry.ts — Anonymous opt-in usage telemetry for uplnk.
  *
  * Privacy guarantees enforced here:
  *   - NEVER collects message content, file paths, user identity, or API keys.
@@ -97,7 +97,7 @@ export interface TelemetryEnvelope {
   event: TelemetryEventName;
   timestamp: string;       // ISO 8601 UTC
   session_id: string;      // random UUID v4, fresh per process start, never persisted
-  pylon_version: string;   // semver from package.json
+  uplnk_version: string;   // semver from package.json
   os_platform: string;     // process.platform — "darwin" | "linux"
   node_version: string;    // process.versions.node
   model_name: string;      // normalized
@@ -114,11 +114,11 @@ let _startMs = 0;
 // without pulling from individual module-level variables.
 const _meta: {
   session_id: string;
-  pylon_version: string;
+  uplnk_version: string;
   model_name: string;
 } = {
   session_id: '',
-  pylon_version: '',
+  uplnk_version: '',
   model_name: '',
 };
 
@@ -148,12 +148,12 @@ export function normalizeModelName(raw: string): string {
  * Call once, before any trackEvent calls. Reads telemetry.enabled from config.
  * If disabled, all subsequent trackEvent calls are cheap no-ops.
  */
-export function initTelemetry(config: Config, pylonVersion: string, modelName: string): void {
+export function initTelemetry(config: Config, uplnkVersion: string, modelName: string): void {
   _enabled = config.telemetry?.enabled === true;
   if (!_enabled) return;
 
   _meta.session_id = randomUUID();
-  _meta.pylon_version = pylonVersion;
+  _meta.uplnk_version = uplnkVersion;
   _meta.model_name = normalizeModelName(modelName);
   _startMs = Date.now();
 }
@@ -221,7 +221,7 @@ export function getSessionDurationMs(): number {
 export function _resetTelemetryForTest(): void {
   _enabled = false;
   _meta.session_id = '';
-  _meta.pylon_version = '';
+  _meta.uplnk_version = '';
   _meta.model_name = '';
   _startMs = 0;
   _buffer.length = 0;

@@ -1,8 +1,8 @@
 /**
- * Self-update mechanism for Pylon.
+ * Self-update mechanism for uplnk.
  *
  * Checks npm registry for a newer version and offers to update via the same
- * package manager that installed pylon (npm, yarn, pnpm — detected from the
+ * package manager that installed uplnk (npm, yarn, pnpm — detected from the
  * npm_config_user_agent env var).
  *
  * Update check is skipped when:
@@ -134,7 +134,7 @@ function isNewer(a: string, b: string): boolean {
 // ─── Public API ────────────────────────────────────────────────────────────
 
 /**
- * Check for a newer version of pylon on npm.
+ * Check for a newer version of uplnk on npm.
  *
  * Uses a 24h cache to avoid hammering the registry. Returns null when the
  * check is skipped (CI, disabled, throttled) or when the network is
@@ -191,5 +191,5 @@ export async function performUpdate(
 
   const [pmCmd, ...pmArgs] = cmd.split(' ');
   await execFileAsync(pmCmd!, pmArgs, { timeout: 120_000 });
-  onOutput('Update complete. Restart pylon to use the new version.');
+  onOutput('Update complete. Restart uplnk to use the new version.');
 }

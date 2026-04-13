@@ -22,6 +22,7 @@ import { tmpdir } from 'node:os';
 vi.mock('@uplnk/db', () => ({
   db: {},
   getPylonDir: vi.fn(() => '/tmp/uplnk-secrets-test-default/.uplnk'),
+  getUplnkDir: vi.fn(() => '/tmp/uplnk-secrets-test-default/.uplnk'),
 }));
 
 import { getPylonDir } from '@uplnk/db';

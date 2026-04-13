@@ -1,6 +1,6 @@
 import chalk from 'chalk';
 import { accessSync, constants } from 'node:fs';
-import { db, getPylonDir, getPylonDbPath, listProviders, setProviderApiKey } from '@uplnk/db';
+import { db, getUplnkDir, getUplnkDbPath, listProviders, setProviderApiKey } from '@uplnk/db';
 import { initSecretsBackend, getSecretsBackend, isSecretRef, migratePlaintext } from './secrets.js';
 
 interface Check {
@@ -20,7 +20,7 @@ const checks: Check[] = [
   {
     name: 'Config directory',
     run: async () => {
-      const dir = getPylonDir();
+      const dir = getUplnkDir();
       try {
         accessSync(dir, constants.W_OK);
         return { ok: true, detail: dir };
@@ -35,7 +35,7 @@ const checks: Check[] = [
       try {
         const { db } = await import('@uplnk/db');
         db.get('SELECT 1');
-        return { ok: true, detail: getPylonDbPath() };
+        return { ok: true, detail: getUplnkDbPath() };
       } catch (err) {
         return { ok: false, detail: String(err) };
       }

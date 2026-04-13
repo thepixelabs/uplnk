@@ -1,7 +1,7 @@
 /**
  * Project context — indexes file names and structure into a system prompt.
  *
- * When the user launches with `pylon --project /path/to/project`, this module:
+ * When the user launches with `uplnk --project /path/to/project`, this module:
  * 1. Walks the directory tree (respecting .gitignore patterns via heuristics)
  * 2. Builds a compact file tree string
  * 3. Returns a system prompt segment with the tree + cwd context

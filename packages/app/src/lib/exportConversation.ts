@@ -23,7 +23,7 @@ function toMarkdown(messages: Message[], title: string): string {
   const lines: string[] = [
     `# ${title}`,
     '',
-    `> Exported from Pylon on ${new Date().toISOString()}`,
+    `> Exported from uplnk on ${new Date().toISOString()}`,
     '',
     '---',
     '',
@@ -37,7 +37,7 @@ function toMarkdown(messages: Message[], title: string): string {
       continue;
     }
 
-    const roleLabel = msg.role === 'user' ? '**You**' : '**Pylon**';
+    const roleLabel = msg.role === 'user' ? '**You**' : '**uplnk**';
     const timestamp = msg.createdAt
       ? `<small>${msg.createdAt}</small>`
       : '';
@@ -82,7 +82,7 @@ export function exportConversation(
   messages: Message[],
   options: ExportOptions,
 ): ExportResult {
-  const { format, conversationTitle = 'Pylon Conversation' } = options;
+  const { format, conversationTitle = 'uplnk Conversation' } = options;
 
   const ext = format === 'markdown' ? 'md' : 'json';
   const safeName = conversationTitle
@@ -91,7 +91,7 @@ export function exportConversation(
     .replace(/^-|-$/g, '')
     .slice(0, 50);
   const ts = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
-  const defaultName = `pylon-${safeName}-${ts}.${ext}`;
+  const defaultName = `uplnk-${safeName}-${ts}.${ext}`;
 
   const outputPath = options.outputPath ?? join(process.cwd(), defaultName);
 

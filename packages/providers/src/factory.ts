@@ -25,7 +25,7 @@ export function makeProvider(config: ProviderConfig): ModelProvider {
   }
 }
 
-/** All provider kinds Pylon knows how to talk to, in menu order. */
+/** All provider kinds uplnk knows how to talk to, in menu order. */
 export const PROVIDER_KIND_OPTIONS: Array<{
   kind: ProviderKind;
   label: string;

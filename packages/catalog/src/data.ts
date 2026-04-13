@@ -4,12 +4,12 @@ import type { CatalogEntry } from './types.js';
  * Vendored snapshot of widely-used models across major providers.
  *
  * Pricing is in USD per 1M tokens. Numbers track publicly-documented rates
- * as of 2025-Q2 and are intentionally coarse — Pylon uses them for
+ * as of 2025-Q2 and are intentionally coarse — uplnk uses them for
  * display and rough cost estimation, not billing.
  *
  * Shape is modelled on LiteLLM's `model_prices_and_context_window.json`;
  * users who want a full catalog can drop a fresh copy into
- * `~/.uplnk/catalog.json` and Pylon will merge it over this snapshot.
+ * `~/.uplnk/catalog.json` and uplnk will merge it over this snapshot.
  */
 export const BUILTIN_CATALOG: readonly CatalogEntry[] = [
   // ── Ollama — most-pulled models ────────────────────────────────────────

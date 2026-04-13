@@ -30,7 +30,7 @@ import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { validateFilePath, validateCommand, validateFileSize } from './security.js';
 import type { FileAccessPolicy } from './security.js';
-import { getPylonDir } from '@uplnk/db';
+import { getUplnkDir } from '@uplnk/db';
 
 // ─── Built-in server resolution ──────────────────────────────────────────────
 
@@ -160,16 +160,16 @@ export class McpManager {
 
   constructor(config: McpManagerConfig) {
     this.config = config;
-    const pylonDir = getPylonDir();
+    const uplnkDir = getUplnkDir();
     // Ensure ~/.uplnk exists. Normally created by getOrCreateConfig() in config.ts,
     // but McpManager may be instantiated in test contexts before that runs.
     try {
-      mkdirSync(pylonDir, { recursive: true });
+      mkdirSync(uplnkDir, { recursive: true });
     } catch {
       // If mkdir fails we proceed — logToolCall() swallows errors so the app
       // never crashes on audit log failures.
     }
-    this.auditLogPath = join(pylonDir, 'mcp-audit.log');
+    this.auditLogPath = join(uplnkDir, 'mcp-audit.log');
   }
 
   // ─── Audit log ──────────────────────────────────────────────────────────────
@@ -199,7 +199,7 @@ export class McpManager {
    * rotation — enough for forensics, bounded for disk usage.
    *
    * This runs synchronously before every append so rotation is race-free
-   * across concurrent pylon processes sharing the same log file: worst
+   * across concurrent uplnk processes sharing the same log file: worst
    * case two processes both rotate and overwrite .1, which is acceptable.
    */
   private rotateAuditLogIfNeeded(): void {
@@ -226,7 +226,7 @@ export class McpManager {
     } catch (err) {
       // Never let an audit failure crash the app or block execution.
       process.stderr.write(
-        `[pylon audit] WARNING: failed to write audit log entry: ${String(err)}\n`,
+        `[uplnk audit] WARNING: failed to write audit log entry: ${String(err)}\n`,
       );
     }
   }

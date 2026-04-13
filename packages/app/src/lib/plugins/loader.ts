@@ -7,7 +7,7 @@
  */
 
 import { join } from 'node:path';
-import { getPylonDir } from '@uplnk/db';
+import { getUplnkDir } from '@uplnk/db';
 import { PluginRegistry } from './registry.js';
 import type { McpServerConfig } from '../mcp/McpManager.js';
 
@@ -18,7 +18,7 @@ import type { McpServerConfig } from '../mcp/McpManager.js';
  * (i.e. no plugins have ever been installed).
  */
 export function loadPluginConfigs(): McpServerConfig[] {
-  const pluginsDir = join(getPylonDir(), 'plugins');
+  const pluginsDir = join(getUplnkDir(), 'plugins');
   const registry = new PluginRegistry(pluginsDir);
   return registry.toMcpServerConfigs();
 }

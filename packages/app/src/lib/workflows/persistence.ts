@@ -1,6 +1,6 @@
 import { readFileSync, writeFileSync, readdirSync, mkdirSync, unlinkSync } from 'node:fs';
 import { join, resolve } from 'node:path';
-import { getPylonDir } from '@uplnk/db';
+import { getUplnkDir } from '@uplnk/db';
 import { RelayPlanSchema, type RelayPlan } from './planSchema.js';
 import { RelayError } from './errors.js';
 
@@ -40,7 +40,7 @@ function assertInsideRelaysDir(filePath: string): void {
 }
 
 export function getRelaysDir(): string {
-  return join(getPylonDir(), 'relays');
+  return join(getUplnkDir(), 'relays');
 }
 
 export function ensureRelaysDir(): void {
@@ -74,10 +74,10 @@ export function listRelays(): RelayPlan[] {
         plans.push(result.data);
       } else {
         const issues = result.error.errors.map((e) => `${e.path.join('.')}: ${e.message}`).join('; ');
-        console.warn(`[pylon relays] skipping invalid relay file ${entry}: ${issues}`);
+        console.warn(`[uplnk relays] skipping invalid relay file ${entry}: ${issues}`);
       }
     } catch (err) {
-      console.warn(`[pylon relays] skipping unreadable relay file ${entry}: ${String(err)}`);
+      console.warn(`[uplnk relays] skipping unreadable relay file ${entry}: ${String(err)}`);
     }
   }
   return plans;
