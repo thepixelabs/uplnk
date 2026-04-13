@@ -29,6 +29,7 @@ const mocks = vi.hoisted(() => ({
   getMessages: vi.fn(),
   insertMessage: vi.fn(),
   touchConversation: vi.fn(),
+  deleteMessage: vi.fn(),
 }));
 
 vi.mock('@uplnk/db', () => ({
@@ -38,6 +39,7 @@ vi.mock('@uplnk/db', () => ({
   getMessages: mocks.getMessages,
   insertMessage: mocks.insertMessage,
   touchConversation: mocks.touchConversation,
+  deleteMessage: mocks.deleteMessage,
 }));
 
 const cryptoMocks = vi.hoisted(() => ({ randomUUID: vi.fn<() => string>() }));
@@ -360,6 +362,108 @@ describe('useConversation', () => {
 
       const ids = result.current.messages.map((m) => m.id);
       expect(ids).toEqual(['msg-uuid-1', 'msg-uuid-2']);
+    });
+
+    // ── Regression (H2): stream-completion handoff ──────────────────────────
+    //
+    // The streaming path pre-inserts an empty assistant row in SQLite at
+    // stream start, then updates its content via updateMessageContent as
+    // chunks arrive. Previously the end-of-stream effect also called
+    // addMessage, producing a second INSERT for the same logical turn.
+    //
+    // appendAssistantToState is the fix: it adds the already-persisted row
+    // to React state WITHOUT calling insertMessage. These tests lock that
+    // contract in place so a future refactor cannot silently reintroduce
+    // the duplicate-row bug.
+    describe('appendAssistantToState (H2 regression)', () => {
+      it('does NOT call insertMessage when appending the pre-inserted row', async () => {
+        const { result } = renderHook();
+        await tick();
+
+        // Simulate the streaming path's pre-insert (external caller owns it,
+        // so we count it here and reset so the assertion below is about what
+        // appendAssistantToState itself does).
+        mocks.insertMessage.mockClear();
+
+        result.current.appendAssistantToState('pre-inserted-id', 'final text');
+        await tick();
+
+        expect(mocks.insertMessage).not.toHaveBeenCalled();
+      });
+
+      it('adds exactly one assistant row to state for the turn', async () => {
+        const { result } = renderHook();
+        await tick();
+
+        result.current.appendAssistantToState('pre-inserted-id', 'final text');
+        await tick();
+
+        const assistants = result.current.messages.filter(
+          (m) => m.role === 'assistant',
+        );
+        expect(assistants).toHaveLength(1);
+        expect(assistants[0]?.id).toBe('pre-inserted-id');
+        expect(assistants[0]?.content).toBe('final text');
+      });
+
+      it('is idempotent when called twice with the same id (StrictMode safety)', async () => {
+        const { result } = renderHook();
+        await tick();
+
+        result.current.appendAssistantToState('pre-inserted-id', 'first');
+        result.current.appendAssistantToState('pre-inserted-id', 'second');
+        await tick();
+
+        const assistants = result.current.messages.filter(
+          (m) => m.role === 'assistant',
+        );
+        expect(assistants).toHaveLength(1);
+        // Second call should update content, not append
+        expect(assistants[0]?.content).toBe('second');
+      });
+
+      it('end-to-end turn: pre-insert + onPersist updates + final append yields ONE assistant row', async () => {
+        // Simulates the full ChatScreen flow:
+        //   1. insertMessage(db, {id, role:'assistant', content:''}) — pre-insert
+        //   2. updateMessageContent(...) — fires N times from the persist timer
+        //   3. appendAssistantToState(id, finalText) — end-of-stream handoff
+        //
+        // The invariant: exactly one assistant row in React state, and
+        // exactly one insertMessage call for that logical turn (the pre-insert).
+        const { result } = renderHook();
+        await tick();
+
+        // Step 1: the pre-insert counts as one insertMessage call.
+        // (The real ChatScreen calls db.insertMessage directly, not through
+        // the hook, but the count of insertMessage calls is what matters for
+        // the duplicate-row bug.)
+        mocks.insertMessage.mockClear();
+        const assistantId = 'assistant-turn-1';
+        // Simulate the pre-insert by directly calling the mocked insertMessage:
+        mocks.insertMessage(mocks.db, {
+          id: assistantId,
+          conversationId: FIXED_UUID,
+          role: 'assistant',
+          content: '',
+        });
+
+        // Step 2: updateMessageContent calls (not asserted — separate path).
+
+        // Step 3: end-of-stream handoff
+        result.current.appendAssistantToState(assistantId, 'complete response');
+        await tick();
+
+        // Exactly one insertMessage call (the pre-insert), NOT two.
+        expect(mocks.insertMessage).toHaveBeenCalledTimes(1);
+
+        // Exactly one assistant row in state.
+        const assistants = result.current.messages.filter(
+          (m) => m.role === 'assistant',
+        );
+        expect(assistants).toHaveLength(1);
+        expect(assistants[0]?.id).toBe(assistantId);
+        expect(assistants[0]?.content).toBe('complete response');
+      });
     });
 
     it('is referentially stable across re-renders (useCallback identity)', async () => {
