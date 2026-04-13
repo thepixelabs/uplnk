@@ -6,6 +6,7 @@ import {
   getMessages,
   insertMessage,
   touchConversation,
+  deleteMessage,
 } from '@uplnk/db';
 import type { Message, NewMessage } from '@uplnk/db';
 
@@ -28,6 +29,25 @@ export interface UseConversationResult {
    * we only need to reflect the final content in the component tree.
    */
   updateMessageInState: (id: string, content: string) => void;
+  /**
+   * Append a fully-formed assistant message to React state without writing
+   * to SQLite. Used by the C1 incremental persistence flow: the DB row was
+   * pre-inserted at stream start and kept in sync via updateMessageContent,
+   * so at stream end we only need to reflect it in the component tree — a
+   * second insertMessage call would create a duplicate row.
+   */
+  appendAssistantToState: (id: string, content: string) => void;
+  /**
+   * Replace a contiguous prefix of messages with a single synthetic summary
+   * message. Used by the /compact flow: the caller decides which messages to
+   * drop (typically "all except the last N"), generates a summary, then calls
+   * this to atomically rewrite both SQLite and React state.
+   *
+   * `idsToRemove` must be a list of message ids that currently exist in state.
+   * The new synthetic message is inserted with `summaryContent` and role
+   * `system`, so the LLM sees it as authoritative context on the next turn.
+   */
+  replaceWithSummary: (idsToRemove: string[], summaryContent: string) => Message;
 }
 
 export function useConversation(resumeId?: string): UseConversationResult {
@@ -84,5 +104,69 @@ export function useConversation(resumeId?: string): UseConversationResult {
     [],
   );
 
-  return { conversationId, messages, addMessage, addMessageWithId, updateMessageInState };
+  const appendAssistantToState = useCallback(
+    (id: string, content: string): void => {
+      setMessages((prev) => {
+        // Idempotent: if the id is already in state, just update its content.
+        // This protects against a double-effect fire in React StrictMode.
+        if (prev.some((m) => m.id === id)) {
+          return prev.map((m) => (m.id === id ? { ...m, content } : m));
+        }
+        const now = new Date().toISOString();
+        const msg: Message = {
+          id,
+          conversationId,
+          role: 'assistant',
+          content,
+          toolCalls: null,
+          toolCallId: null,
+          inputTokens: null,
+          outputTokens: null,
+          timeToFirstToken: null,
+          createdAt: now,
+        };
+        return [...prev, msg];
+      });
+      // DB row was already written by the streaming persist callback;
+      // we only need to bump the conversation's updated_at.
+      touchConversation(db, conversationId);
+    },
+    [conversationId],
+  );
+
+  const replaceWithSummary = useCallback(
+    (idsToRemove: string[], summaryContent: string): Message => {
+      // Insert the synthetic summary first so there's always at least one
+      // message in the conversation even if a delete fails mid-loop.
+      const summaryMsg = insertMessage(db, {
+        id: crypto.randomUUID(),
+        conversationId,
+        role: 'system',
+        content: summaryContent,
+      });
+      for (const id of idsToRemove) {
+        deleteMessage(db, id);
+      }
+      const removeSet = new Set(idsToRemove);
+      setMessages((prev) => {
+        const kept = prev.filter((m) => !removeSet.has(m.id));
+        // Place the summary at the front so it acts as a prefix to whatever
+        // tail survived the compaction.
+        return [summaryMsg, ...kept];
+      });
+      touchConversation(db, conversationId);
+      return summaryMsg;
+    },
+    [conversationId],
+  );
+
+  return {
+    conversationId,
+    messages,
+    addMessage,
+    addMessageWithId,
+    updateMessageInState,
+    appendAssistantToState,
+    replaceWithSummary,
+  };
 }

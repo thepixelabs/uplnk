@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Box, Text, useApp, useInput } from 'ink';
+import { writeFile } from 'node:fs/promises';
+import clipboard from 'clipboardy';
 import type { CoreMessage, LanguageModel } from 'ai';
 import { createLanguageModel } from '../lib/languageModelFactory.js';
 import { db, getDefaultProvider, insertMessage, updateMessageContent, forkConversation, updateConversationTitle } from '@uplnk/db';
@@ -16,7 +18,15 @@ import { buildProjectContext } from '../lib/projectContext.js';
 import { exportConversation } from '../lib/exportConversation.js';
 import { getRole, BUILT_IN_ROLES } from '../lib/roles.js';
 import { MessageList } from '../components/chat/MessageList.js';
+import { MessageListWindowed } from '../components/chat/MessageListWindowed.js';
 import { StreamingMessage } from '../components/chat/StreamingMessage.js';
+import { useTerminalSize } from '../hooks/useTerminalSize.js';
+import {
+  buildLineIndex,
+  windowByLineOffset,
+  messageStartLine,
+  totalLines,
+} from '../lib/messageLines.js';
 import { ChatInput } from '../components/chat/ChatInput.js';
 import { Header } from '../components/layout/Header.js';
 import { StatusBar } from '../components/layout/StatusBar.js';
@@ -114,7 +124,7 @@ export function ChatScreen({ initialModel, resumeConversationId, projectDir, ove
 
   // Conversation must come before useMcp so conversationId is available for
   // BC-5 rate limiting (tool call counter resets on new conversation).
-  const { conversationId, messages, addMessage } = useConversation(resumeConversationId);
+  const { conversationId, messages, addMessage, appendAssistantToState } = useConversation(resumeConversationId);
 
   // MCP tools (file-browse + git always on; command-exec feature-flagged)
   // BC-3: pass commandExecConfirmedAt so useMcp can enforce the double-check.
@@ -178,6 +188,18 @@ export function ChatScreen({ initialModel, resumeConversationId, projectDir, ove
     setFocusedPanel('chat');
   }, [dismissArtifact]);
 
+  // Save artifact contents to disk. Resolves on success, rejects with an
+  // Error so ArtifactPanel can surface the message in its status line.
+  const handleSaveArtifact = useCallback(async (path: string, content: string) => {
+    await writeFile(path, content, 'utf-8');
+  }, []);
+
+  // Copy raw artifact content (no ANSI codes) to the system clipboard via
+  // clipboardy. clipboardy.write returns a Promise<void>.
+  const handleCopyArtifact = useCallback(async (content: string) => {
+    await clipboard.write(content);
+  }, []);
+
   // Active role (null = no role)
   const [activeRole, setActiveRole] = useState<string | null>(null);
   // Transient feedback message (export confirmation, role applied, etc.)
@@ -191,18 +213,26 @@ export function ChatScreen({ initialModel, resumeConversationId, projectDir, ove
   // Set before streaming starts; cleared when done.
   const assistantMessageIdRef = useRef<string | null>(null);
 
-  // Commit the completed assistant message to React state and DB.
-  // C1 note: when incremental persistence is active (assistantMessageIdRef is set),
-  // the DB row was pre-inserted and updated via onPersist. addMessage here creates
-  // a second row — this is a known v1.0 issue tracked as tech debt.
-  // Resolution: expose appendToState() from useConversation to update state-only.
+  // Commit the completed assistant message to React state.
+  // C1 fix (H2): the DB row was pre-inserted at stream start and kept in sync
+  // via onPersist → updateMessageContent. We must NOT call addMessage here,
+  // because addMessage would run a second insertMessage and leave two rows for
+  // the same turn. appendAssistantToState only touches React state (plus a
+  // touchConversation bump) using the pre-inserted id.
   useEffect(() => {
     if (prevStatusRef.current === 'streaming' && status === 'done' && streamedText) {
-      addMessage({ role: 'assistant', content: streamedText });
+      const id = assistantMessageIdRef.current;
+      if (id !== null) {
+        appendAssistantToState(id, streamedText);
+      } else {
+        // Fallback: no pre-inserted id (shouldn't happen in the normal flow,
+        // but guards against a future code path that skips pre-insert).
+        addMessage({ role: 'assistant', content: streamedText });
+      }
       assistantMessageIdRef.current = null;
     }
     prevStatusRef.current = status;
-  }, [status, streamedText, addMessage]);
+  }, [status, streamedText, addMessage, appendAssistantToState]);
 
   useEffect(() => {
     if (error) onError(error);
