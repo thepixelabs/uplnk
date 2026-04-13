@@ -19,7 +19,7 @@ import { join, relative } from 'node:path';
 import { randomUUID } from 'node:crypto';
 import type { Db } from '@uplnk/db';
 import { ragChunks } from '@uplnk/db';
-import { eq, and } from 'drizzle-orm';
+import { eq, isNotNull } from 'drizzle-orm';
 import type { Embedder } from './embedder.js';
 import { serializeEmbedding } from './embedder.js';
 
@@ -384,17 +384,15 @@ export class Indexer {
   /**
    * Retrieve all indexed chunks that have an embedding.
    * Used by the RAG search tool.
+   *
+   * The `embedding IS NOT NULL` filter is applied at the SQL level — filtering
+   * in JS after a full-table scan would OOM on large codebases.
    */
   getAllEmbeddedChunks() {
     return this.db
       .select()
       .from(ragChunks)
-      .where(and(
-        // Only return chunks with an embedding blob
-        // We use a raw SQL check to avoid null comparison issues
-        eq(ragChunks.filePath, ragChunks.filePath), // always-true placeholder
-      ))
-      .all()
-      .filter((chunk) => chunk.embedding !== null);
+      .where(isNotNull(ragChunks.embedding))
+      .all();
   }
 }
