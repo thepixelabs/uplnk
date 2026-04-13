@@ -110,6 +110,17 @@ vi.mock('../../hooks/useMcp.js', () => ({
   MAX_TOOL_CALLS_PER_CONVERSATION: 100,
 }));
 
+vi.mock('../../hooks/useProviderConnectivity.js', () => ({
+  useProviderConnectivity: vi.fn(() => ({
+    host: 'localhost:11434',
+    connected: true,
+    checkedAt: Date.now(),
+    latencyMs: 25,
+    disconnectedSince: null,
+    errorDetail: null,
+  })),
+}));
+
 vi.mock('../../hooks/useArtifacts.js', () => ({
   useArtifacts: vi.fn(() => ({
     activeArtifact: null,

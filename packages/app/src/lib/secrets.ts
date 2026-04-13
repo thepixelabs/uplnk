@@ -44,7 +44,7 @@ import {
 } from 'node:fs';
 import { join } from 'node:path';
 import { randomBytes, createCipheriv, createDecipheriv } from 'node:crypto';
-import { getPylonDir } from '@uplnk/db';
+import { getUplnkDir } from '@uplnk/db';
 
 export interface SecretsBackend {
   readonly name: 'keyring' | 'encrypted-file' | 'plaintext';
@@ -113,9 +113,9 @@ class EncryptedFileBackend implements SecretsBackend {
   private readonly storePath: string;
   private store: EncryptedStore;
 
-  constructor(pylonDir: string) {
-    const keyPath = join(pylonDir, '.secret-key');
-    this.storePath = join(pylonDir, 'secrets.enc');
+  constructor(uplnkDir: string) {
+    const keyPath = join(uplnkDir, '.secret-key');
+    this.storePath = join(uplnkDir, 'secrets.enc');
     this.key = this.loadOrCreateKey(keyPath);
     this.store = this.loadStore();
   }
@@ -125,7 +125,7 @@ class EncryptedFileBackend implements SecretsBackend {
       const raw = readFileSync(keyPath);
       if (raw.length !== 32) {
         throw new Error(
-          `[pylon secrets] invalid key length at ${keyPath}: expected 32 bytes, got ${String(raw.length)}`,
+          `[uplnk secrets] invalid key length at ${keyPath}: expected 32 bytes, got ${String(raw.length)}`,
         );
       }
       return raw;
@@ -159,7 +159,7 @@ class EncryptedFileBackend implements SecretsBackend {
         writeFileSync(backupPath, readFileSync(this.storePath), { mode: 0o600 });
       } catch { /* ignore — best effort */ }
       process.stderr.write(
-        `\n[pylon secrets] ⚠  The encrypted secrets store at ${this.storePath}\n` +
+        `\n[uplnk secrets] ⚠  The encrypted secrets store at ${this.storePath}\n` +
         `                was corrupted and has been reset.\n` +
         (backupPath !== '' ? `                Previous contents backed up to: ${backupPath}\n` : '') +
         `                All previously saved API keys must be re-entered via\n` +
@@ -213,7 +213,7 @@ class EncryptedFileBackend implements SecretsBackend {
       return pt.toString('utf-8');
     } catch (err) {
       process.stderr.write(
-        `[pylon secrets] failed to decrypt ${ref}: ${String(err)}\n`,
+        `[uplnk secrets] failed to decrypt ${ref}: ${String(err)}\n`,
       );
       return undefined;
     }
@@ -269,7 +269,7 @@ class PlaintextBackend implements SecretsBackend {
 
   constructor(reason: string) {
     process.stderr.write(
-      `[pylon secrets] WARNING: falling back to in-memory plaintext backend (${reason}). ` +
+      `[uplnk secrets] WARNING: falling back to in-memory plaintext backend (${reason}). ` +
       `API keys will be lost on exit and are NOT encrypted.\n`,
     );
   }
@@ -309,7 +309,7 @@ class PlaintextBackend implements SecretsBackend {
 
 /**
  * OS keychain backend. Uses `@napi-rs/keyring` — a native module with
- * prebuilt binaries for macOS, Linux (libsecret), and Windows. Pylon does
+ * prebuilt binaries for macOS, Linux (libsecret), and Windows. uplnk does
  * not declare it as a hard dep because the install would break in CI and
  * air-gapped environments. Users who want real keychain storage opt in by
  * installing the package themselves.
@@ -411,17 +411,17 @@ let singleton: SecretsBackend | null = null;
 
 /**
  * Synchronous backend pick — used internally whenever the async init has
- * not yet run (tests, CLI subcommands that bypass `bin/pylon.ts`, etc.).
+ * not yet run (tests, CLI subcommands that bypass `bin/uplnk.ts`, etc.).
  * Skips the keyring probe because dynamic import is async. Starts with
  * the encrypted file backend and falls back to plaintext.
  */
 function pickBackendSync(): SecretsBackend {
-  const pylonDir = getPylonDir();
+  const uplnkDir = getUplnkDir();
   try {
-    mkdirSync(pylonDir, { recursive: true });
+    mkdirSync(uplnkDir, { recursive: true });
   } catch { /* handled by file backend fallback */ }
   try {
-    return new EncryptedFileBackend(pylonDir);
+    return new EncryptedFileBackend(uplnkDir);
   } catch (err) {
     return new PlaintextBackend(
       `encrypted file backend failed: ${err instanceof Error ? err.message : String(err)}`,
@@ -440,9 +440,9 @@ function pickBackendSync(): SecretsBackend {
 export async function initSecretsBackend(): Promise<SecretsBackend> {
   if (singleton !== null) return singleton;
 
-  const pylonDir = getPylonDir();
+  const uplnkDir = getUplnkDir();
   try {
-    mkdirSync(pylonDir, { recursive: true });
+    mkdirSync(uplnkDir, { recursive: true });
   } catch { /* handled by file backend fallback */ }
 
   // Attempt keyring first — opt-in via user-installed dep.
@@ -451,10 +451,10 @@ export async function initSecretsBackend(): Promise<SecretsBackend> {
     try {
       // Smoke test: can we set + get + delete a dummy?
       const backend = new KeyringBackend(keyring);
-      const ref = backend.setSecret('pylon-selftest');
+      const ref = backend.setSecret('uplnk-selftest');
       const got = backend.getSecret(ref);
       backend.deleteSecret(ref);
-      if (got === 'pylon-selftest') {
+      if (got === 'uplnk-selftest') {
         singleton = backend;
         return backend;
       }
@@ -475,7 +475,7 @@ export async function initSecretsBackend(): Promise<SecretsBackend> {
  * sync-only backend (file or plaintext — skips keyring probing because
  * that requires async). This guarantees every call site gets a usable
  * backend without having to plumb an async-init boundary through the
- * whole app. `bin/pylon.ts` still calls the async init at startup so
+ * whole app. `bin/uplnk.ts` still calls the async init at startup so
  * real users get the keyring path; tests and library callers that never
  * touch the async init get the encrypted-file path.
  */

@@ -8,8 +8,8 @@
  *    mirroring the renderHookViaInk pattern used by ChatInput.test.tsx and
  *    useArtifacts.test.ts.
  *  - `ai.streamText` is mocked at the module boundary.
- *  - `toPylonError` is NOT mocked — we use the real implementation and assert
- *    on the PylonError code/message/hint it produces. Same approach as
+ *  - `toUplnkError` is NOT mocked — we use the real implementation and assert
+ *    on the UplnkError code/message/hint it produces. Same approach as
  *    ChatInput.test.tsx.
  *  - We do NOT use fake timers. The real 33 ms flush interval is fast enough
  *    in test execution and avoids the setInterval/setImmediate interaction

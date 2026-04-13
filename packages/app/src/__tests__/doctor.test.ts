@@ -22,7 +22,9 @@ vi.mock('node:fs', () => ({
 // getPylonDbPath) and dynamically inside the SQLite check. We mock the module
 // once; the dynamic import will resolve to the same mock.
 vi.mock('@uplnk/db', () => ({
-  getPylonDir: vi.fn(() => '/home/testuser/.pylon'),
+  getUplnkDir: vi.fn(() => '/home/testuser/.uplnk'),
+  getUplnkDbPath: vi.fn(() => '/home/testuser/.uplnk/db.sqlite'),
+  getPylonDir: vi.fn(() => '/home/testuser/.uplnk'), // Keep for compat if needed in doctor.ts
   getPylonDbPath: vi.fn(() => '/home/testuser/.uplnk/db.sqlite'),
   db: {
     get: vi.fn(),
@@ -45,17 +47,17 @@ vi.mock('chalk', () => {
 // ─── Imports after mocks are registered ───────────────────────────────────────
 
 import { accessSync } from 'node:fs';
-import { getPylonDir, getPylonDbPath, db } from '@uplnk/db';
+import { getUplnkDir, getUplnkDbPath, db } from '@uplnk/db';
 import { runDoctor } from '../lib/doctor.js';
 
 // ─── Typed mock helpers ────────────────────────────────────────────────────────
 
 const mockAccessSync = vi.mocked(accessSync);
-const mockGetPylonDir = vi.mocked(getPylonDir);
-const mockGetPylonDbPath = vi.mocked(getPylonDbPath);
+const mockGetUplnkDir = vi.mocked(getUplnkDir);
+const mockGetUplnkDbPath = vi.mocked(getUplnkDbPath);
 const mockDbGet = vi.mocked(db.get as (...args: unknown[]) => unknown);
 
-const PYLON_DIR = '/home/testuser/.pylon';
+const UPLNK_DIR = '/home/testuser/.uplnk';
 const DB_PATH = '/home/testuser/.uplnk/db.sqlite';
 
 // ─── Shared setup / teardown ──────────────────────────────────────────────────
@@ -72,11 +74,11 @@ function setAllChecksGreen(): void {
   Object.defineProperty(process, 'version', { value: 'v20.0.0', writable: true, configurable: true });
 
   // Config directory check: accessSync does not throw.
-  mockGetPylonDir.mockReturnValue(PYLON_DIR);
+  mockGetUplnkDir.mockReturnValue(UPLNK_DIR);
   mockAccessSync.mockReturnValue(undefined);
 
   // SQLite check: db.get('SELECT 1') succeeds.
-  mockGetPylonDbPath.mockReturnValue(DB_PATH);
+  mockGetUplnkDbPath.mockReturnValue(DB_PATH);
   mockDbGet.mockReturnValue(undefined);
 
   // Ollama check: fetch returns a 200 response.
@@ -197,14 +199,14 @@ describe('runDoctor — Config directory check', () => {
   it('calls accessSync with the pylon directory and W_OK flag', async () => {
     await runDoctor();
 
-    expect(mockAccessSync).toHaveBeenCalledWith(PYLON_DIR, 2 /* W_OK */);
+    expect(mockAccessSync).toHaveBeenCalledWith(UPLNK_DIR, 2 /* W_OK */);
   });
 
   it('logs the pylon directory path in the detail when the check passes', async () => {
     await runDoctor();
 
     const allOutput = consoleLogSpy.mock.calls.flat().join('\n');
-    expect(allOutput).toContain(PYLON_DIR);
+    expect(allOutput).toContain(UPLNK_DIR);
   });
 
   it('fails and calls process.exit(1) when the directory is not writable', async () => {
@@ -226,7 +228,7 @@ describe('runDoctor — Config directory check', () => {
 
     const allOutput = consoleLogSpy.mock.calls.flat().join('\n');
     expect(allOutput).toContain('Cannot write to');
-    expect(allOutput).toContain(PYLON_DIR);
+    expect(allOutput).toContain(UPLNK_DIR);
   });
 });
 

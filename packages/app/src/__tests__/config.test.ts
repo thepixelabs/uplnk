@@ -17,7 +17,7 @@ vi.mock('node:fs', () => ({
 
 vi.mock('@uplnk/db', () => ({
   db: {},
-  getPylonDir: vi.fn(() => '/home/testuser/.pylon'),
+  getUplnkDir: vi.fn(() => '/home/testuser/.uplnk'),
   upsertProviderConfig: vi.fn(),
   getDefaultProvider: vi.fn(),
 }));
@@ -25,7 +25,7 @@ vi.mock('@uplnk/db', () => ({
 // ─── Imports after mocks are registered ───────────────────────────────────────
 
 import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';
-import { getPylonDir, upsertProviderConfig, getDefaultProvider } from '@uplnk/db';
+import { getUplnkDir, upsertProviderConfig, getDefaultProvider } from '@uplnk/db';
 import { loadConfig, saveConfig, getOrCreateConfig, getConfigPath } from '../lib/config.js';
 import type { Config } from '../lib/config.js';
 
@@ -43,12 +43,12 @@ function parseConfig(): Config | undefined {
 const mockReadFileSync = vi.mocked(readFileSync);
 const mockWriteFileSync = vi.mocked(writeFileSync);
 const mockMkdirSync = vi.mocked(mkdirSync);
-const mockGetPylonDir = vi.mocked(getPylonDir);
+const mockGetUplnkDir = vi.mocked(getUplnkDir);
 const mockUpsertProviderConfig = vi.mocked(upsertProviderConfig);
 const mockGetDefaultProvider = vi.mocked(getDefaultProvider);
 
-const PYLON_DIR = '/home/testuser/.pylon';
-const CONFIG_PATH = `${PYLON_DIR}/config.json`;
+const UPLNK_DIR = '/home/testuser/.uplnk';
+const CONFIG_PATH = `${UPLNK_DIR}/config.json`;
 
 /** Minimal valid serialised config (version 1). */
 function makeRawConfig(overrides: Record<string, unknown> = {}): string {
@@ -62,7 +62,7 @@ function makeRawConfig(overrides: Record<string, unknown> = {}): string {
 
 beforeEach(() => {
   vi.clearAllMocks();
-  mockGetPylonDir.mockReturnValue(PYLON_DIR);
+  mockGetUplnkDir.mockReturnValue(UPLNK_DIR);
   // By default no default provider exists, so seedDefaultProvider will upsert.
   mockGetDefaultProvider.mockReturnValue(undefined);
 });
@@ -70,7 +70,7 @@ beforeEach(() => {
 // ─── getConfigPath ─────────────────────────────────────────────────────────────
 
 describe('getConfigPath', () => {
-  it('joins getPylonDir() with config.json', () => {
+  it('joins getUplnkDir() with config.json', () => {
     expect(getConfigPath()).toBe(CONFIG_PATH);
   });
 });
@@ -202,10 +202,10 @@ describe('saveConfig', () => {
     networkScanner: { timeoutMs: 2000, concurrency: 16 },
   };
 
-  it('creates the pylon directory with recursive: true before writing', () => {
+  it('creates the uplnk directory with recursive: true before writing', () => {
     saveConfig(validConfig);
 
-    expect(mockMkdirSync).toHaveBeenCalledWith(PYLON_DIR, { recursive: true });
+    expect(mockMkdirSync).toHaveBeenCalledWith(UPLNK_DIR, { recursive: true });
   });
 
   it('writes to the correct config path', () => {

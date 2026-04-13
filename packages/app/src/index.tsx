@@ -63,7 +63,13 @@ export function App({ initialModel = 'qwen2.5:7b', resumeConversationId, project
   const [activeProvider, setActiveProvider] = useState<{
     baseUrl: string;
     apiKey: string;
+    providerType: ProviderKind;
+    authMode: AuthMode;
   } | null>(null);
+  // Incremented on every provider switch so ChatScreen remounts and re-reads
+  // the new provider credentials from its props rather than using its cached
+  // providerRef value from a previous mount.
+  const [providerKey, setProviderKey] = useState(0);
   const [globalError, setGlobalError] = useState<UplnkError | null>(null);
   const [paletteOpen, setPaletteOpen] = useState(false);
 
@@ -213,8 +219,10 @@ export function App({ initialModel = 'qwen2.5:7b', resumeConversationId, project
         <ChatScreen
           // `key` on the conversation id forces a clean remount on resume /
           // fork — clears streaming state, tool-call counter, artifact panel,
-          // history ref.
-          key={activeConversationId ?? 'new'}
+          // history ref. providerKey is appended so a provider switch also
+          // remounts ChatScreen, forcing it to re-read the new credentials
+          // from props instead of its cached providerRef.
+          key={`${activeConversationId ?? 'new'}-${providerKey}`}
           initialModel={activeModel}
           {...(activeConversationId !== undefined ? { resumeConversationId: activeConversationId } : {})}
           {...(projectDir !== undefined ? { projectDir } : {})}
@@ -222,6 +230,8 @@ export function App({ initialModel = 'qwen2.5:7b', resumeConversationId, project
           {...(activeProvider !== null ? {
             overrideBaseUrl: activeProvider.baseUrl,
             overrideApiKey: activeProvider.apiKey,
+            overrideProviderType: activeProvider.providerType,
+            overrideAuthMode: activeProvider.authMode,
           } : {})}
           onNavigate={handleNavigate}
           onError={handleError}
@@ -247,9 +257,10 @@ export function App({ initialModel = 'qwen2.5:7b', resumeConversationId, project
 
       {!paletteOpen && currentScreen === 'provider-selector' && (
         <ProviderSelectorScreen
-          onSelect={(_, model, baseUrl, apiKey) => {
+          onSelect={(_, model, baseUrl, apiKey, providerType, authMode) => {
             setActiveModel(model);
-            setActiveProvider({ baseUrl, apiKey });
+            setActiveProvider({ baseUrl, apiKey, providerType, authMode });
+            setProviderKey(k => k + 1);
             setCurrentScreen('chat');
           }}
           onBack={() => setCurrentScreen('chat')}

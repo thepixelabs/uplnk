@@ -1,6 +1,6 @@
-# Contributing to Pylon
+# Contributing to uplnk
 
-Pylon is Apache 2.0 licensed and uses a [Developer Certificate of Origin (DCO)](https://developercertificate.org/). By submitting a pull request you certify that you have the right to contribute the code under those terms. Sign off each commit with `git commit -s`.
+uplnk is Apache 2.0 licensed and uses a [Developer Certificate of Origin (DCO)](https://developercertificate.org/). By submitting a pull request you certify that you have the right to contribute the code under those terms. Sign off each commit with `git commit -s`.
 
 ---
 
@@ -20,8 +20,8 @@ The repo uses pnpm workspaces. Do not use `npm` or `yarn` — lockfile conflicts
 
 ```bash
 # 1. Clone
-git clone https://github.com/pylondev/pylon.git
-cd pylon
+git clone https://github.com/thepixelabs/uplnk.git
+cd uplnk
 
 # 2. Install dependencies (all packages)
 pnpm install
@@ -34,12 +34,12 @@ ollama pull llama3.2
 pnpm dev
 ```
 
-`pnpm dev` runs `tsx bin/pylon.ts` inside `packages/app` with TypeScript executed directly — no build step needed during development. Changes to source files take effect on the next invocation.
+`pnpm dev` runs `tsx bin/uplnk.ts` inside `packages/app` with TypeScript executed directly — no build step needed during development. Changes to source files take effect on the next invocation.
 
 To run with specific flags:
 
 ```bash
-pnpm --filter pylon-dev dev -- --model qwen2.5-coder:7b --theme light
+pnpm --filter uplnk-dev dev -- --model qwen2.5-coder:7b --theme light
 ```
 
 ---
@@ -47,11 +47,11 @@ pnpm --filter pylon-dev dev -- --model qwen2.5-coder:7b --theme light
 ## Project structure
 
 ```
-pylon/
+uplnk/
 ├── packages/
-│   ├── app/          # pylon-dev — the Ink TUI application and CLI entry point
+│   ├── app/          # uplnk-dev — the Ink TUI application and CLI entry point
 │   │   ├── bin/
-│   │   │   └── pylon.ts          # CLI arg parsing, migrations, Ink render()
+│   │   │   └── uplnk.ts          # CLI arg parsing, migrations, Ink render()
 │   │   └── src/
 │   │       ├── components/       # React/Ink UI components
 │   │       │   ├── artifacts/    # ArtifactPanel — side-pane code viewer
@@ -62,25 +62,25 @@ pylon/
 │   │       │                     # useMcp, useModelSelector
 │   │       ├── lib/
 │   │       │   ├── colors.ts     # Terminal color system (dark + light themes)
-│   │       │   ├── config.ts     # ~/.pylon/config.json read/write + Zod schema
-│   │       │   ├── doctor.ts     # pylon doctor preflight checks
-│   │       │   ├── errors.ts     # Error normalisation → PylonError
+│   │       │   ├── config.ts     # ~/.uplnk/config.json read/write + Zod schema
+│   │       │   ├── doctor.ts     # uplnk doctor preflight checks
+│   │       │   ├── errors.ts     # Error normalisation → UplnkError
 │   │       │   ├── syntax.ts     # Code block syntax highlighting
 │   │       │   └── mcp/
 │   │       │       ├── McpManager.ts   # MCP child-process lifecycle + tool registry
 │   │       │       └── security.ts     # Path allowlist + command validation
 │   │       └── screens/          # ChatScreen, ModelSelectorScreen,
 │   │                             # ConversationListScreen
-│   ├── db/           # pylon-db — Drizzle ORM schema, migrations, queries
+│   ├── db/           # uplnk-db — Drizzle ORM schema, migrations, queries
 │   │   ├── migrations/           # SQL migration files
 │   │   └── src/
 │   │       ├── schema.ts         # Drizzle table definitions
 │   │       ├── queries.ts        # Typed query helpers
 │   │       ├── client.ts         # better-sqlite3 singleton
 │   │       └── migrate.ts        # runMigrations() called at startup
-│   └── shared/       # pylon-shared — types shared across packages
+│   └── shared/       # uplnk-shared — types shared across packages
 │       └── src/
-│           ├── errors.ts         # PylonError type + error codes
+│           ├── errors.ts         # UplnkError type + error codes
 │           └── index.ts
 ├── pnpm-workspace.yaml
 └── package.json      # Root — lint, typecheck, test scripts
@@ -100,7 +100,7 @@ pnpm test
 pnpm test:watch
 
 # Specific package
-pnpm --filter pylon-dev test
+pnpm --filter uplnk-dev test
 ```
 
 Tests use [Vitest](https://vitest.dev/). Unit tests live alongside source files in `__tests__/` subdirectories (e.g., `packages/app/src/lib/__tests__/`). Integration tests use a separate config (`vitest.integration.config.ts`) and are not run in CI by default — run them manually before submitting changes to streaming or MCP code.
@@ -115,7 +115,7 @@ pnpm typecheck
 
 ## Commit message format
 
-Pylon uses [Conventional Commits](https://www.conventionalcommits.org/).
+uplnk uses [Conventional Commits](https://www.conventionalcommits.org/).
 
 ```
 <type>(<scope>): <short summary>
@@ -158,7 +158,7 @@ Keep the summary line under 72 characters. Use the body to explain *why*, not *w
    pnpm typecheck   # must pass with zero errors
    pnpm lint        # must pass with zero errors
    pnpm test        # all tests must pass
-   pylon doctor     # must show all checks green on your machine
+   uplnk doctor     # must show all checks green on your machine
    ```
 
 5. **Fill in the PR template.** Describe what changed, why, and how you tested it. Include a short terminal recording or screenshot for UI changes.
@@ -176,10 +176,10 @@ Keep the summary line under 72 characters. Use the body to explain *why*, not *w
 
 Open a GitHub issue. Include:
 
-- Output of `pylon doctor`
-- Output of `pylon --version`
+- Output of `uplnk doctor`
+- Output of `uplnk --version`
 - Your OS and terminal emulator
 - Steps to reproduce
-- Contents of `/tmp/pylon-crash.log` (if a crash occurred)
+- Contents of `/tmp/uplnk-crash.log` (if a crash occurred)
 
 Do not include API keys, file contents with sensitive data, or private conversation history in issue reports.

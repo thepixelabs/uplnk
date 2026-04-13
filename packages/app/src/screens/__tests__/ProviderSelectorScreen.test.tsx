@@ -9,6 +9,9 @@ const tick = () => new Promise<void>((r) => setImmediate(() => setImmediate(r)))
 vi.mock('@uplnk/db', () => ({
   db: {},
   listProviders: vi.fn(() => []),
+  deleteProviderConfig: vi.fn(),
+  setDefaultProvider: vi.fn(),
+  recordProviderTest: vi.fn(),
 }));
 
 import { vi as _vi, beforeEach } from 'vitest';
@@ -18,8 +21,10 @@ import { ProviderSelectorScreen } from '../ProviderSelectorScreen.js';
 const makeProvider = (id: string, name: string, overrides = {}) => ({
   id,
   name,
+  providerType: id === 'openai' ? 'openai' : id,
   baseUrl: `http://${id}.local`,
   apiKey: 'key-' + id,
+  authMode: id === 'anthropic' ? 'api-key' : id === 'openai' ? 'bearer' : 'none',
   defaultModel: `${id}-model`,
   isDefault: false,
   createdAt: '2026-01-01T00:00:00Z',
@@ -150,6 +155,8 @@ describe('ProviderSelectorScreen — Enter selects first provider', () => {
       'ollama-model',
       'http://ollama.local',
       'key-ollama',
+      'ollama',
+      'none',
     );
   });
 
@@ -190,6 +197,8 @@ describe('ProviderSelectorScreen — navigation + select', () => {
       'openai-model',
       'http://openai.local',
       'key-openai',
+      'openai',
+      'bearer',
     );
   });
 
@@ -211,6 +220,8 @@ describe('ProviderSelectorScreen — navigation + select', () => {
       expect.any(String),
       expect.any(String),
       expect.any(String),
+      'ollama',
+      'none',
     );
   });
 
@@ -235,6 +246,8 @@ describe('ProviderSelectorScreen — navigation + select', () => {
       expect.any(String),
       expect.any(String),
       expect.any(String),
+      'anthropic',
+      'api-key',
     );
   });
 });

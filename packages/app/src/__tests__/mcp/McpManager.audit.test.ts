@@ -39,14 +39,16 @@ vi.mock('@modelcontextprotocol/sdk/client/streamableHttp.js', () => ({
 vi.mock('@uplnk/db', () => ({
   db: {},
   getPylonDir: vi.fn(() => '/tmp/audit-test-default'),
+  getUplnkDir: vi.fn(() => '/tmp/audit-test-default'),
 }));
 
-import { getPylonDir } from '@uplnk/db';
+import { getPylonDir, getUplnkDir } from '@uplnk/db';
 import { McpManager } from '../../lib/mcp/McpManager.js';
 import { createDefaultPolicy } from '../../lib/mcp/security.js';
 import type { AuditEntry } from '../../lib/mcp/McpManager.js';
 
 const mockGetPylonDir = vi.mocked(getPylonDir);
+const mockGetUplnkDir = vi.mocked(getUplnkDir);
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -62,6 +64,7 @@ function removeTempDir(dir: string): void {
 
 function makeManager(pylonDir: string): McpManager {
   mockGetPylonDir.mockReturnValue(pylonDir);
+  mockGetUplnkDir.mockReturnValue(pylonDir);
   return new McpManager({
     filePolicy: createDefaultPolicy([pylonDir]),
     commandExecEnabled: false,
@@ -116,8 +119,10 @@ describe('McpManager audit log rotation', () => {
     auditLog = join(tmpDir, 'mcp-audit.log');
     backupLog = `${auditLog}.1`;
     mockGetPylonDir.mockReturnValue(tmpDir);
+    mockGetUplnkDir.mockReturnValue(tmpDir);
     vi.clearAllMocks();
     mockGetPylonDir.mockReturnValue(tmpDir);
+    mockGetUplnkDir.mockReturnValue(tmpDir);
   });
 
   afterEach(() => {

@@ -391,16 +391,38 @@ function enterAltScreen(): void {
   process.stdout.write('\x1b[?1049h'); // enter alternate screen buffer
   process.stdout.write('\x1b[2J');     // clear screen
   process.stdout.write('\x1b[H');      // move cursor to top-left
+  // Enable kitty keyboard protocol (flags=1: disambiguate escape codes).
+  // This makes terminals like iTerm2 send distinct sequences for modifier+key
+  // combos that would otherwise be indistinguishable (e.g. Shift+Enter → ESC[13;2u).
+  // Silently ignored by terminals that don't support the protocol.
+  process.stdout.write('\x1b[=1u');
 }
 
 function exitAltScreen(): void {
   if (!altScreenActive) return;
   altScreenActive = false;
+  process.stdout.write('\x1b[<u');     // pop kitty keyboard protocol mode
   process.stdout.write('\x1b[?1049l'); // exit alternate screen — restores previous content
 }
 
 // Always restore on process exit, regardless of how we got here.
 process.on('exit', exitAltScreen);
+
+// ─── Logo animation (pre-Ink, raw stdout) ────────────────────────────────────
+// Runs before Ink mounts so stdin/stdout are still fully under our control.
+// Animation writes directly to stdout; Ink takes over after it resolves.
+// Skipped when UPLNK_NO_INTRO=1, stdout is not a TTY, or config.splashScreen.enabled === false.
+{
+  // Config is loaded later in the boot sequence (after secrets init), but the
+  // animation runs before Ink mounts. We do a lightweight pre-read here solely
+  // to check the splashScreen flag — we don't seed providers or run migrations
+  // yet. A missing or corrupt config is silently ignored (animation shows).
+  const { loadConfig } = await import('../src/lib/config.js');
+  const { runLogoAnimation } = await import('../src/lib/logoAnimation.js');
+  const splashResult = loadConfig();
+  const splashEnabled = splashResult.ok ? splashResult.config.splashScreen?.enabled : undefined;
+  await runLogoAnimation(splashEnabled !== undefined ? { enabled: splashEnabled } : undefined);
+}
 
 enterAltScreen();
 
@@ -466,6 +488,16 @@ const updateCheckPromise = import('../src/lib/selfUpdate.js').then(({ checkForUp
   }).catch(() => null),
 );
 
+// Read the package version once — passed into the UI for header display.
+let appVersion: string | undefined;
+try {
+  const { createRequire } = await import('node:module');
+  const require = createRequire(import.meta.url);
+  // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+  const pkg = require('../package.json') as { version: string };
+  appVersion = pkg.version;
+} catch { /* version display is cosmetic */ }
+
 const { waitUntilExit } = render(
   React.createElement(App, {
     ...(values.model !== undefined ? { initialModel: values.model } : {}),
@@ -473,6 +505,7 @@ const { waitUntilExit } = render(
     ...(values.conversation !== undefined ? { resumeConversationId: values.conversation } : {}),
     ...(values.theme === 'light' || values.theme === 'dark' ? { theme: values.theme } : {}),
     ...(values.project !== undefined ? { projectDir: values.project } : {}),
+    ...(appVersion !== undefined ? { version: appVersion } : {}),
     subcommand: subcommand ?? 'chat',
     config: configResult.config,
   }),
