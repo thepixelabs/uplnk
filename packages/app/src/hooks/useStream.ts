@@ -38,6 +38,13 @@ interface UseStreamResult {
   status: StreamStatus;
   activeToolName: string | null;
   error: UplnkError | null;
+  /**
+   * Running total of `usage.totalTokens` reported by the model across every
+   * completed step in this hook's lifetime (cleared by `reset()`). Populated
+   * from the AI SDK's `step-finish` / `finish` events — not incremented
+   * per-chunk — so it reflects the model's own accounting, not an estimate.
+   */
+  sessionTokens: number;
   send: (messages: CoreMessage[], tools?: Record<string, Tool>, opts?: SendOptions) => Promise<void>;
   abort: () => void;
   reset: () => void;
@@ -60,6 +67,12 @@ export function useStream(model: LanguageModel): UseStreamResult {
   const [status, setStatus] = useState<StreamStatus>('idle');
   const [activeToolName, setActiveToolName] = useState<string | null>(null);
   const [error, setError] = useState<UplnkError | null>(null);
+  // Running total of tokens observed from usage payloads in step-finish/finish
+  // events. Accumulates across multiple send() calls so the StatusBar gauge
+  // reflects the whole conversation, not just the most recent turn. Cleared
+  // only by reset() (new conversation) — abort() leaves the count alone so
+  // the user can still see what the cancelled turn cost them.
+  const [sessionTokens, setSessionTokens] = useState(0);
   const abortControllerRef = useRef<AbortController | null>(null);
   // Tokens are accumulated here between flushes so we don't fire a React
   // re-render on every chunk. The ref is the source of truth during a
@@ -72,6 +85,10 @@ export function useStream(model: LanguageModel): UseStreamResult {
   const persistTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   // Tracks whether the first text-delta has arrived so we only call setStatus once.
   const firstTokenRef = useRef(false);
+  // Tracks whether any 'step-finish' event during the current turn carried a
+  // usage payload. If it did, we ignore the aggregated 'finish' usage to avoid
+  // double-counting; if it didn't, the 'finish' event is our only source.
+  const sawStepUsageRef = useRef(false);
 
   const stopFlushTimer = useCallback(() => {
     if (flushTimerRef.current !== null) {
@@ -98,6 +115,7 @@ export function useStream(model: LanguageModel): UseStreamResult {
       streamBufferRef.current = '';
       accumulatedTextRef.current = '';
       firstTokenRef.current = false;
+      sawStepUsageRef.current = false;
       setStreamedText('');
       setActiveToolName(null);
       setStatus('connecting');
@@ -164,12 +182,43 @@ export function useStream(model: LanguageModel): UseStreamResult {
               setStatus('tool-running');
               break;
 
-            case 'step-finish':
+            case 'step-finish': {
               // A step (potentially including tool execution) completed —
               // return to streaming so the StatusBar clears the tool name.
               setActiveToolName(null);
               setStatus('streaming');
+              // Capture usage from this step so the StatusBar gauge updates
+              // as soon as the model reports token counts, rather than
+              // waiting for the final 'finish' event.
+              const stepUsage = (event as { usage?: { totalTokens?: number } }).usage;
+              const stepTotal = stepUsage?.totalTokens;
+              if (typeof stepTotal === 'number' && Number.isFinite(stepTotal)) {
+                sawStepUsageRef.current = true;
+                setSessionTokens((prev) => prev + stepTotal);
+              }
               break;
+            }
+
+            case 'finish': {
+              // Some providers only emit the final 'finish' event with usage
+              // (no per-step payloads). When step-finish also carried usage
+              // we'll have double-counted — but step-finish + finish usage
+              // are mutually exclusive in practice for the providers we
+              // target (Ollama, OpenAI, Anthropic via @ai-sdk/*): Ollama
+              // emits only 'finish' with aggregated usage, the others emit
+              // per-step. Guarded by a ref so we only apply this fallback
+              // when no step-finish usage was observed this turn.
+              const finishUsage = (event as { usage?: { totalTokens?: number } }).usage;
+              const finishTotal = finishUsage?.totalTokens;
+              if (
+                typeof finishTotal === 'number' &&
+                Number.isFinite(finishTotal) &&
+                !sawStepUsageRef.current
+              ) {
+                setSessionTokens((prev) => prev + finishTotal);
+              }
+              break;
+            }
 
             case 'error':
               // Propagate stream-level errors
@@ -177,8 +226,8 @@ export function useStream(model: LanguageModel): UseStreamResult {
                 ? event.error
                 : new Error(String(event.error));
 
-            // Remaining event types (step-start, finish, etc.)
-            // do not require UI reactions — intentionally ignored.
+            // Remaining event types (step-start, tool-result, etc.) do not
+            // require UI reactions — intentionally ignored.
             default:
               break;
           }
@@ -244,6 +293,7 @@ export function useStream(model: LanguageModel): UseStreamResult {
     setActiveToolName(null);
     setStatus('idle');
     setError(null);
+    setSessionTokens(0);
   }, [stopFlushTimer, stopPersistTimer]);
 
   // Abort any active stream when the component unmounts (e.g. Ctrl+C exit),
@@ -262,5 +312,5 @@ export function useStream(model: LanguageModel): UseStreamResult {
     };
   }, []);
 
-  return { streamedText, status, activeToolName, error, send, abort, reset };
+  return { streamedText, status, activeToolName, error, sessionTokens, send, abort, reset };
 }
