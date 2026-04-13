@@ -102,6 +102,12 @@ export const ChatInput = memo(function ChatInput({
           case 'fork':
             onCommand?.('fork');
             return;
+          case 'relay':
+            onCommand?.('relay-picker');
+            return;
+          case 'scan':
+            onCommand?.('network-scan');
+            return;
           default:
             // Unknown command — fall through to normal submit so LLM can handle it
         }
