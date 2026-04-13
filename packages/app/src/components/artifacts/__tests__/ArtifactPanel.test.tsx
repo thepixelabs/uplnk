@@ -403,3 +403,148 @@ describe('ArtifactPanel — onApply callback', () => {
     expect(finalCode).toContain('99');
   });
 });
+
+// ─── Save to file (w) ─────────────────────────────────────────────────────────
+
+describe('ArtifactPanel — save-to-file (w)', () => {
+  it('invokes onSave with artifact.filePath and current code when w is pressed', async () => {
+    const onSave = vi.fn().mockResolvedValue(undefined);
+    const artifact: Artifact = {
+      ...mockArtifact,
+      code: 'const answer = 42;\n',
+      filePath: '/abs/path/to/file.ts',
+    };
+    const { stdin, lastFrame } = render(
+      React.createElement(ArtifactPanel, {
+        artifact,
+        onClose: vi.fn(),
+        onSave,
+        focused: true,
+      }),
+    );
+    await tick();
+    stdin.write('w');
+    await tick();
+    await tick();
+    expect(onSave).toHaveBeenCalledTimes(1);
+    expect(onSave).toHaveBeenCalledWith('/abs/path/to/file.ts', 'const answer = 42;\n');
+    expect(lastFrame()).toContain('Saved to /abs/path/to/file.ts');
+  });
+
+  it('writes the diff-applied content (accepted hunks) when w is pressed in diff mode', async () => {
+    const onSave = vi.fn().mockResolvedValue(undefined);
+    const artifact: Artifact = {
+      ...diffArtifact,
+      filePath: '/tmp/changed.ts',
+    };
+    const { stdin } = render(
+      React.createElement(ArtifactPanel, {
+        artifact,
+        onClose: vi.fn(),
+        onSave,
+        focused: true,
+      }),
+    );
+    await tick();
+    stdin.write('v'); // enter diff
+    await tick();
+    stdin.write('a'); // accept the one hunk
+    await tick();
+    stdin.write('w'); // save
+    await tick();
+    await tick();
+    expect(onSave).toHaveBeenCalledTimes(1);
+    const [calledPath, calledContent] = onSave.mock.calls[0] ?? [];
+    expect(calledPath).toBe('/tmp/changed.ts');
+    // Accepted hunk keeps the new value (y = 99), drops the original (y = 2)
+    expect(calledContent).toContain('y = 99');
+    expect(calledContent).not.toContain('y = 2;');
+  });
+
+  it('prompts for a path when artifact has no filePath, then saves on Enter', async () => {
+    const onSave = vi.fn().mockResolvedValue(undefined);
+    const { stdin, lastFrame } = render(
+      React.createElement(ArtifactPanel, {
+        artifact: { ...mockArtifact, code: 'hello\n' },
+        onClose: vi.fn(),
+        onSave,
+        focused: true,
+      }),
+    );
+    await tick();
+    stdin.write('w');
+    await tick();
+    expect(lastFrame()).toContain('Save to path:');
+    // Type a destination
+    stdin.write('/tmp/out.txt');
+    await tick();
+    stdin.write('\r'); // Enter
+    await tick();
+    await tick();
+    expect(onSave).toHaveBeenCalledTimes(1);
+    expect(onSave).toHaveBeenCalledWith('/tmp/out.txt', 'hello\n');
+  });
+
+  it('shows error status when onSave rejects', async () => {
+    const onSave = vi.fn().mockRejectedValue(new Error('EACCES: denied'));
+    const { stdin, lastFrame } = render(
+      React.createElement(ArtifactPanel, {
+        artifact: { ...mockArtifact, filePath: '/root/locked' },
+        onClose: vi.fn(),
+        onSave,
+        focused: true,
+      }),
+    );
+    await tick();
+    stdin.write('w');
+    await tick();
+    await tick();
+    expect(lastFrame()).toContain('Save failed');
+    expect(lastFrame()).toContain('EACCES');
+  });
+});
+
+// ─── Copy to clipboard (y) ────────────────────────────────────────────────────
+
+describe('ArtifactPanel — copy-to-clipboard (y)', () => {
+  it('invokes onCopy with the raw (non-ANSI) current code', async () => {
+    const onCopy = vi.fn().mockResolvedValue(undefined);
+    const artifact: Artifact = { ...mockArtifact, code: 'const a = 1;\n' };
+    const { stdin, lastFrame } = render(
+      React.createElement(ArtifactPanel, {
+        artifact,
+        onClose: vi.fn(),
+        onCopy,
+        focused: true,
+      }),
+    );
+    await tick();
+    stdin.write('y');
+    await tick();
+    await tick();
+    expect(onCopy).toHaveBeenCalledTimes(1);
+    expect(onCopy).toHaveBeenCalledWith('const a = 1;\n');
+    // Confirm no ANSI escape codes slipped through
+    const copied = onCopy.mock.calls[0]?.[0] as string;
+    // eslint-disable-next-line no-control-regex
+    expect(copied).not.toMatch(/\u001B\[/);
+    expect(lastFrame()).toContain('Copied');
+  });
+
+  it('shows error status when onCopy rejects', async () => {
+    const onCopy = vi.fn().mockRejectedValue(new Error('no clipboard'));
+    const { stdin, lastFrame } = render(
+      React.createElement(ArtifactPanel, {
+        artifact: mockArtifact,
+        onClose: vi.fn(),
+        onCopy,
+        focused: true,
+      }),
+    );
+    await tick();
+    stdin.write('y');
+    await tick();
+    await tick();
+    expect(lastFrame()).toContain('Copy failed');
+  });
+});

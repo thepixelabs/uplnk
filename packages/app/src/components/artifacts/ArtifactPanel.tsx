@@ -19,11 +19,16 @@
  *   A           — accept all pending hunks
  *   R           — reject all pending hunks
  *   Enter       — apply accepted changes and update artifact
+ *   w           — write current artifact content to disk (prompts for path
+ *                 if the artifact has no source filePath)
+ *   y           — copy raw (non-ANSI) artifact content to system clipboard
  */
 
-import { memo, useState, useMemo, useCallback } from 'react';
+import { memo, useState, useMemo, useCallback, useEffect } from 'react';
 import { Box, Text, useInput } from 'ink';
 import { highlight } from '../../lib/syntax.js';
+
+const STATUS_FLASH_MS = 2000;
 
 export interface Artifact {
   id: string;
@@ -33,6 +38,12 @@ export interface Artifact {
   original: string;
   /** Current/modified code */
   code: string;
+  /**
+   * Absolute path to the source file this artifact was loaded from
+   * (e.g. via mcp_file_read). When present, pressing `w` saves directly
+   * back to this path; when absent, the panel prompts for a destination.
+   */
+  filePath?: string;
 }
 
 type ViewMode = 'code' | 'diff';
@@ -283,16 +294,36 @@ interface Props {
    * the artifact's code field with this value.
    */
   onApply?: (finalCode: string) => void;
+  /**
+   * Called when the user presses `w`. Receives the absolute path to write
+   * to and the file content. Should return a promise that resolves on
+   * successful write or rejects with an Error describing the failure.
+   * Injected as a prop so the component stays pure and testable.
+   */
+  onSave?: (path: string, content: string) => Promise<void>;
+  /**
+   * Called when the user presses `y` with the raw (non-ANSI) artifact
+   * content. Should return a promise that resolves once the content has
+   * been placed on the system clipboard.
+   */
+  onCopy?: (content: string) => Promise<void>;
   /** Panel is focused (receives keyboard input) */
   focused?: boolean;
   /** Panel width as percentage of terminal columns (default 50) */
   widthPct?: number;
 }
 
+interface StatusFlash {
+  kind: 'ok' | 'err';
+  text: string;
+}
+
 export const ArtifactPanel = memo(function ArtifactPanel({
   artifact,
   onClose,
   onApply,
+  onSave,
+  onCopy,
   focused = false,
   widthPct = 50,
 }: Props) {
@@ -300,6 +331,17 @@ export const ArtifactPanel = memo(function ArtifactPanel({
   const [scrollOffset, setScrollOffset] = useState(0);
   const [selectedHunk, setSelectedHunk] = useState(0);
   const [hunks, setHunks] = useState<Hunk[]>([]);
+  const [status, setStatus] = useState<StatusFlash | null>(null);
+  // When the user presses `w` and the artifact has no filePath, we capture
+  // a destination path inline before writing.
+  const [savePrompt, setSavePrompt] = useState<string | null>(null);
+
+  // Auto-clear the status flash after STATUS_FLASH_MS
+  useEffect(() => {
+    if (status === null) return;
+    const t = setTimeout(() => setStatus(null), STATUS_FLASH_MS);
+    return () => clearTimeout(t);
+  }, [status]);
 
   const hasDiff = artifact.original !== artifact.code;
 
@@ -339,6 +381,52 @@ export const ArtifactPanel = memo(function ArtifactPanel({
     });
   }, []);
 
+  // Compute the content we'd save/copy right now. In diff mode we honour
+  // any in-progress hunk decisions; otherwise use the artifact's current
+  // `code` verbatim.
+  const currentContent = useMemo(() => {
+    if (viewMode === 'diff' && hunks.length > 0) {
+      return applyHunks(artifact.original, artifact.code, hunks);
+    }
+    return artifact.code;
+  }, [viewMode, hunks, artifact.original, artifact.code]);
+
+  const doSave = useCallback(
+    async (path: string) => {
+      const trimmed = path.trim();
+      if (trimmed === '') {
+        setStatus({ kind: 'err', text: 'Save cancelled: empty path' });
+        return;
+      }
+      if (onSave === undefined) {
+        setStatus({ kind: 'err', text: 'Save unavailable (no handler)' });
+        return;
+      }
+      try {
+        await onSave(trimmed, currentContent);
+        setStatus({ kind: 'ok', text: `✓ Saved to ${trimmed}` });
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        setStatus({ kind: 'err', text: `Save failed: ${msg}` });
+      }
+    },
+    [onSave, currentContent],
+  );
+
+  const doCopy = useCallback(async () => {
+    if (onCopy === undefined) {
+      setStatus({ kind: 'err', text: 'Copy unavailable (no handler)' });
+      return;
+    }
+    try {
+      await onCopy(currentContent);
+      setStatus({ kind: 'ok', text: '✓ Copied' });
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      setStatus({ kind: 'err', text: `Copy failed: ${msg}` });
+    }
+  }, [onCopy, currentContent]);
+
   const codeLines = artifact.code.split('\n');
   const totalLines = viewMode === 'code' ? codeLines.length : activeHunks.length;
   const maxScroll = Math.max(0, totalLines - MAX_PANEL_HEIGHT);
@@ -347,7 +435,49 @@ export const ArtifactPanel = memo(function ArtifactPanel({
     (input, key) => {
       if (!focused) return;
 
+      // ── Save-path prompt mode ──────────────────────────────────────────
+      // When active, absorb all keystrokes for line editing. Escape
+      // cancels, Enter confirms.
+      if (savePrompt !== null) {
+        if (key.escape) {
+          setSavePrompt(null);
+          setStatus({ kind: 'err', text: 'Save cancelled' });
+          return;
+        }
+        if (key.return) {
+          const path = savePrompt;
+          setSavePrompt(null);
+          void doSave(path);
+          return;
+        }
+        if (key.backspace || key.delete) {
+          setSavePrompt((p) => (p === null ? null : p.slice(0, -1)));
+          return;
+        }
+        // Accept printable characters only (avoid control-key garbage)
+        if (input !== '' && !key.ctrl && !key.meta) {
+          setSavePrompt((p) => (p ?? '') + input);
+        }
+        return;
+      }
+
       if (key.escape) { onClose(); return; }
+
+      // Save to disk
+      if (input === 'w') {
+        if (artifact.filePath !== undefined && artifact.filePath !== '') {
+          void doSave(artifact.filePath);
+        } else {
+          setSavePrompt('');
+        }
+        return;
+      }
+
+      // Copy to clipboard
+      if (input === 'y') {
+        void doCopy();
+        return;
+      }
 
       // Toggle diff view
       if (input === 'v' && hasDiff) {
@@ -438,9 +568,9 @@ export const ArtifactPanel = memo(function ArtifactPanel({
           )}
           {focused ? (
             viewMode === 'diff' ? (
-              <Text dimColor>[j/k nav] [a accept] [r reject] [A/R all] [Enter apply] [Esc close]</Text>
+              <Text dimColor>[j/k nav] [a/r] [A/R all] [Enter apply] [w save] [y copy] [Esc]</Text>
             ) : (
-              <Text dimColor>[Tab: focus chat]  [Esc: close]  [[ shrink  [] grow]</Text>
+              <Text dimColor>[Tab: focus chat] [w save] [y copy] [Esc close] [[/]]</Text>
             )
           ) : (
             <Text dimColor>[Tab: focus panel]  [Esc: close]  [[ shrink  [] grow]</Text>
@@ -482,6 +612,19 @@ export const ArtifactPanel = memo(function ArtifactPanel({
           ))
         )}
       </Box>
+
+      {/* Status / inline save prompt */}
+      {savePrompt !== null ? (
+        <Box paddingX={1}>
+          <Text color="#60A5FA">Save to path: </Text>
+          <Text>{savePrompt}</Text>
+          <Text color="#475569">_</Text>
+        </Box>
+      ) : status !== null ? (
+        <Box paddingX={1}>
+          <Text color={status.kind === 'ok' ? '#4ADE80' : '#F87171'}>{status.text}</Text>
+        </Box>
+      ) : null}
     </Box>
   );
 });
