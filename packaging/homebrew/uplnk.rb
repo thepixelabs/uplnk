@@ -9,13 +9,13 @@ class Uplnk < Formula
   license "Apache-2.0"
 
   # Pin to Node 22 LTS (supported through April 2027).
-  # pylon requires Node >= 20; Node 22 is the current LTS and avoids churn
+  # uplnk requires Node >= 20; Node 22 is the current LTS and avoids churn
   # from Homebrew rolling `node` to a new major.
   depends_on "node@22"
 
   def install
     # std_npm_args installs to libexec/ with Homebrew prefix isolation,
-    # preventing pylon's node_modules from polluting the global npm tree.
+    # preventing uplnk's node_modules from polluting the global npm tree.
     system "npm", "install", *std_npm_args
     bin.install_symlink libexec.glob("bin/*")
   end

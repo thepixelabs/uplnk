@@ -28,19 +28,19 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Build
-        run: pnpm --filter pylon-dev build
+        run: pnpm --filter @uplnk/app build
 
       - name: Verify shebang in bin output
         run: |
-          head -1 packages/app/bin/pylon.js | grep -q '#!/usr/bin/env node' \
-            || (echo "ERROR: shebang missing from bin/pylon.js" && exit 1)
+          head -1 packages/app/dist/uplnk.js | grep -q '#!/usr/bin/env node' \
+            || (echo "ERROR: shebang missing from dist/uplnk.js" && exit 1)
 
       - name: Verify --version works
-        run: node packages/app/bin/pylon.js --version
+        run: node packages/app/dist/uplnk.js --version
 
       - name: Publish (stable)
         if: "!contains(github.event.release.tag_name, '-')"
-        run: pnpm --filter pylon-dev publish --no-git-checks
+        run: pnpm --filter @uplnk/app publish --no-git-checks
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
@@ -48,6 +48,6 @@ jobs:
         if: "contains(github.event.release.tag_name, '-')"
         run: |
           TAG=$(echo "${{ github.event.release.tag_name }}" | sed 's/.*-\([a-z]*\).*/\1/')
-          pnpm --filter pylon-dev publish --no-git-checks --tag "${TAG}"
+          pnpm --filter @uplnk/app publish --no-git-checks --tag "${TAG}"
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
