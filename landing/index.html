@@ -176,28 +176,6 @@
       border-color: rgba(200,170,80,0.25);
     }
 
-    /* ── Light mode: comparison table — warm amber Uplnk column ── */
-    html.light .compare-table th.uplnk-col {
-      background: rgba(212,137,15,0.12);
-      border-top-color: #D4890F;
-    }
-
-    html.light .compare-table td.uplnk-col {
-      background: rgba(212,137,15,0.06);
-    }
-
-    html.light .compare-table tr:hover td {
-      background: rgba(140,100,20,0.04);
-    }
-
-    html.light .compare-table tr:hover td.uplnk-col {
-      background: rgba(212,137,15,0.10);
-    }
-
-    html.light .compare-table td {
-      border-bottom-color: rgba(180,160,120,0.3);
-    }
-
     /* ── Light mode: section dividers — warm amber tone ── */
     html.light .section-divider {
       background: linear-gradient(90deg, transparent, rgba(180,140,60,0.35), transparent);
@@ -437,44 +415,6 @@
       width: 3px;
       background: linear-gradient(180deg, var(--accent-green), var(--accent-blue), var(--accent-amber));
     }
-
-    /* ── Comparison table ── */
-    .compare-table {
-      border-collapse: separate;
-      border-spacing: 0;
-      width: 100%;
-    }
-
-    .compare-table th {
-      background: var(--bg-surface);
-      padding: 14px 20px;
-      text-align: left;
-      font-size: 13px;
-      font-weight: 600;
-      letter-spacing: 0.05em;
-      text-transform: uppercase;
-    }
-
-    .compare-table th.uplnk-col {
-      color: var(--brand);
-      background: var(--brand-dim);
-      border-top: 2px solid var(--brand);
-    }
-
-    .compare-table td {
-      padding: 13px 20px;
-      border-bottom: 1px solid rgba(42,42,62,0.5);
-      font-size: 14px;
-    }
-
-    .compare-table tr:last-child td { border-bottom: none; }
-
-    .compare-table td.uplnk-col {
-      background: rgba(245,166,35,0.04);
-    }
-
-    .compare-table tr:hover td { background: rgba(255,255,255,0.02); }
-    .compare-table tr:hover td.uplnk-col { background: rgba(245,166,35,0.07); }
 
     /* ── CTA button ── */
     .btn-primary {
@@ -906,12 +846,12 @@
           </div>
         </div>
 
-        <!-- Scenario 2: The Aider experience -->
+        <!-- Scenario 2 -->
         <div class="rounded-2xl p-8 border" style="background:var(--bg-surface); border-color:var(--border);">
           <div class="flex items-start gap-6">
             <div class="font-mono text-2xl font-bold flex-shrink-0" style="color:var(--brand); line-height:1;">02</div>
             <div>
-              <p class="text-text-primary leading-relaxed mb-4">You installed Aider because it supports Ollama. It does — sort of. The streaming drops out halfway through a long response. The edit format confuses the 8B model. You spend 20 minutes reading error output instead of writing code. You paste the function into Jan.ai and keep going.</p>
+              <p class="text-text-primary leading-relaxed mb-4">You set up a local model and wire it to a chat tool that claims full support. The first few responses look promising. Then you try a longer refactor — the stream cuts out at line 40, the edit lands in the wrong file, and the 8B model loops on a format it was never designed for. You spend 20 minutes reading error output instead of writing code. You paste the function into a plain chat window and keep going.</p>
               <p class="text-sm font-mono" style="color:var(--brand);">◆ With Uplnk: the streaming layer handles local model latency. When a response stalls, you see why. When it succeeds, the output is syntax-highlighted and ready to use.</p>
             </div>
           </div>
@@ -922,7 +862,7 @@
           <div class="flex items-start gap-6">
             <div class="font-mono text-2xl font-bold flex-shrink-0" style="color:var(--brand); line-height:1;">03</div>
             <div>
-              <p class="text-text-primary leading-relaxed mb-4">Your manager asks you to stop using Cursor for work. The security review found that source code is transmitted to third-party inference servers during normal use. You need an alternative that passes infosec review — and doesn't require explaining to the CISO what an ngrok tunnel is.</p>
+              <p class="text-text-primary leading-relaxed mb-4">Your manager asks you to stop using the AI assistant you've been relying on for work. The security review found that source code leaves the building during normal use — routed through inference servers you didn't agree to and can't audit. You need an alternative that passes infosec review without requiring a 45-minute explanation of how the data flows.</p>
               <p class="text-sm font-mono" style="color:var(--brand);">◆ With Uplnk: local inference, no network egress, MIT-licensed source you can audit. The answer to your security team is two words: "runs locally."</p>
             </div>
           </div>
@@ -1108,140 +1048,6 @@
         Requires Node.js 20+ and a running Ollama/vLLM instance.
         <a href="https://ollama.com" target="_blank" rel="noopener" class="text-accent-blue hover:underline ml-1">Get Ollama →</a>
       </p>
-
-    </div>
-  </section>
-
-
-  <div class="section-divider max-w-5xl mx-auto"></div>
-
-
-  <!-- ══════════════════════════════════════════════ COMPARISON ══ -->
-  <section class="py-28" id="compare">
-    <div class="max-w-5xl mx-auto px-5">
-
-      <div class="text-center mb-12">
-        <p class="font-mono text-xs tracking-widest text-text-secondary uppercase mb-4">How it stacks up</p>
-        <h2 class="text-3xl sm:text-4xl font-bold" style="letter-spacing:-0.03em;">
-          The honest comparison.
-        </h2>
-      </div>
-
-      <!-- Legend -->
-      <div class="flex justify-center gap-6 mb-6 text-xs font-mono" style="color:var(--text-secondary);">
-        <span class="flex items-center gap-2"><span class="text-accent-green font-bold">✓</span> Supported</span>
-        <span class="flex items-center gap-2"><span style="color:#FF6060;" class="font-bold">✕</span> Not supported</span>
-        <span class="flex items-center gap-2"><span style="color:var(--brand);">~</span> Partial / cloud-only</span>
-      </div>
-
-      <div class="overflow-x-auto rounded-xl border" style="border-color:var(--border);">
-        <table class="compare-table" role="table">
-          <thead>
-            <tr>
-              <th class="text-text-secondary" style="min-width:220px;">Feature</th>
-              <th class="uplnk-col text-center">
-                <div class="flex flex-col items-center gap-1">
-                  <span style="color:var(--brand); font-weight:700;">UPLNK</span>
-                  <span class="text-xs font-mono font-normal" style="color:var(--text-secondary);">open-source</span>
-                </div>
-              </th>
-              <th class="text-center text-text-secondary">Aider</th>
-              <th class="text-center text-text-secondary">Continue.dev</th>
-              <th class="text-center text-text-secondary">Open WebUI</th>
-              <th class="text-center text-text-secondary">Cursor</th>
-            </tr>
-          </thead>
-          <tbody style="color:var(--text-secondary);">
-            <tr>
-              <td class="font-medium" style="color:var(--text-primary);">
-                Terminal UI (TUI)
-                <span class="block text-xs font-normal mt-0.5" style="color:var(--text-secondary);">Runs inside your existing terminal</span>
-              </td>
-              <td class="uplnk-col text-center"><span style="color:var(--brand);" class="text-lg font-bold">✓</span></td>
-              <td class="text-center"><span class="text-accent-green text-lg">✓</span></td>
-              <td class="text-center text-xs" style="color:var(--text-secondary);">IDE extension</td>
-              <td class="text-center text-xs" style="color:var(--text-secondary);">Web app</td>
-              <td class="text-center text-xs" style="color:var(--text-secondary);">IDE app</td>
-            </tr>
-            <tr>
-              <td class="font-medium" style="color:var(--text-primary);">
-                Local LLM native
-                <span class="block text-xs font-normal mt-0.5" style="color:var(--text-secondary);">Ollama, vLLM, llama.cpp first-class</span>
-              </td>
-              <td class="uplnk-col text-center"><span style="color:var(--brand);" class="text-lg font-bold">✓</span></td>
-              <td class="text-center"><span class="text-accent-green text-lg">✓</span></td>
-              <td class="text-center"><span class="text-accent-green text-lg">✓</span></td>
-              <td class="text-center"><span class="text-accent-green text-lg">✓</span></td>
-              <td class="text-center" style="color:#FF6060;">✕</td>
-            </tr>
-            <tr>
-              <td class="font-medium" style="color:var(--text-primary);">
-                MCP tool calling
-                <span class="block text-xs font-normal mt-0.5" style="color:var(--text-secondary);">Model Context Protocol — file browse + tools <span style="color:var(--brand);">(v0.5)</span></span>
-              </td>
-              <td class="uplnk-col text-center" title="Coming in v0.5"><span style="color:var(--brand);" class="text-lg font-bold">~</span></td>
-              <td class="text-center" style="color:#FF6060;">✕</td>
-              <td class="text-center"><span class="text-accent-green text-lg">✓</span></td>
-              <td class="text-center" style="color:var(--brand);">~</td>
-              <td class="text-center"><span class="text-accent-green text-lg">✓</span></td>
-            </tr>
-            <tr>
-              <td class="font-medium" style="color:var(--text-primary);">
-                Codebase-aware context
-                <span class="block text-xs font-normal mt-0.5" style="color:var(--text-secondary);">Full project indexing + .gitignore <span style="color:var(--brand);">(v0.5)</span></span>
-              </td>
-              <td class="uplnk-col text-center" title="Coming in v0.5"><span style="color:var(--brand);" class="text-lg font-bold">~</span></td>
-              <td class="text-center"><span class="text-accent-green text-lg">✓</span></td>
-              <td class="text-center"><span class="text-accent-green text-lg">✓</span></td>
-              <td class="text-center" style="color:#FF6060;">✕</td>
-              <td class="text-center"><span class="text-accent-green text-lg">✓</span></td>
-            </tr>
-            <tr>
-              <td class="font-medium" style="color:var(--text-primary);">
-                Portable local history
-                <span class="block text-xs font-normal mt-0.5" style="color:var(--text-secondary);">SQLite at <code class="font-mono text-xs">~/.uplnk/db.sqlite</code> — yours forever</span>
-              </td>
-              <td class="uplnk-col text-center"><span style="color:var(--brand);" class="text-lg font-bold">✓</span></td>
-              <td class="text-center" style="color:var(--brand);">~</td>
-              <td class="text-center" style="color:#FF6060;">✕</td>
-              <td class="text-center" style="color:var(--brand);">~</td>
-              <td class="text-center" style="color:#FF6060;">✕</td>
-            </tr>
-            <tr>
-              <td class="font-medium" style="color:var(--text-primary);">
-                Open source
-              </td>
-              <td class="uplnk-col text-center"><span style="color:var(--brand);" class="text-lg font-bold">✓</span></td>
-              <td class="text-center"><span class="text-accent-green text-lg">✓</span></td>
-              <td class="text-center"><span class="text-accent-green text-lg">✓</span></td>
-              <td class="text-center"><span class="text-accent-green text-lg">✓</span></td>
-              <td class="text-center" style="color:#FF6060;">✕</td>
-            </tr>
-            <tr>
-              <td class="font-medium" style="color:var(--text-primary);">
-                No subscription
-              </td>
-              <td class="uplnk-col text-center"><span style="color:var(--brand);" class="text-lg font-bold">✓</span></td>
-              <td class="text-center"><span class="text-accent-green text-lg">✓</span></td>
-              <td class="text-center"><span class="text-accent-green text-lg">✓</span></td>
-              <td class="text-center"><span class="text-accent-green text-lg">✓</span></td>
-              <td class="text-center" style="color:#FF6060;">✕</td>
-            </tr>
-            <tr>
-              <td class="font-medium" style="color:var(--text-primary);">
-                Runs fully offline / air-gapped
-              </td>
-              <td class="uplnk-col text-center"><span style="color:var(--brand);" class="text-lg font-bold">✓</span></td>
-              <td class="text-center"><span class="text-accent-green text-lg">✓</span></td>
-              <td class="text-center" style="color:var(--brand);">~</td>
-              <td class="text-center"><span class="text-accent-green text-lg">✓</span></td>
-              <td class="text-center" style="color:#FF6060;">✕</td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-
-      <p class="text-center text-text-secondary text-xs mt-4 font-mono">For Uplnk, ~ = planned on the public roadmap (v0.5 or v1.0). For others, ~ = partial or requires workaround. Data based on public documentation, April 2026.</p>
 
     </div>
   </section>
@@ -1501,7 +1307,7 @@
 
 
     // ── Smooth reveal on scroll ──────────────────────────────────────
-    const revealEls = document.querySelectorAll('.feature-card, .compare-table, .code-block, section h2');
+    const revealEls = document.querySelectorAll('.feature-card, .code-block, section h2');
 
     const revealObserver = new IntersectionObserver((entries) => {
       entries.forEach(entry => {
