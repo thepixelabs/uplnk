@@ -309,7 +309,7 @@ class PlaintextBackend implements SecretsBackend {
 
 /**
  * OS keychain backend. Uses `@napi-rs/keyring` — a native module with
- * prebuilt binaries for macOS, Linux (libsecret), and Windows. Uplnk does
+ * prebuilt binaries for macOS, Linux (libsecret), and Windows. uplnk does
  * not declare it as a hard dep because the install would break in CI and
  * air-gapped environments. Users who want real keychain storage opt in by
  * installing the package themselves.

@@ -1,5 +1,5 @@
 /**
- * Self-update mechanism for Uplnk.
+ * Self-update mechanism for uplnk.
  *
  * Checks npm registry for a newer version and offers to update via the same
  * package manager that installed uplnk (npm, yarn, pnpm — detected from the

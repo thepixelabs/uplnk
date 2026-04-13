@@ -53,9 +53,12 @@ vi.mock('@uplnk/db', () => ({
   // Path helpers
   getUplnkDir: vi.fn(() => '/tmp/uplnk-test-home/.uplnk'),
   getUplnkDbPath: vi.fn(() => '/tmp/uplnk-test-home/.uplnk/db.sqlite'),
+  getUplnkDir: vi.fn(() => '/tmp/uplnk-test-home/.uplnk'),
   // Provider config queries
   upsertProviderConfig: vi.fn(),
   getDefaultProvider: vi.fn(() => undefined),
+  getProviderById: vi.fn(() => undefined),
+  setDefaultProvider: vi.fn(),
   listProviders: vi.fn(() => []),
   // Conversation queries
   createConversation: vi.fn(() => ({ id: 'test-conv-id', createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(), title: 'New conversation', providerId: null, modelId: null, totalInputTokens: 0, totalOutputTokens: 0, deletedAt: null })),
@@ -66,7 +69,11 @@ vi.mock('@uplnk/db', () => ({
   touchConversation: vi.fn(),
   // Message queries
   insertMessage: vi.fn(),
+  updateMessageContent: vi.fn(),
   getMessages: vi.fn(() => []),
+  // Conversation extras
+  forkConversation: vi.fn(() => ({ id: 'forked-conv-id', title: 'Forked conversation', createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(), deletedAt: null, providerId: null, modelId: null, totalInputTokens: 0, totalOutputTokens: 0 })),
+  searchConversations: vi.fn(() => []),
   // Migration — in tests this should never run against a real file
   runMigrations: vi.fn(),
 }));

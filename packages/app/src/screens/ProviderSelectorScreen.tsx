@@ -3,8 +3,8 @@
  *
  * Triggered by the `/provider` command from ChatInput.
  * Lists providers, supports add / delete / test-connection / set-default
- * inline. Selection passes baseUrl + apiKey back to App so ChatScreen can
- * rebuild its LanguageModel.
+ * inline. Selection passes the full provider identity back to App so
+ * ChatScreen can rebuild its LanguageModel and health checker correctly.
  */
 
 import { memo, useCallback, useEffect, useState } from 'react';
@@ -16,7 +16,14 @@ import { makeProvider, ProviderError } from '@uplnk/providers';
 import { resolveSecret } from '../lib/secrets.js';
 
 interface Props {
-  onSelect: (providerId: string, defaultModel: string, baseUrl: string, apiKey: string) => void;
+  onSelect: (
+    providerId: string,
+    defaultModel: string,
+    baseUrl: string,
+    apiKey: string,
+    providerType: ProviderKind,
+    authMode: AuthMode,
+  ) => void;
   onBack: () => void;
   onAdd: () => void;
   /**
@@ -97,12 +104,21 @@ export const ProviderSelectorScreen = memo(function ProviderSelectorScreen({ onS
     if (key.return) {
       const p = providers[cursor];
       if (p !== undefined) {
+        // Persist the selection to the DB so it survives app restarts.
+        setDefaultProvider(db, p.id);
         // Resolve the DB column through the secrets backend so overrides
         // passed up to App/ChatScreen always carry cleartext. Falls back
         // to the literal 'ollama' placeholder so OpenAI-compat servers that
         // don't verify auth still get a non-empty Bearer header.
         const resolvedKey = resolveSecret(p.apiKey) ?? 'ollama';
-        onSelect(p.id, p.defaultModel ?? 'llama3.2', p.baseUrl, resolvedKey);
+        onSelect(
+          p.id,
+          p.defaultModel ?? 'llama3.2',
+          p.baseUrl,
+          resolvedKey,
+          p.providerType as ProviderKind,
+          (p.authMode ?? 'none') as AuthMode,
+        );
       }
       return;
     }

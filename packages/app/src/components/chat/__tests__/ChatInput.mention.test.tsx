@@ -24,6 +24,11 @@ const { FIXED_CANDIDATES } = vi.hoisted(() => ({
   ],
 }));
 
+// Mock the agent registry so agents don't appear before files in the popover.
+vi.mock('../../../lib/agents/registry.js', () => ({
+  getAgentRegistry: vi.fn(() => ({ list: () => [] })),
+}));
+
 // Must be declared before the ChatInput import so the mock is hoisted.
 // Path is relative to the component (src/components/chat/ChatInput.tsx imports
 // ../../lib/fileMention.js), so we use the absolute src path from the package root.
@@ -66,7 +71,7 @@ describe('ChatInput mention — @ at start of input', () => {
     await tick();
     stdin.write('@');
     await tick();
-    expect(lastFrame()).toContain('@file');
+    expect(lastFrame()).toContain('src/index.ts');
   });
 
   it('shows file candidates when popover is open', async () => {
@@ -94,7 +99,7 @@ describe('ChatInput mention — @ at start of input', () => {
     stdin.write('@');
     await tick();
     // Popover should NOT be open
-    expect(lastFrame()).not.toContain('@file');
+    expect(lastFrame()).not.toContain('src/index.ts');
   });
 
   it('opens the popover when @ follows a space', async () => {
@@ -108,7 +113,7 @@ describe('ChatInput mention — @ at start of input', () => {
     await tick();
     stdin.write('@');
     await tick();
-    expect(lastFrame()).toContain('@file');
+    expect(lastFrame()).toContain('src/index.ts');
   });
 
   it('does not open popover when projectDir is not provided', async () => {
@@ -118,7 +123,7 @@ describe('ChatInput mention — @ at start of input', () => {
     await tick();
     stdin.write('@');
     await tick();
-    expect(lastFrame()).not.toContain('@file');
+    expect(lastFrame()).not.toContain('src/index.ts');
   });
 });
 

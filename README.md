@@ -40,9 +40,9 @@
 
 ---
 
-## Why Uplnk
+## Why uplnk
 
-- **Privacy-first by architecture.** Your code never leaves your machine. No API keys, no cloud routing. Uplnk talks directly to Ollama running on localhost.
+- **Privacy-first by architecture.** Your code never leaves your machine. No API keys, no cloud routing. uplnk talks directly to Ollama running on localhost.
 - **Studio-grade UX, local models.** Streaming text with syntax-highlighted code blocks, an artifact side-panel, conversation persistence, and a keyboard-driven model selector — the experience Claude Code users expect, pointed at your own inference server.
 - **Zero lock-in.** SQLite database at `~/.uplnk/db.sqlite`. Plain JSON config at `~/.uplnk/config.json`. PolyForm Shield 1.0.0 license. Fork it, own it.
 - **Open-source forever.** The full terminal UI, Ollama streaming, MCP file tools, conversation history — all free, no feature gates.
@@ -59,13 +59,13 @@ ollama serve           # if not already running as a service
 ollama pull llama3.2   # or any model you prefer
 ```
 
-**Step 2 — Run Uplnk**
+**Step 2 — Run uplnk**
 
 ```bash
 npx uplnk-dev
 ```
 
-That's it. No global install required. On first run Uplnk creates `~/.uplnk/config.json` and `~/.uplnk/db.sqlite` automatically.
+That's it. No global install required. On first run uplnk creates `~/.uplnk/config.json` and `~/.uplnk/db.sqlite` automatically.
 
 **Step 3 — Verify your setup (optional)**
 
@@ -196,7 +196,7 @@ Relay files live at `~/.uplnk/relays/<id>.json`. You can write or edit them by h
 | `version` | `1` | Schema version. Must be `1`. |
 | `id` | string | Filename stem. Unique across `~/.uplnk/relays/`. Used as the `relay_id` tag on saved conversations. |
 | `name` | string | Display name shown in the Relay Picker. |
-| `scout.providerId` | string | Provider ID from your Uplnk config. |
+| `scout.providerId` | string | Provider ID from your uplnk config. |
 | `scout.model` | string | Model for the analysis phase. A capable 7B–14B local model works well here. |
 | `scout.systemPrompt` | string | System prompt injected for the Scout phase only. |
 | `anchor.providerId` | string | Provider ID for the execution phase. Typically a frontier model. |
@@ -231,7 +231,7 @@ Relay files live at `~/.uplnk/relays/<id>.json`. You can write or edit them by h
 ╰─────────────────────────────────────────────────────────────────╯
 ```
 
-`/scan` probes your local machine and /24 subnet for running AI inference servers and offers one-click addition to Uplnk.
+`/scan` probes your local machine and /24 subnet for running AI inference servers and offers one-click addition to uplnk.
 
 **Invoke it:** type `/scan` in the chat input, or open the command palette (`Ctrl+K`) and choose "Scan local network".
 
@@ -246,15 +246,15 @@ Relay files live at `~/.uplnk/relays/<id>.json`. You can write or edit them by h
 | LocalAI | 8080 |
 | OpenWebUI | 3000 |
 
-Each result shows the server type, URL, and first available model. Press `Enter` on any result to add it to Uplnk — no manual wizard required. Press `a` to add all discovered servers at once.
+Each result shows the server type, URL, and first available model. Press `Enter` on any result to add it to uplnk — no manual wizard required. Press `a` to add all discovered servers at once.
 
-**Subnet scanning requires consent.** Before scanning beyond localhost, Uplnk prompts you once for explicit permission. The scan is on-demand only — Uplnk never probes the network in the background. No data leaves your machine; the scanner makes direct TCP connections on your local network only.
+**Subnet scanning requires consent.** Before scanning beyond localhost, uplnk prompts you once for explicit permission. The scan is on-demand only — uplnk never probes the network in the background. No data leaves your machine; the scanner makes direct TCP connections on your local network only.
 
 ---
 
 ## Configuration
 
-Uplnk reads `~/.uplnk/config.json`. The file is created with defaults on first run.
+uplnk reads `~/.uplnk/config.json`. The file is created with defaults on first run.
 
 ```json
 {
@@ -336,17 +336,17 @@ CLI flags take precedence over `config.json`. `UPLNK_THEME` environment variable
 
 ## uplnk doctor
 
-Run `uplnk doctor` (or `npx uplnk-dev doctor`) to diagnose your environment before filing a bug report.
+Run `uplnk doctor` (or `npx uplnk doctor`) to diagnose your environment before filing a bug report.
 
 ```
-Uplnk Doctor
+uplnk Doctor
 
   ✓  Node.js version        v22.3.0
   ✓  Config directory       /Users/you/.uplnk
   ✓  SQLite database        /Users/you/.uplnk/db.sqlite
   ✓  Ollama reachability    http://localhost:11434
 
-All checks passed. Uplnk is ready.
+All checks passed. uplnk is ready.
 ```
 
 Checks performed:

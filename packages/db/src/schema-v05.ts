@@ -1,5 +1,5 @@
 // ─────────────────────────────────────────────────────────────────────────────
-// Uplnk v0.5 — PROPOSED schema additions / modifications
+// uplnk v0.5 — PROPOSED schema additions / modifications
 // ─────────────────────────────────────────────────────────────────────────────
 // STATUS: PLANNING ONLY. Do NOT import from app code. Do NOT run drizzle-kit
 // generate against this file. It exists as a design artifact to be reviewed

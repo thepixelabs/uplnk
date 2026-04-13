@@ -1,6 +1,6 @@
-# Contributing to Uplnk
+# Contributing to uplnk
 
-Uplnk is PolyForm Shield 1.0.0 licensed and uses a [Developer Certificate of Origin (DCO)](https://developercertificate.org/). By submitting a pull request you certify that you have the right to contribute the code under those terms. Sign off each commit with `git commit -s`.
+uplnk is PolyForm Shield 1.0.0 licensed and uses a [Developer Certificate of Origin (DCO)](https://developercertificate.org/). By submitting a pull request you certify that you have the right to contribute the code under those terms. Sign off each commit with `git commit -s`.
 
 ---
 
@@ -20,7 +20,7 @@ The repo uses pnpm workspaces. Do not use `npm` or `yarn` — lockfile conflicts
 
 ```bash
 # 1. Clone
-git clone https://github.com/uplnkdev/uplnk.git
+git clone https://github.com/thepixelabs/uplnk.git
 cd uplnk
 
 # 2. Install dependencies (all packages)
@@ -115,7 +115,7 @@ pnpm typecheck
 
 ## Commit message format
 
-Uplnk uses [Conventional Commits](https://www.conventionalcommits.org/).
+uplnk uses [Conventional Commits](https://www.conventionalcommits.org/).
 
 ```
 <type>(<scope>): <short summary>

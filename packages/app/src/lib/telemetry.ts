@@ -1,5 +1,5 @@
 /**
- * telemetry.ts — Anonymous opt-in usage telemetry for Uplnk.
+ * telemetry.ts — Anonymous opt-in usage telemetry for uplnk.
  *
  * Privacy guarantees enforced here:
  *   - NEVER collects message content, file paths, user identity, or API keys.

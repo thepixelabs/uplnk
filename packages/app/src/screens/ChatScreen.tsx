@@ -1,15 +1,17 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Box, Text, useApp, useInput } from 'ink';
+import { Box, Text, useApp, useInput, useStdout } from 'ink';
 import { writeFile } from 'node:fs/promises';
 import clipboard from 'clipboardy';
 import type { CoreMessage, LanguageModel } from 'ai';
+import type { AuthMode } from '@uplnk/providers';
 import { createLanguageModel } from '../lib/languageModelFactory.js';
-import { db, getDefaultProvider, insertMessage, updateMessageContent, forkConversation, updateConversationTitle } from '@uplnk/db';
+import { db, getConversation, getDefaultProvider, insertMessage, updateMessageContent, forkConversation, updateConversationTitle } from '@uplnk/db';
 import { resolveSecret } from '../lib/secrets.js';
 import { useStream } from '../hooks/useStream.js';
 import { useConversation } from '../hooks/useConversation.js';
 import { useArtifacts } from '../hooks/useArtifacts.js';
 import { useMcp } from '../hooks/useMcp.js';
+import { useProviderConnectivity } from '../hooks/useProviderConnectivity.js';
 import { useSplitPane } from '../hooks/useSplitPane.js';
 import { getOrCreateConfig } from '../lib/config.js';
 import type { Config } from '../lib/config.js';
@@ -22,11 +24,14 @@ import {
   formatSummaryContent,
   COMPACT_MIN_MESSAGES,
 } from '../lib/compactConversation.js';
-import { getRole, BUILT_IN_ROLES } from '../lib/roles.js';
+import { getRole } from '../lib/roles.js';
+import { parseAgentMention } from '../lib/agents/parseUserInput.js';
+import { getAgentRegistry } from '../lib/agents/registry.js';
+import { AgentOrchestrator } from '../lib/agents/orchestrator.js';
+import { getGlobalAgentEventBus } from '../lib/agents/eventBus.js';
+import { useAgentRun } from '../hooks/useAgentRun.js';
+import { AgentEventView } from '../components/chat/AgentEventView.js';
 import { MessageList } from '../components/chat/MessageList.js';
-import { MessageListWindowed } from '../components/chat/MessageListWindowed.js';
-import { StreamingMessage } from '../components/chat/StreamingMessage.js';
-import { useTerminalSize } from '../hooks/useTerminalSize.js';
 import {
   buildLineIndex,
   windowByLineOffset,
@@ -39,6 +44,11 @@ import { StatusBar } from '../components/layout/StatusBar.js';
 import { ArtifactPanel } from '../components/artifacts/ArtifactPanel.js';
 import { ApprovalDialog } from '../components/mcp/ApprovalDialog.js';
 import type { UplnkError } from '@uplnk/shared';
+import {
+  buildProviderConnectionDisplay,
+  inferProviderAuthMode,
+} from '../lib/providerConnectivity.js';
+import { VERSION } from '../lib/version.js';
 
 interface Props {
   initialModel?: string;
@@ -46,6 +56,8 @@ interface Props {
   projectDir?: string;
   overrideBaseUrl?: string;
   overrideApiKey?: string;
+  overrideProviderType?: string;
+  overrideAuthMode?: AuthMode;
   config?: Config;
   onNavigate?: (screen: string) => void;
   onError: (error: UplnkError) => void;
@@ -57,6 +69,10 @@ interface Props {
    */
   onForkedTo?: (newConversationId: string) => void;
 }
+
+const HEADER_HEIGHT = 6; // Outer border plus two inner metadata rows
+const STATUS_BAR_HEIGHT = 1;
+const CHAT_INPUT_HEIGHT = 5; // Fixed height ChatInput area
 
 const DEFAULT_CONFIG: Config = {
   version: 1,
@@ -72,8 +88,9 @@ const DEFAULT_CONFIG: Config = {
   networkScanner: { timeoutMs: 2000, concurrency: 16 },
 };
 
-export function ChatScreen({ initialModel, resumeConversationId, projectDir, overrideBaseUrl, overrideApiKey, config: configProp, onError, onCommand, onForkedTo }: Props) {
+export function ChatScreen({ initialModel, resumeConversationId, projectDir, overrideBaseUrl, overrideApiKey, overrideProviderType, overrideAuthMode, config: configProp, onError, onCommand, onForkedTo }: Props) {
   const { exit } = useApp();
+  const { stdout } = useStdout();
 
   // Use config passed from bin/uplnk.ts. Falls back to getOrCreateConfig() for
   // non-CLI entry points (tests, Storybook). In production the config is always
@@ -93,19 +110,21 @@ export function ChatScreen({ initialModel, resumeConversationId, projectDir, ove
   // Provider settings — loaded once via ref, but overrides from props take priority.
   // `apiKey` from the DB column may be a `@secret:` ref (resolved via the
   // secrets backend) or legacy plaintext — `resolveSecret` handles both.
-  const providerRef = useRef<{ baseURL: string; apiKey: string; defaultModel: string; providerType: string } | null>(null);
+  const providerRef = useRef<{ baseURL: string; apiKey: string; defaultModel: string; providerType: string; authMode: AuthMode } | null>(null);
   if (providerRef.current === null) {
     const row = getDefaultProvider(db);
     const resolvedKey = overrideApiKey ?? resolveSecret(row?.apiKey) ?? 'ollama';
+    const providerType = overrideProviderType ?? row?.providerType ?? 'ollama';
     providerRef.current = {
       baseURL: overrideBaseUrl ?? row?.baseUrl ?? 'http://localhost:11434/v1',
       apiKey: resolvedKey,
       defaultModel: row?.defaultModel ?? config.defaultModel ?? 'llama3.2',
-      providerType: row?.providerType ?? 'ollama',
+      providerType,
+      authMode: overrideAuthMode ?? (row?.authMode as AuthMode | undefined) ?? inferProviderAuthMode(providerType),
     };
   }
   // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-  const { baseURL, apiKey, defaultModel, providerType } = providerRef.current!;
+  const { baseURL, apiKey, defaultModel, providerType, authMode } = providerRef.current!;
 
   const resolvedModel = initialModel ?? defaultModel;
 
@@ -130,7 +149,12 @@ export function ChatScreen({ initialModel, resumeConversationId, projectDir, ove
 
   // Conversation must come before useMcp so conversationId is available for
   // BC-5 rate limiting (tool call counter resets on new conversation).
-  const { conversationId, messages, addMessage, appendAssistantToState, replaceWithSummary } = useConversation(resumeConversationId);
+  const { conversationId, messages, addMessage, updateMessageInState, appendAssistantToState, replaceWithSummary } = useConversation(resumeConversationId);
+  const [conversationTitle, setConversationTitle] = useState(() =>
+    resumeConversationId !== undefined
+      ? getConversation(db, resumeConversationId)?.title ?? 'New conversation'
+      : 'New conversation',
+  );
 
   // MCP tools (file-browse + git always on; command-exec feature-flagged)
   // BC-3: pass commandExecConfirmedAt so useMcp can enforce the double-check.
@@ -173,6 +197,27 @@ export function ChatScreen({ initialModel, resumeConversationId, projectDir, ove
     configServers: normalizedConfigServers,
   });
 
+  // ─── Agent system ────────────────────────────────────────────────────────────
+  const agentRegistry = useMemo(
+    () => getAgentRegistry(projectDir !== undefined ? { projectDir } : undefined),
+    [projectDir],
+  );
+  const agentEventBus = useMemo(() => getGlobalAgentEventBus(), []);
+  const agentOrchestrator = useMemo(
+    () =>
+      new AgentOrchestrator({
+        registry: agentRegistry,
+        modelFactory: (spec) =>
+          spec.model === 'inherit' || spec.model === undefined
+            ? activeModel
+            : createLanguageModel({ providerType, baseURL, apiKey, modelId: spec.model }),
+        rootTools: mcpTools,
+        eventBus: agentEventBus,
+      }),
+    [agentRegistry, agentEventBus, activeModel, providerType, baseURL, apiKey, mcpTools],
+  );
+  const agentRun = useAgentRun({ orchestrator: agentOrchestrator, eventBus: agentEventBus });
+
   // Build project context once at mount — used as a system message prefix
   const projectContextRef = useRef<string | null>(null);
   if (projectContextRef.current === null && projectDir !== undefined) {
@@ -181,19 +226,25 @@ export function ChatScreen({ initialModel, resumeConversationId, projectDir, ove
   }
 
   const { streamedText, status, activeToolName, error, sessionTokens, send, abort } = useStream(activeModel);
+  const connectionState = useProviderConnectivity({ providerType, baseURL, apiKey, authMode });
   const { activeArtifact, promoteArtifact, dismissArtifact, updateArtifact } = useArtifacts();
   const { artifactWidthPct, chatWidthPct, growArtifact, shrinkArtifact } = useSplitPane();
-  const { columns: termCols, rows: termRows } = useTerminalSize();
+  const { columns: termCols, rows: termRows } = stdout || { columns: 80, rows: 24 };
   const prevStatusRef = useRef(status);
+  const currentDirectory = projectDir ?? process.cwd();
+  const connectionDisplay = buildProviderConnectionDisplay(connectionState);
+
+  // Active role (null = no role)
+  const [activeRole, setActiveRole] = useState<string | null>(null);
+  // Transient feedback message (export confirmation, role applied, etc.)
+  const [feedbackMsg, setFeedbackMsg] = useState<string | null>(null);
+  // Help panel visibility (toggled by /help)
+  const [showHelp, setShowHelp] = useState(false);
 
   // ─── Scrollback state ──────────────────────────────────────────────────────
   // `scrollTopLine` is the line index (from the top of the full transcript)
   // that should appear at the top of the viewport. 0 means "pinned to the
   // bottom / live mode" — same semantics as the existing <Static> renderer.
-  //
-  // We store the TOP line rather than an offset-from-bottom so that when
-  // new messages arrive while the user is scrolled up, their view doesn't
-  // jump: the same starting message stays at the top of the viewport.
   const [scrollTopLine, setScrollTopLine] = useState(0);
   const inScrollback = scrollTopLine > 0;
 
@@ -202,11 +253,15 @@ export function ChatScreen({ initialModel, resumeConversationId, projectDir, ove
     ? Math.max(20, Math.floor((termCols * chatWidthPct) / 100) - 2)
     : Math.max(20, termCols - 2);
 
-  // Chrome reservation — header (2) + status bar (1) + input area (~3) +
-  // streaming placeholder (~2) + indicator line (1). Err on the generous
-  // side; worst case the window shrinks slightly.
-  const CHROME_LINES = 10;
-  const viewportLines = Math.max(5, termRows - CHROME_LINES);
+  // Fixed reservation height (Header + StatusBar + ChatInput + feedback area + scroll indicator)
+  const CHROME_HEIGHT =
+    HEADER_HEIGHT +
+    STATUS_BAR_HEIGHT +
+    CHAT_INPUT_HEIGHT +
+    (feedbackMsg !== null ? 1 : 0) +
+    (activeRole !== null ? 1 : 0) +
+    (inScrollback ? 3 : 0);
+  const viewportLines = Math.max(5, termRows - CHROME_HEIGHT);
 
   const lineIndex = useMemo(
     () => buildLineIndex(messages, chatCols),
@@ -214,16 +269,13 @@ export function ChatScreen({ initialModel, resumeConversationId, projectDir, ove
   );
   const totalContentLines = totalLines(lineIndex);
 
-  // Visible slice for the current scroll position. Memoised on messages +
-  // geometry so scrollback feels instant on long transcripts.
+  // Visible slice for the current scroll position.
   const { startIdx: scrollStartIdx, endIdx: scrollEndIdx } = useMemo(() => {
-    if (scrollTopLine <= 0) return { startIdx: 0, endIdx: 0 };
-    return windowByLineOffset(lineIndex, scrollTopLine, viewportLines);
-  }, [lineIndex, scrollTopLine, viewportLines]);
+    const targetLine = inScrollback ? scrollTopLine : Math.max(0, totalContentLines - viewportLines);
+    return windowByLineOffset(lineIndex, targetLine, viewportLines);
+  }, [lineIndex, scrollTopLine, viewportLines, totalContentLines, inScrollback]);
 
   // When new messages arrive or streaming starts, drop back to live mode.
-  // A new assistant response should always be visible — even if the user
-  // forgot they were scrolled up.
   const lastMessageCountRef = useRef(messages.length);
   useEffect(() => {
     if (messages.length !== lastMessageCountRef.current) {
@@ -237,17 +289,10 @@ export function ChatScreen({ initialModel, resumeConversationId, projectDir, ove
     }
   }, [status]);
 
-  /**
-   * Locate the message currently at the top of the viewport. In scrollback
-   * mode this is the first message whose start line is >= scrollTopLine.
-   * In live mode (scrollTopLine === 0), it's the first message visible in
-   * the bottom viewport window.
-   */
+  /** Locate the message currently at the top of the viewport. */
   const findCurrentTopMessage = useCallback((): number => {
     if (lineIndex.length === 0) return 0;
-    const targetLine = inScrollback
-      ? scrollTopLine
-      : Math.max(0, totalContentLines - viewportLines);
+    const targetLine = inScrollback ? scrollTopLine : Math.max(0, totalContentLines - viewportLines);
     let top = 0;
     for (let i = 0; i < lineIndex.length; i++) {
       // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
@@ -258,14 +303,12 @@ export function ChatScreen({ initialModel, resumeConversationId, projectDir, ove
     return top;
   }, [inScrollback, lineIndex, scrollTopLine, totalContentLines, viewportLines]);
 
-  /** Scroll up by one message — snap the top of the next-older message to the top of the viewport. */
+  /** Scroll up by one message */
   const scrollUpOneMessage = useCallback(() => {
     if (lineIndex.length === 0) return;
     const currentTop = findCurrentTopMessage();
     const nextMsg = currentTop - 1;
     if (nextMsg < 0) {
-      // Already at the first message. If live view already shows it, noop;
-      // otherwise snap to line 1 so the first message sits at the top.
       if (totalContentLines > viewportLines) setScrollTopLine(1);
       return;
     }
@@ -273,7 +316,7 @@ export function ChatScreen({ initialModel, resumeConversationId, projectDir, ove
     setScrollTopLine(Math.max(1, nextLine));
   }, [findCurrentTopMessage, lineIndex, totalContentLines, viewportLines]);
 
-  /** Scroll down by one message. Drop back to live mode if we pass the bottom. */
+  /** Scroll down by one message */
   const scrollDownOneMessage = useCallback(() => {
     if (!inScrollback || lineIndex.length === 0) return;
     const currentTop = findCurrentTopMessage();
@@ -289,85 +332,88 @@ export function ChatScreen({ initialModel, resumeConversationId, projectDir, ove
     }
     setScrollTopLine(Math.max(1, nextLine));
   }, [findCurrentTopMessage, inScrollback, lineIndex, totalContentLines, viewportLines]);
-  // ───────────────────────────────────────────────────────────────────────────
 
-  // Focus ownership: 'chat' lets ChatInput receive keys; 'artifact' forwards keys
-  // to ArtifactPanel. Tab (in ChatScreen's useInput) toggles when a panel is open.
+  // ─── Stream persistence ──────────────────────────────────────────────────
+  const assistantMessageIdRef = useRef<string | null>(null);
+
+  // Keep assistant message content in sync with streamedText while streaming.
+  useEffect(() => {
+    if (status === 'streaming' && assistantMessageIdRef.current) {
+      updateMessageInState(assistantMessageIdRef.current, streamedText);
+    }
+  }, [streamedText, status, updateMessageInState]);
+
+  useEffect(() => {
+    if (prevStatusRef.current === 'streaming' && status === 'done' && streamedText) {
+      const id = assistantMessageIdRef.current;
+      if (id !== null) {
+        appendAssistantToState(id, streamedText);
+      }
+      assistantMessageIdRef.current = null;
+    }
+    prevStatusRef.current = status;
+  }, [status, streamedText, appendAssistantToState]);
+
+  useEffect(() => {
+    if (error) onError(error);
+  }, [error, onError]);
+
+  // ─── Handlers ────────────────────────────────────────────────────────────
   const [focusedPanel, setFocusedPanel] = useState<'chat' | 'artifact'>('chat');
+  const [isCompacting, setIsCompacting] = useState(false);
 
   const handleDismissArtifact = useCallback(() => {
     dismissArtifact();
     setFocusedPanel('chat');
   }, [dismissArtifact]);
 
-  // Save artifact contents to disk. Resolves on success, rejects with an
-  // Error so ArtifactPanel can surface the message in its status line.
   const handleSaveArtifact = useCallback(async (path: string, content: string) => {
     await writeFile(path, content, 'utf-8');
   }, []);
 
-  // Copy raw artifact content (no ANSI codes) to the system clipboard via
-  // clipboardy. clipboardy.write returns a Promise<void>.
   const handleCopyArtifact = useCallback(async (content: string) => {
     await clipboard.write(content);
   }, []);
 
-  // Active role (null = no role)
-  const [activeRole, setActiveRole] = useState<string | null>(null);
-  // Transient feedback message (export confirmation, role applied, etc.)
-  const [feedbackMsg, setFeedbackMsg] = useState<string | null>(null);
-  // True while /compact is generating a summary. Drives the StatusBar
-  // overrideLabel and re-entrancy guards in handleCompact.
-  const [isCompacting, setIsCompacting] = useState(false);
-
-  // Build role system prompt — injected as system message if no existing one.
-  // Declared here (above handleSubmit) so it's in scope for the useCallback dep array.
-  const rolePrompt = activeRole !== null ? getRole(activeRole)?.prompt : undefined;
-
-  // Track the id of the in-flight assistant message for incremental persistence.
-  // Set before streaming starts; cleared when done.
-  const assistantMessageIdRef = useRef<string | null>(null);
-
-  // Commit the completed assistant message to React state.
-  // C1 fix (H2): the DB row was pre-inserted at stream start and kept in sync
-  // via onPersist → updateMessageContent. We must NOT call addMessage here,
-  // because addMessage would run a second insertMessage and leave two rows for
-  // the same turn. appendAssistantToState only touches React state (plus a
-  // touchConversation bump) using the pre-inserted id.
-  useEffect(() => {
-    if (prevStatusRef.current === 'streaming' && status === 'done' && streamedText) {
-      const id = assistantMessageIdRef.current;
-      if (id !== null) {
-        appendAssistantToState(id, streamedText);
-      } else {
-        // Fallback: no pre-inserted id (shouldn't happen in the normal flow,
-        // but guards against a future code path that skips pre-insert).
-        addMessage({ role: 'assistant', content: streamedText });
-      }
-      assistantMessageIdRef.current = null;
-    }
-    prevStatusRef.current = status;
-  }, [status, streamedText, addMessage, appendAssistantToState]);
-
-  useEffect(() => {
-    if (error) onError(error);
-  }, [error, onError]);
-
   const handleSubmit = useCallback(
     async (input: string) => {
-      if (!input.trim() || status === 'streaming') return;
+      if (!input.trim() || status === 'streaming' || agentRun.status === 'running') return;
 
-      // Auto-derive a title on the first user message so the conversation
-      // list isn't full of rows reading "New conversation". We derive from
-      // the user's own words (first line, clamped to 60 chars) — no LLM
-      // call required, no extra latency, works offline. Idempotent: only
-      // runs when the conversation currently has no messages.
+      // ─── Agent @mention routing ─────────────────────────────────────────────
+      const agentMatch = parseAgentMention(input, agentRegistry);
+      if (agentMatch !== null) {
+        if (messages.length === 0) {
+          const firstLine = input.trim().split(/\r?\n/)[0] ?? input.trim();
+          const title = firstLine.slice(0, 60).trim();
+          if (title !== '') {
+            try {
+              updateConversationTitle(db, conversationId, title);
+              setConversationTitle(title);
+            } catch { /* non-fatal */ }
+          }
+        }
+        addMessage({ role: 'user', content: input });
+        const history: CoreMessage[] = messages
+          .filter((m) => m.role === 'user' || m.role === 'assistant' || m.role === 'system')
+          .map((m): CoreMessage => ({ role: m.role as 'user' | 'assistant' | 'system', content: m.content ?? '' }));
+        try {
+          const result = await agentRun.run(agentMatch.agent, agentMatch.prompt, history);
+          const agentMsgId = crypto.randomUUID();
+          insertMessage(db, { id: agentMsgId, conversationId, role: 'assistant', content: result.finalText });
+          appendAssistantToState(agentMsgId, result.finalText);
+        } catch {
+          // Error already emitted on the event bus and shown in AgentEventView
+        }
+        return;
+      }
+
       if (messages.length === 0) {
         const firstLine = input.trim().split(/\r?\n/)[0] ?? input.trim();
         const title = firstLine.slice(0, 60).trim();
         if (title !== '') {
           try {
             updateConversationTitle(db, conversationId, title);
+            setConversationTitle(title);
           } catch {
             // Non-fatal — title is cosmetic.
           }
@@ -376,74 +422,61 @@ export function ChatScreen({ initialModel, resumeConversationId, projectDir, ove
 
       addMessage({ role: 'user', content: input });
 
-      // Build CoreMessage history — messages state hasn't updated yet (setState is async),
-      // so we append the new user message explicitly at the end.
-      // System message priority: role > project context > none
-      // Only inject if there isn't already a system message persisted in the conversation.
-      const hasSystemMessage = messages.some((m) => m.role === 'system');
-      const systemContent = !hasSystemMessage
-        ? (rolePrompt ?? projectContextRef.current ?? null)
-        : null;
-      const projectSystemMessage: CoreMessage | null =
-        systemContent !== null
-          ? { role: 'system', content: systemContent }
-          : null;
+      const assistantMsgId = crypto.randomUUID();
+      assistantMessageIdRef.current = assistantMsgId;
+      
+      // DB row pre-inserted above; React state will be updated when streaming completes
+      // via appendAssistantToState (using assistantMsgId).
 
+      // Persistence to DB
+      insertMessage(db, { id: assistantMsgId, conversationId, role: 'assistant', content: '' });
+
+      const rolePrompt = activeRole !== null ? getRole(activeRole)?.prompt : undefined;
+      const hasSystemMessage = messages.some((m) => m.role === 'system');
+      // Always include a system prompt. Without one, some local models (e.g. qwen2.5, llama)
+      // default to emitting raw tool-call JSON for casual messages instead of responding
+      // conversationally. The fallback keeps behaviour predictable when no role/project
+      // context is set.
+      const FALLBACK_SYSTEM =
+        'You are a helpful assistant. Respond conversationally to casual messages. ' +
+        'Only use tools when the user\'s request explicitly requires accessing files, ' +
+        'running commands, or interacting with the system.';
+      const systemContent = !hasSystemMessage
+        ? (rolePrompt ?? projectContextRef.current ?? FALLBACK_SYSTEM)
+        : null;
+      
       const coreMessages: CoreMessage[] = [
-        ...(projectSystemMessage !== null ? [projectSystemMessage] : []),
+        ...(systemContent ? [{ role: 'system', content: systemContent } as const] : []),
         ...messages
           .filter((m) => m.role === 'user' || m.role === 'assistant' || m.role === 'system')
-          .map((m): CoreMessage => {
-            if (m.role === 'assistant') return { role: 'assistant', content: m.content ?? '' };
-            if (m.role === 'system') return { role: 'system', content: m.content ?? '' };
-            return { role: 'user', content: m.content ?? '' };
-          }),
+          .map((m): CoreMessage => ({
+            role: m.role as 'user' | 'assistant' | 'system',
+            content: m.content ?? '',
+          })),
         { role: 'user', content: input },
       ];
 
-      // C1: Insert an empty assistant row ONLY in SQLite (not React state) so partial
-      // text survives a SIGKILL mid-stream. React state is updated at the end via
-      // updateMessageInState (which replaces the placeholder content).
-      // Not calling addMessageWithId to avoid showing an empty bubble in the UI.
-      const assistantMsgId = crypto.randomUUID();
-      assistantMessageIdRef.current = assistantMsgId;
-      insertMessage(db, {
-        id: assistantMsgId,
-        conversationId,
-        role: 'assistant',
-        content: '',
-      });
-
-      // Model routing: when the router is active, pick the best model for this
-      // message and override the hook's default model for this single request.
       let modelOverride: LanguageModel | undefined;
       if (modelRouter !== null) {
-        // conversationTurnCount = user messages already in state (before this one)
         const turnCount = messages.filter((m) => m.role === 'user').length;
         const { modelId } = modelRouter.route(input, turnCount);
         modelOverride = createLanguageModel({ providerType, baseURL, apiKey, modelId });
       }
 
-      // Pass MCP tools to the stream, plus the persistence callback
       await send(coreMessages, mcpTools, {
         onPersist: (text) => updateMessageContent(db, assistantMsgId, text),
         ...(modelOverride !== undefined ? { modelOverride } : {}),
       });
     },
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [conversationId, messages, status, send, addMessage, mcpTools, rolePrompt, modelRouter, baseURL, apiKey],
+    [conversationId, messages, status, send, addMessage, mcpTools, activeRole, projectContextRef, modelRouter, providerType, baseURL, apiKey]
   );
 
   const handleFork = useCallback(() => {
-    if (status === 'streaming') {
-      setFeedbackMsg('Cannot fork while streaming. Wait for the response to finish or Ctrl+C to abort.');
-      setTimeout(() => setFeedbackMsg(null), 4000);
-      return;
-    }
+    if (status === 'streaming') return;
     const lastMsg = messages[messages.length - 1];
     if (lastMsg === undefined) {
-      setFeedbackMsg('Nothing to fork — send at least one message first.');
-      setTimeout(() => setFeedbackMsg(null), 4000);
+      setFeedbackMsg('Nothing to fork');
+      setTimeout(() => setFeedbackMsg(null), 3000);
       return;
     }
     try {
@@ -453,171 +486,93 @@ export function ChatScreen({ initialModel, resumeConversationId, projectDir, ove
       onForkedTo?.(forked.id);
     } catch (err) {
       setFeedbackMsg(`Fork failed: ${err instanceof Error ? err.message : String(err)}`);
-      setTimeout(() => setFeedbackMsg(null), 4000);
     }
   }, [conversationId, messages, status, onForkedTo]);
 
-  // /compact — summarise the older portion of the conversation down to a
-  // single synthetic message to free context window space.
-  //
-  // Invariants:
-  //   - Uses the ACTIVE provider/model (`activeModel`) — no hardcoded id.
-  //   - On provider error, state is left UNTOUCHED. The user sees an error
-  //     feedback but the conversation is unchanged.
-  //   - Re-entrant calls are guarded by `isCompacting`.
-  //   - Cannot run while the main stream is live (would race with the
-  //     assistant message currently being written).
   const handleCompact = useCallback(async () => {
-    if (isCompacting) return;
-    if (status === 'streaming') {
-      setFeedbackMsg('Cannot compact while streaming. Wait for the response to finish.');
-      setTimeout(() => setFeedbackMsg(null), 4000);
-      return;
-    }
+    if (isCompacting || status === 'streaming') return;
     if (messages.length < COMPACT_MIN_MESSAGES) {
       setFeedbackMsg('Nothing to compact yet.');
       setTimeout(() => setFeedbackMsg(null), 3000);
       return;
     }
-
     const { toSummarise } = splitForCompaction(messages);
-    if (toSummarise.length === 0) {
-      setFeedbackMsg('Nothing to compact yet.');
-      setTimeout(() => setFeedbackMsg(null), 3000);
-      return;
-    }
+    if (toSummarise.length === 0) return;
 
     setIsCompacting(true);
     try {
       const summary = await summariseMessages(activeModel, toSummarise);
-      // Only mutate state AFTER a successful summary. If generateText threw,
-      // we never get here and the conversation is untouched.
       const idsToRemove = toSummarise.map((m) => m.id);
       replaceWithSummary(idsToRemove, formatSummaryContent(summary));
-      setFeedbackMsg(`\u2713 Compacted ${idsToRemove.length} messages. Context freed.`);
+      setFeedbackMsg(`✓ Compacted ${idsToRemove.length} messages. Context freed.`);
       setTimeout(() => setFeedbackMsg(null), 4000);
     } catch (err) {
-      const msg = err instanceof Error ? err.message : String(err);
-      setFeedbackMsg(`Compact failed: ${msg}`);
-      setTimeout(() => setFeedbackMsg(null), 5000);
+      setFeedbackMsg(`Compact failed: ${err instanceof Error ? err.message : String(err)}`);
     } finally {
       setIsCompacting(false);
     }
   }, [isCompacting, status, messages, activeModel, replaceWithSummary]);
 
-  // Handle commands from ChatInput (slash commands and navigation)
   const handleCommand = useCallback((command: string) => {
-    if (command === 'fork') {
-      handleFork();
-      return;
-    }
-    if (command === 'compact') {
-      void handleCompact();
-      return;
-    }
+    if (command === 'help') { setShowHelp((prev) => !prev); return; }
+    if (command === 'fork') { handleFork(); return; }
+    if (command === 'compact') { void handleCompact(); return; }
     if (command.startsWith('export:') || command === 'export') {
       const format = command === 'export:json' ? 'json' : 'markdown';
       try {
         const result = exportConversation(messages, { format });
-        setFeedbackMsg(`Exported ${result.messageCount} messages → ${result.path}`);
+        setFeedbackMsg(`Exported → ${result.path}`);
         setTimeout(() => setFeedbackMsg(null), 4000);
       } catch (err) {
         setFeedbackMsg(`Export failed: ${err instanceof Error ? err.message : String(err)}`);
-        setTimeout(() => setFeedbackMsg(null), 4000);
       }
       return;
     }
-
     if (command.startsWith('role:')) {
       const roleId = command.slice('role:'.length).trim();
-      if (roleId === '' || roleId === 'list') {
-        // Show available roles as feedback
-        const list = BUILT_IN_ROLES.map((t) => `  ${t.id} — ${t.name}`).join('\n');
-        setFeedbackMsg(`Available roles:\n${list}`);
-        setTimeout(() => setFeedbackMsg(null), 8000);
-        return;
-      }
-      if (roleId === 'clear') {
-        setActiveRole(null);
-        setFeedbackMsg('Role cleared.');
-        setTimeout(() => setFeedbackMsg(null), 2000);
-        return;
-      }
+      if (roleId === 'clear') { setActiveRole(null); return; }
       const role = getRole(roleId);
-      if (role !== undefined) {
-        setActiveRole(role.id);
-        setFeedbackMsg(`Role: ${role.name} — applied.`);
-        setTimeout(() => setFeedbackMsg(null), 2000);
-      } else {
-        setFeedbackMsg(`Unknown role: ${roleId}. Use /role list to see options.`);
-        setTimeout(() => setFeedbackMsg(null), 4000);
-      }
+      if (role) { setActiveRole(role.id); setFeedbackMsg(`Role: ${role.name}`); }
+      setTimeout(() => setFeedbackMsg(null), 2000);
       return;
     }
-
-    // Navigation commands
     onCommand?.(command);
   }, [messages, onCommand, handleFork, handleCompact]);
 
   useInput((input, key) => {
     if (key.ctrl && input === 'c') {
-      if (status === 'streaming') {
-        abort();
-      } else {
-        exit();
-      }
+      if (agentRun.status === 'running') agentRun.abort();
+      else if (status === 'streaming') abort();
+      else exit();
     }
-
-    // Scrollback — Shift+PgUp / Shift+PgDn as the primary binding, with
-    // plain PgUp / PgDn as a fallback for terminals that don't forward the
-    // Shift modifier on function keys (most xterm variants don't). Alt+key
-    // sequences are deliberately avoided — they're unreliable across
-    // terminals and conflict with multi-line input in ChatInput.
-    //
-    // Esc while in scrollback returns to live mode. We only consume Esc
-    // when there's no artifact panel and we are actually scrolled up, so
-    // the common-case Esc-in-input-field still reaches ChatInput.
-    if (key.pageUp) {
-      scrollUpOneMessage();
-      return;
-    }
-    if (key.pageDown) {
-      scrollDownOneMessage();
-      return;
-    }
-    if (inScrollback && key.escape && activeArtifact === null) {
-      setScrollTopLine(0);
-      return;
-    }
-
+    if (key.pageUp) { scrollUpOneMessage(); return; }
+    if (key.pageDown) { scrollDownOneMessage(); return; }
+    if (showHelp && key.escape && !inScrollback && activeArtifact === null) { setShowHelp(false); return; }
+    if (inScrollback && key.escape && activeArtifact === null) { setScrollTopLine(0); return; }
     if (activeArtifact !== null) {
-      // Escape dismisses the artifact panel (no readline conflict)
-      if (key.escape) {
-        handleDismissArtifact();
-        return;
-      }
-      // Tab toggles keyboard focus between chat and artifact panel
-      if (input === '\t') {
-        setFocusedPanel((p) => (p === 'chat' ? 'artifact' : 'chat'));
-        return;
-      }
-      // [ / ] resize the artifact panel in split-pane mode
+      if (key.escape) { handleDismissArtifact(); return; }
+      if (input === '\t') { setFocusedPanel((p) => (p === 'chat' ? 'artifact' : 'chat')); return; }
       if (input === '[') { shrinkArtifact(); return; }
       if (input === ']') { growArtifact(); return; }
     }
   });
 
-  const hasSplitPane = activeArtifact !== null;
-
-  // When routing is enabled, append "(router)" to the displayed model name so
-  // the user knows that automatic model selection is in effect.
   const displayModelName = routerActive ? `${resolvedModel} (router)` : resolvedModel;
+  const headerProps = {
+    modelName: displayModelName,
+    conversationTitle,
+    currentDirectory,
+    version: VERSION,
+    connectionLabel: connectionDisplay.label,
+    connectionDetail: connectionDisplay.detail,
+    connectionColor: connectionDisplay.color,
+  };
 
-  // When an approval dialog is pending, render it as a blocking overlay
   if (pendingApproval !== null) {
     return (
-      <Box flexDirection="column">
-        <Header modelName={displayModelName} conversationTitle="New conversation" />
+      <Box flexDirection="column" height={termRows}>
+        <Header {...headerProps} />
+        <Box flexGrow={1} />
         <ApprovalDialog
           request={pendingApproval}
           onApprove={(id) => resolveApproval(id, true)}
@@ -627,85 +582,180 @@ export function ChatScreen({ initialModel, resumeConversationId, projectDir, ove
     );
   }
 
-  // Scrollback indicator — shown above the windowed view so the user has
-  // an obvious affordance for getting back to live mode.
   const scrollIndicator = inScrollback ? (
-    <Box paddingX={1}>
+    <Box paddingX={1} borderStyle="single" borderColor="#FBBF24">
       <Text color="#FBBF24">
         ── SCROLLBACK  msg {Math.min(scrollStartIdx + 1, messages.length)}–
-        {Math.min(scrollEndIdx, messages.length)}/{messages.length}  ·  Shift+PgDn / Esc to return ──
+        {Math.min(scrollEndIdx, messages.length)}/{messages.length}  ·  Esc return ──
       </Text>
     </Box>
   ) : null;
 
   const chatContent = (
-    <Box flexDirection="column" flexGrow={1}>
-      {inScrollback ? (
-        <>
-          {scrollIndicator}
-          <MessageListWindowed
+    <Box flexDirection="column" flexGrow={1} overflow="hidden">
+      {/* Fixed scroll indicator at top of message area */}
+      {scrollIndicator}
+
+      {/* Scrollable Message List with flex-end alignment to the bottom */}
+      <Box
+        flexDirection="column"
+        flexGrow={1}
+        overflow="hidden"
+        justifyContent={totalContentLines > viewportLines ? 'flex-end' : 'flex-start'}
+      >
+        <Box flexDirection="column" flexShrink={0}>
+          <MessageList
             messages={messages}
             startIdx={scrollStartIdx}
             endIdx={scrollEndIdx}
+            onPromote={promoteArtifact}
+            {...(config.displayName !== undefined ? { displayName: config.displayName } : {})}
           />
-        </>
-      ) : (
-        <>
-          <MessageList messages={messages} onPromote={promoteArtifact} />
-          <StreamingMessage text={streamedText} status={status} />
-        </>
-      )}
-      {feedbackMsg !== null && (
-        <Box paddingX={1} marginY={1}>
-          <Text color="#4ADE80">{feedbackMsg}</Text>
+          {(agentRun.status === 'running' || agentRun.events.length > 0) && (
+            <AgentEventView
+              rootInvocationId={agentRun.rootInvocationId}
+              events={agentRun.events}
+              registry={agentRegistry}
+            />
+          )}
         </Box>
-      )}
-      {activeRole !== null && (
-        <Box paddingX={1}>
-          <Text color="#475569">Role: {getRole(activeRole)?.name ?? activeRole}  /role clear to remove</Text>
-        </Box>
-      )}
-      <StatusBar
-        status={status}
-        messageCount={messages.length}
-        activeToolName={activeToolName}
-        sessionTokens={sessionTokens}
-        overrideLabel={isCompacting ? '\u2211 Compacting\u2026' : null}
-      />
-      <ChatInput
-        onSubmit={handleSubmit}
-        onCommand={handleCommand}
-        disabled={status === 'streaming' || focusedPanel === 'artifact' || isCompacting}
-        {...(projectDir !== undefined ? { projectDir } : {})}
-      />
+      </Box>
+
+      {/* Fixed Footer Area */}
+      <Box flexDirection="column" flexShrink={0}>
+        {showHelp && (
+          <Box flexDirection="column" borderStyle="round" borderColor="#7B6FFF" paddingX={1} marginX={1}>
+            <Box flexDirection="row" justifyContent="space-between">
+              <Text bold color="#7B6FFF">Commands</Text>
+              <Text bold color="#7B6FFF">Keys</Text>
+            </Box>
+            <Box flexDirection="row" justifyContent="space-between">
+              <Text>
+                <Text color="#60A5FA">/model</Text>
+                <Text dimColor>  switch model  </Text>
+                <Text color="#60A5FA">/provider</Text>
+                <Text dimColor>  switch provider</Text>
+              </Text>
+              <Text>
+                <Text color="#60A5FA">Enter</Text>
+                <Text dimColor>  submit</Text>
+              </Text>
+            </Box>
+            <Box flexDirection="row" justifyContent="space-between">
+              <Text>
+                <Text color="#60A5FA">/role</Text>
+                <Text dimColor>  [id|clear]  set or clear role</Text>
+              </Text>
+              <Text>
+                <Text color="#60A5FA">Shift+Enter</Text>
+                <Text dimColor>  new line</Text>
+              </Text>
+            </Box>
+            <Box flexDirection="row" justifyContent="space-between">
+              <Text>
+                <Text color="#60A5FA">/fork</Text>
+                <Text dimColor>  branch conversation  </Text>
+                <Text color="#60A5FA">/compact</Text>
+                <Text dimColor>  summarise context</Text>
+              </Text>
+              <Text>
+                <Text color="#60A5FA">↑↓</Text>
+                <Text dimColor>  browse history  </Text>
+                <Text color="#60A5FA">PgUp/Dn</Text>
+                <Text dimColor>  scroll</Text>
+              </Text>
+            </Box>
+            <Box flexDirection="row" justifyContent="space-between">
+              <Text>
+                <Text color="#60A5FA">/export</Text>
+                <Text dimColor>  [json|md]  </Text>
+                <Text color="#60A5FA">/conversations</Text>
+                <Text dimColor>  history</Text>
+              </Text>
+              <Text>
+                <Text color="#60A5FA">Ctrl+V</Text>
+                <Text dimColor>  paste image or text</Text>
+              </Text>
+            </Box>
+            <Box flexDirection="row" justifyContent="space-between">
+              <Text>
+                <Text color="#60A5FA">/relay</Text>
+                <Text dimColor>  relay picker  </Text>
+                <Text color="#60A5FA">/scan</Text>
+                <Text dimColor>  network scan</Text>
+              </Text>
+              <Text>
+                <Text color="#60A5FA">Ctrl+C</Text>
+                <Text dimColor>  abort stream / quit</Text>
+              </Text>
+            </Box>
+            <Box flexDirection="row" justifyContent="space-between">
+              <Text>
+                <Text color="#60A5FA">@agent</Text>
+                <Text dimColor>  mention agent  </Text>
+                <Text color="#60A5FA">@file</Text>
+                <Text dimColor>  attach file  </Text>
+                <Text color="#60A5FA">@folder/</Text>
+                <Text dimColor>  attach folder</Text>
+              </Text>
+              <Text>
+                <Text color="#60A5FA">Esc</Text>
+                <Text dimColor>  close this panel</Text>
+              </Text>
+            </Box>
+          </Box>
+        )}
+        {feedbackMsg !== null && (
+          <Box paddingX={1}>
+            <Text color="#4ADE80">{feedbackMsg}</Text>
+          </Box>
+        )}
+        {activeRole !== null && (
+          <Box paddingX={1}>
+            <Text color="#475569">Role: {getRole(activeRole)?.name ?? activeRole}</Text>
+          </Box>
+        )}
+        <StatusBar
+          status={status}
+          messageCount={messages.length}
+          activeToolName={activeToolName}
+          sessionTokens={sessionTokens}
+          overrideLabel={isCompacting ? 'Compacting...' : null}
+        />
+        <ChatInput
+          onSubmit={handleSubmit}
+          onCommand={handleCommand}
+          disabled={status === 'streaming' || agentRun.status === 'running' || focusedPanel === 'artifact' || isCompacting}
+          projectDir={currentDirectory}
+        />
+      </Box>
     </Box>
   );
 
   return (
-    <Box flexDirection="column">
-      <Header modelName={displayModelName} conversationTitle="New conversation" />
-      {hasSplitPane ? (
-        <Box flexDirection="row" flexGrow={1}>
-          <Box flexDirection="column" width={`${chatWidthPct}%`}>
-            {chatContent}
-          </Box>
+    <Box flexDirection="column" height={termRows} overflow="hidden">
+      {/* Fixed Header */}
+      <Box flexShrink={0} height={HEADER_HEIGHT}>
+        <Header {...headerProps} />
+      </Box>
+
+      {/* Main Content Area */}
+      <Box flexDirection="row" flexGrow={1} overflow="hidden">
+        <Box flexDirection="column" flexGrow={1} overflow="hidden" width={activeArtifact ? `${chatWidthPct}%` : '100%'}>
+          {chatContent}
+        </Box>
+        {activeArtifact && (
           <ArtifactPanel
             artifact={activeArtifact}
             onClose={handleDismissArtifact}
-            onApply={(finalCode) => {
-              if (activeArtifact !== null) {
-                updateArtifact(activeArtifact.id, { code: finalCode });
-              }
-            }}
+            onApply={(finalCode) => updateArtifact(activeArtifact.id, { code: finalCode })}
             onSave={handleSaveArtifact}
             onCopy={handleCopyArtifact}
             focused={focusedPanel === 'artifact'}
             widthPct={artifactWidthPct}
           />
-        </Box>
-      ) : (
-        chatContent
-      )}
+        )}
+      </Box>
     </Box>
   );
 }

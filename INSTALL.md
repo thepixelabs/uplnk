@@ -1,6 +1,6 @@
-# Installing Uplnk
+# Installing uplnk
 
-Uplnk is a terminal-native LLM developer assistant. It requires Node.js 20 or later
+uplnk is a terminal-native LLM developer assistant. It requires Node.js 20 or later
 and a running LLM provider (Ollama, vLLM, LM Studio, or any OpenAI-compatible endpoint).
 
 ---
@@ -71,7 +71,7 @@ For now, use the npm install above.
 ## Option 4: Docker
 
 Docker support is planned post-MVP for users who prefer not to install Node.js
-globally or who want to run Uplnk alongside Ollama in a compose stack.
+globally or who want to run uplnk alongside Ollama in a compose stack.
 
 Once published:
 
@@ -92,7 +92,7 @@ docker run --rm -it \
 | OS | macOS, Linux |
 | LLM provider | Ollama, vLLM, LM Studio, or any OpenAI-compatible endpoint |
 
-Uplnk does not currently support Windows natively. WSL2 on Windows works.
+uplnk does not currently support Windows natively. WSL2 on Windows works.
 
 ---
 
@@ -124,7 +124,7 @@ uplnk --model llama3.2 --provider http://localhost:11434
 npm update -g uplnk-dev
 ```
 
-Uplnk will also print a notice at startup when a newer version is available on npm.
+uplnk will also print a notice at startup when a newer version is available on npm.
 Set `UPLNK_UPDATE_CHECK=false` in your environment to suppress the notice.
 
 ---

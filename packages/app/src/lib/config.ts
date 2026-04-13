@@ -12,6 +12,12 @@ const ConfigSchema = z.object({
   defaultModel: z.string().optional(),
   theme: z.enum(['dark', 'light']).default('dark'),
   /**
+   * Display name shown in the chat UI instead of "you".
+   * Set this to your name or handle in config.json.
+   * Example: { "displayName": "alex" }
+   */
+  displayName: z.string().min(1).max(32).optional(),
+  /**
    * Anonymous opt-in telemetry. Absent key = disabled (treat same as false).
    * Written on first run after the user responds to the opt-in prompt.
    */
@@ -232,6 +238,20 @@ const ConfigSchema = z.object({
       concurrency: z.number().int().positive().default(16),
     })
     .default({}),
+  /**
+   * Boot splash animation settings.
+   * Absent key = splash is shown (same as enabled: true).
+   * Set enabled: false to suppress the animation on every launch without
+   * needing to set the UPLNK_NO_INTRO=1 environment variable.
+   *
+   * Example config.json entry:
+   *   { "splashScreen": { "enabled": false } }
+   */
+  splashScreen: z
+    .object({
+      enabled: z.boolean().default(true),
+    })
+    .optional(),
 });
 
 export type Config = z.infer<typeof ConfigSchema>;
