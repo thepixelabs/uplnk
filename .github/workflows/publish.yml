@@ -40,14 +40,10 @@ jobs:
 
       - name: Publish (stable)
         if: "!contains(github.event.release.tag_name, '-')"
-        run: pnpm --filter @uplnk/app publish --no-git-checks
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: pnpm --filter @uplnk/app publish --no-git-checks --provenance
 
       - name: Publish (pre-release)
         if: "contains(github.event.release.tag_name, '-')"
         run: |
           TAG=$(echo "${{ github.event.release.tag_name }}" | sed 's/.*-\([a-z]*\).*/\1/')
-          pnpm --filter @uplnk/app publish --no-git-checks --tag "${TAG}"
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+          pnpm --filter @uplnk/app publish --no-git-checks --provenance --tag "${TAG}"
