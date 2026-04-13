@@ -1,17 +1,21 @@
 ```
-▐█▌ PYLON
+▐█▌ uplnk
 ```
-**Local models. Smart routing. Studio-grade UX.**
+**Your code stays on your machine. Your costs stay in check.**
+
+*For DevOps and staff engineers who run AI-assisted workflows in the terminal — local-first, multi-provider, with intelligent cost routing between local and frontier models.*
 
 [![npm](https://img.shields.io/npm/v/pylon-dev?color=60A5FA&label=npm)](https://www.npmjs.com/package/pylon-dev)
 [![License](https://img.shields.io/badge/license-Apache%202.0-blue)](LICENSE)
 [![Node](https://img.shields.io/badge/node-%3E%3D20-green)](https://nodejs.org)
 
+> The npm package is transitioning from `pylon-dev` to `uplnk`. Existing `npx pylon-dev` invocations continue to work during the transition.
+
 ---
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
-│ ▐█▌ PYLON          New conversation               llama3.2      │
+│ ▐█▌ uplnk          New conversation               llama3.2      │
 ├─────────────────────────────────────────────────────────────────┤
 │                                                                  │
 │  You  ──────────────────────────────────────────────────────    │
@@ -40,12 +44,12 @@
 
 ---
 
-## Why Pylon
+## Why uplnk
 
-- **Privacy-first by architecture.** Your code never leaves your machine. No API keys, no cloud routing. Pylon talks directly to Ollama running on localhost.
+- **Privacy-first by architecture.** Your code never leaves your machine when you run against a local provider. No cloud routing by default. uplnk talks directly to Ollama (or any OpenAI-compatible server) running on localhost.
 - **Studio-grade UX, local models.** Streaming text with syntax-highlighted code blocks, an artifact side-panel, conversation persistence, and a keyboard-driven model selector — the experience Claude Code users expect, pointed at your own inference server.
-- **Zero lock-in.** SQLite database at `~/.pylon/db.sqlite`. Plain JSON config at `~/.pylon/config.json`. Apache 2.0 license. Fork it, own it.
-- **Open-source forever.** The full terminal UI, Ollama streaming, MCP file tools, conversation history — all free, no feature gates.
+- **Zero lock-in.** SQLite database at `~/.uplnk/db.sqlite`. Plain JSON config at `~/.uplnk/config.json`. Apache 2.0 license. Fork it, own it.
+- **Open-source forever.** The full terminal UI, streaming, MCP tools, conversation history — all free, no feature gates.
 - **Cost-intelligent by design.** Relay Mode routes cheap triage and analysis work to local models and reserves frontier API spend for final execution. The Scout/Anchor split cuts per-session API cost 60–80% on eligible tasks — without changing the quality of the answer you get back.
 
 ---
@@ -59,13 +63,13 @@ ollama serve           # if not already running as a service
 ollama pull llama3.2   # or any model you prefer
 ```
 
-**Step 2 — Run Pylon**
+**Step 2 — Run uplnk**
 
 ```bash
 npx pylon-dev
 ```
 
-That's it. No global install required. On first run Pylon creates `~/.pylon/config.json` and `~/.pylon/db.sqlite` automatically.
+That's it. No global install required. On first run uplnk creates `~/.uplnk/config.json` and `~/.uplnk/db.sqlite` automatically.
 
 **Step 3 — Verify your setup (optional)**
 
@@ -77,52 +81,18 @@ npx pylon-dev doctor
 
 ## Features
 
-### Built (v0.1)
-
-- [x] Terminal chat UI (Ink/React) with real-time Ollama streaming
-- [x] Syntax-highlighted code blocks in responses
-- [x] Artifact side-panel — expandable code blocks in a 50/50 split view
-- [x] Conversation persistence — SQLite via Drizzle ORM
-- [x] Conversation history list (`Ctrl+L`)
-- [x] Resume a previous conversation (`--conversation <id>`)
-- [x] `/model` command palette — browse and switch Ollama models without leaving the chat
-- [x] Input history — `↑`/`↓` to cycle through messages sent this session
-- [x] MCP file tools — `mcp_file_read` and `mcp_file_list` (path allowlist enforced)
-- [x] MCP command-exec tool — feature-flagged off by default; requires explicit config opt-in and human approval dialog per invocation
-- [x] Dark theme (default) and light theme (`--theme light` or `PYLON_THEME=light`)
-- [x] `pylon doctor` — pre-flight checks for Node version, config dir, SQLite, and Ollama reachability
-- [x] Crash log at `/tmp/pylon-crash.log` for debugging
-- [x] `Ctrl+C` aborts a streaming response without exiting
-
-### Shipped in v0.2
-
-- [x] Multi-provider support (Ollama, OpenAI-compatible, LM Studio, vLLM, LocalAI, llama.cpp, OpenAI, Anthropic, custom) with a remote-server add-wizard and connection testing
-- [x] Live model discovery + a static catalog of known models merged in a two-section browser
-- [x] Conversation list + full-text search (title and message content)
-- [x] Branching via `/fork` — create a new conversation from any message
-- [x] System prompt templates — `/template` command, 5 built-ins
-- [x] Custom MCP server configuration via `config.mcp.servers` (stdio + http)
-- [x] `@file` mention in chat input with path autocomplete popover
-- [x] Multi-line input — `Shift+Enter` (or `Alt+Enter`) inserts a newline
-- [x] Diff view before applying file edits — per-hunk accept/reject
-- [x] Auto-derived conversation titles from the first user message
-- [x] Plugin loader end-to-end — installed community plugins now actually load into MCP
-
-### Also shipped in v0.2 (pulled forward, no deferrals)
-
-- [x] Encrypted secrets backend — AES-256-GCM file by default, optional OS keychain via `@napi-rs/keyring` (user-installed)
-- [x] Native Anthropic chat dispatch via `@ai-sdk/anthropic`
-- [x] MCP audit log rotation (10 MB, one backup)
-- [x] Bulk provider registration from `config.json`
-- [x] `pylon doctor migrate-secrets` — proactive migration of legacy plaintext rows with two-phase compensating rollback
-- [x] `pylon doctor prune-secrets` — orphaned secret ref cleanup with bulk delete
-- [x] Provider editing from inside the TUI (`e` in the provider list)
-- [x] RAG auto-init when local Ollama exposes `nomic-embed-text` (SSRF-guarded for non-localhost)
-
-### Shipped in v0.3.0
-
-- [x] Network Scanner (`/scan`) — probes localhost and your /24 subnet for running Ollama, LM Studio, vLLM, llama.cpp, LocalAI, and OpenWebUI servers; press Enter to add a discovered server without the manual wizard
-- [x] Relay Mode (`/relay`) — two-phase cost-routing workflow: a cheap local model (Scout) analyzes the task, a frontier model (Anchor) executes it; relays are saved as portable JSON templates in `~/.pylon/relays/`
+- Terminal chat UI (Ink/React) with real-time streaming
+- Syntax-highlighted code blocks in responses
+- Artifact side-panel — expandable code blocks in a 50/50 split view
+- Conversation persistence and history list, with full-text search
+- Multi-provider support — Ollama, OpenAI-compatible, LM Studio, vLLM, LocalAI, llama.cpp, OpenAI, Anthropic, custom endpoints
+- Relay Mode — two-phase cost routing between a local Scout model and a frontier Anchor model
+- Network Scanner — auto-discover inference servers on localhost and your /24 subnet
+- MCP tools — file read/list with path allowlist, optional command-exec behind explicit consent
+- RAG over your project directory when a local embedder is available
+- Plugin loader for community MCP servers
+- Encrypted secrets backend — AES-256-GCM by default, optional OS keychain
+- `uplnk doctor` — preflight checks for Node, config, database, and provider reachability
 
 ---
 
@@ -130,7 +100,7 @@ npx pylon-dev doctor
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
-│ ▐█▌ PYLON          relay: code-review               /relay      │
+│ ▐█▌ uplnk          relay: code-review               /relay      │
 ├─────────────────────────────────────────────────────────────────┤
 │                                                                  │
 │  Scout  ── qwen2.5:7b ──────────────────────────────────────    │
@@ -170,7 +140,7 @@ The editor walks you through four steps: name → Scout config → Anchor config
 
 ### Relay file format
 
-Relay files live at `~/.pylon/relays/<id>.json`. You can write or edit them by hand.
+Relay files live at `~/.uplnk/relays/<id>.json`. You can write or edit them by hand.
 
 ```json
 {
@@ -194,9 +164,9 @@ Relay files live at `~/.pylon/relays/<id>.json`. You can write or edit them by h
 | Field | Type | Description |
 |---|---|---|
 | `version` | `1` | Schema version. Must be `1`. |
-| `id` | string | Filename stem. Unique across `~/.pylon/relays/`. Used as the `relay_id` tag on saved conversations. |
+| `id` | string | Filename stem. Unique across `~/.uplnk/relays/`. Used as the `relay_id` tag on saved conversations. |
 | `name` | string | Display name shown in the Relay Picker. |
-| `scout.providerId` | string | Provider ID from your Pylon config. |
+| `scout.providerId` | string | Provider ID from your uplnk config. |
 | `scout.model` | string | Model for the analysis phase. A capable 7B–14B local model works well here. |
 | `scout.systemPrompt` | string | System prompt injected for the Scout phase only. |
 | `anchor.providerId` | string | Provider ID for the execution phase. Typically a frontier model. |
@@ -210,7 +180,7 @@ Relay files live at `~/.pylon/relays/<id>.json`. You can write or edit them by h
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
-│ ▐█▌ PYLON          Network scan                     /scan       │
+│ ▐█▌ uplnk          Network scan                     /scan       │
 ├─────────────────────────────────────────────────────────────────┤
 │                                                                  │
 │  Scanning local network for AI inference servers…  /            │
@@ -231,7 +201,7 @@ Relay files live at `~/.pylon/relays/<id>.json`. You can write or edit them by h
 ╰─────────────────────────────────────────────────────────────────╯
 ```
 
-`/scan` probes your local machine and /24 subnet for running AI inference servers and offers one-click addition to Pylon.
+`/scan` probes your local machine and /24 subnet for running AI inference servers and offers one-click addition to uplnk.
 
 **Invoke it:** type `/scan` in the chat input, or open the command palette (`Ctrl+K`) and choose "Scan local network".
 
@@ -246,15 +216,15 @@ Relay files live at `~/.pylon/relays/<id>.json`. You can write or edit them by h
 | LocalAI | 8080 |
 | OpenWebUI | 3000 |
 
-Each result shows the server type, URL, and first available model. Press `Enter` on any result to add it to Pylon — no manual wizard required. Press `a` to add all discovered servers at once.
+Each result shows the server type, URL, and first available model. Press `Enter` on any result to add it to uplnk — no manual wizard required. Press `a` to add all discovered servers at once.
 
-**Subnet scanning requires consent.** Before scanning beyond localhost, Pylon prompts you once for explicit permission. The scan is on-demand only — Pylon never probes the network in the background. No data leaves your machine; the scanner makes direct TCP connections on your local network only.
+**Subnet scanning requires consent.** Before scanning beyond localhost, uplnk prompts you once for explicit permission. The scan is on-demand only — uplnk never probes the network in the background. No data leaves your machine; the scanner makes direct TCP connections on your local network only.
 
 ---
 
 ## Configuration
 
-Pylon reads `~/.pylon/config.json`. The file is created with defaults on first run.
+uplnk reads `~/.uplnk/config.json`. The file is created with defaults on first run.
 
 ```json
 {
@@ -277,7 +247,7 @@ Pylon reads `~/.pylon/config.json`. The file is created with defaults on first r
 | Field | Type | Default | Description |
 |---|---|---|---|
 | `version` | `1` | `1` | Config schema version. Must be `1`. |
-| `defaultModel` | string | `"llama3.2"` | Model passed to Ollama when no `--model` flag is given. |
+| `defaultModel` | string | `"llama3.2"` | Model passed to the provider when no `--model` flag is given. |
 | `theme` | `"dark"` \| `"light"` | `"dark"` | Color theme. Override at runtime with `--theme`. |
 | `mcp.allowedPaths` | string[] | `[]` | Absolute paths the LLM may read via MCP file tools. Empty array defaults to the current working directory. |
 | `mcp.commandExecEnabled` | boolean | `false` | Enables the `mcp_command_exec` tool. Disabled by default — read the [MCP security notes](#mcp-security) before enabling. |
@@ -287,14 +257,14 @@ Pylon reads `~/.pylon/config.json`. The file is created with defaults on first r
 To edit the config in your `$EDITOR`:
 
 ```bash
-pylon config
+uplnk config
 ```
 
 ### CLI flags
 
 ```
 USAGE
-  pylon [command] [options]
+  uplnk [command] [options]
 
 COMMANDS
   chat            Start or resume a conversation (default)
@@ -311,7 +281,7 @@ OPTIONS
   -v, --version       Show version
 ```
 
-CLI flags take precedence over `config.json`. `PYLON_THEME` environment variable is also respected.
+CLI flags take precedence over `config.json`. The `UPLNK_THEME` environment variable is also respected. (`PYLON_THEME` is deprecated, use `UPLNK_THEME`.)
 
 ---
 
@@ -334,19 +304,19 @@ CLI flags take precedence over `config.json`. `PYLON_THEME` environment variable
 
 ---
 
-## pylon doctor
+## uplnk doctor
 
-Run `pylon doctor` (or `npx pylon-dev doctor`) to diagnose your environment before filing a bug report.
+Run `uplnk doctor` (or `npx pylon-dev doctor`) to diagnose your environment before filing a bug report.
 
 ```
-Pylon Doctor
+uplnk Doctor
 
   ✓  Node.js version        v22.3.0
-  ✓  Config directory       /Users/you/.pylon
-  ✓  SQLite database        /Users/you/.pylon/db.sqlite
+  ✓  Config directory       /Users/you/.uplnk
+  ✓  SQLite database        /Users/you/.uplnk/db.sqlite
   ✓  Ollama reachability    http://localhost:11434
 
-All checks passed. Pylon is ready.
+All checks passed. uplnk is ready.
 ```
 
 Checks performed:
@@ -354,11 +324,13 @@ Checks performed:
 | Check | Pass condition |
 |---|---|
 | Node.js version | >= 20 |
-| Config directory | `~/.pylon` exists and is writable |
-| SQLite database | `~/.pylon/db.sqlite` is accessible and responds to a query |
+| Config directory | `~/.uplnk` exists and is writable |
+| SQLite database | `~/.uplnk/db.sqlite` is accessible and responds to a query |
 | Ollama reachability | `http://localhost:11434/api/tags` responds within 3 seconds |
 
-If a check fails, the output shows the exact reason. Fix the issue and re-run `pylon doctor`.
+If a check fails, the output shows the exact reason. Fix the issue and re-run `uplnk doctor`.
+
+**Migration from `~/.pylon/`.** On first run after upgrading from a `pylon`-era install, `uplnk doctor` automatically migrates `~/.pylon/` to `~/.uplnk/` — config, database, relays, secrets, and plugins are moved in place. The original `~/.pylon/` directory is left untouched as a backup. Re-running `uplnk doctor` after migration is a no-op.
 
 ---
 
@@ -372,6 +344,8 @@ The `mcp_command_exec` tool is **disabled by default** and gated by two layers o
 2. Every invocation shows an in-terminal approval dialog. The command does not run until you press `y`.
 
 The tool executes with a stripped environment (no secrets inherited from the parent process), a 30-second timeout, shell expansion disabled (`shell: false`), and a 512 KB output limit.
+
+Crash logs are written to `~/.uplnk/crash.log` with mode `0600`.
 
 Do not enable `commandExecEnabled` in shared or automated environments.
 

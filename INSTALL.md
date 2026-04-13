@@ -1,7 +1,11 @@
-# Installing Pylon
+# Installing uplnk
 
-Pylon is a terminal-native LLM developer assistant. It requires Node.js 20 or later
+uplnk is a terminal-native LLM developer assistant. It requires Node.js 20 or later
 and a running LLM provider (Ollama, vLLM, LM Studio, or any OpenAI-compatible endpoint).
+
+> The npm package is transitioning from `pylon-dev` to `uplnk`. Existing
+> `npx pylon-dev` and `npm install -g pylon-dev` commands continue to work
+> during the transition.
 
 ---
 
@@ -20,14 +24,14 @@ Useful for one-off use or before committing to a global install.
 
 ```sh
 npm install -g pylon-dev
-pylon
+uplnk
 ```
 
 Or with pnpm:
 
 ```sh
 pnpm add -g pylon-dev
-pylon
+uplnk
 ```
 
 ### Stable channel (default)
@@ -46,22 +50,24 @@ npm install -g pylon-dev@canary   # bleeding edge, every main-branch build
 ### Verify the install
 
 ```sh
-pylon --version
-pylon doctor
+uplnk --version
+uplnk doctor
 ```
 
-`pylon doctor` checks Node.js version, config directory writability, SQLite
-database health, and Ollama reachability in one pass.
+`uplnk doctor` checks Node.js version, config directory writability, SQLite
+database health, and Ollama reachability in one pass. If you are upgrading
+from a `pylon`-era install, `uplnk doctor` will also migrate `~/.pylon/` to
+`~/.uplnk/` on first run.
 
 ---
 
 ## Option 3: Homebrew (macOS / Linux)
 
-Homebrew support is coming in v0.2.0. Once the tap is published:
+Homebrew support is planned. Once the tap is published:
 
 ```sh
 brew tap pixelicous/tap
-brew install pylon
+brew install uplnk
 ```
 
 For now, use the npm install above.
@@ -70,15 +76,15 @@ For now, use the npm install above.
 
 ## Option 4: Docker
 
-Docker support is planned post-MVP for users who prefer not to install Node.js
-globally or who want to run Pylon alongside Ollama in a compose stack.
+Docker support is planned for users who prefer not to install Node.js
+globally or who want to run uplnk alongside Ollama in a compose stack.
 
 Once published:
 
 ```sh
 docker run --rm -it \
-  -v ~/.config/pylon:/root/.config/pylon \
-  ghcr.io/pixelicous/pylon:latest
+  -v ~/.uplnk:/root/.uplnk \
+  ghcr.io/pixelicous/uplnk:latest
 ```
 
 ---
@@ -92,7 +98,7 @@ docker run --rm -it \
 | OS | macOS, Linux |
 | LLM provider | Ollama, vLLM, LM Studio, or any OpenAI-compatible endpoint |
 
-Pylon does not currently support Windows natively. WSL2 on Windows works.
+uplnk does not currently support Windows natively. WSL2 on Windows works.
 
 ---
 
@@ -104,16 +110,16 @@ ollama serve &
 ollama pull llama3.2
 
 # 2. Verify everything looks good
-pylon doctor
+uplnk doctor
 
 # 3. Start a conversation
-pylon
+uplnk
 
 # 4. Resume a previous conversation
-pylon --conversation <id>
+uplnk --conversation <id>
 
 # 5. Pick a specific model
-pylon --model llama3.2 --provider http://localhost:11434
+uplnk --model llama3.2 --provider http://localhost:11434
 ```
 
 ---
@@ -124,8 +130,8 @@ pylon --model llama3.2 --provider http://localhost:11434
 npm update -g pylon-dev
 ```
 
-Pylon will also print a notice at startup when a newer version is available on npm.
-Set `PYLON_UPDATE_CHECK=false` in your environment to suppress the notice.
+uplnk will also print a notice at startup when a newer version is available on npm.
+Set `UPLNK_NO_UPDATE=1` in your environment to suppress the notice.
 
 ---
 
@@ -133,5 +139,5 @@ Set `PYLON_UPDATE_CHECK=false` in your environment to suppress the notice.
 
 ```sh
 npm uninstall -g pylon-dev
-rm -rf ~/.config/pylon      # removes config and conversation database
+rm -rf ~/.uplnk      # removes config and conversation database
 ```
