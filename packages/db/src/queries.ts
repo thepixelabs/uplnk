@@ -140,6 +140,14 @@ export function updateMessageContent(
     .run();
 }
 
+/**
+ * Delete a single message by id. Used by the /compact flow to drop messages
+ * that have been summarised into a single synthetic message.
+ */
+export function deleteMessage(db: Db, id: string): void {
+  db.delete(messages).where(eq(messages.id, id)).run();
+}
+
 export function getMessages(db: Db, conversationId: string): Message[] {
   return db
     .select()
