@@ -139,8 +139,9 @@ describe('ArtifactPanel', () => {
       cleanup();
     });
 
-    it('renders [Tab: focus chat] hint when focused', async () => {
+    it('renders Tab-focus-chat hint when focused', async () => {
       const { lastFrame, cleanup } = await renderPanel(makeArtifact(), true);
+      // Footer is abbreviated when focused to make room for [w save]/[y copy]
       expect(stripAnsi(lastFrame()!)).toContain('[Tab: focus chat]');
       cleanup();
     });

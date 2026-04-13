@@ -174,7 +174,7 @@ export function ChatScreen({ initialModel, resumeConversationId, projectDir, ove
     projectContextRef.current = ctx?.systemPrompt ?? null;
   }
 
-  const { streamedText, status, activeToolName, error, send, abort } = useStream(activeModel);
+  const { streamedText, status, activeToolName, error, sessionTokens, send, abort } = useStream(activeModel);
   const { activeArtifact, promoteArtifact, dismissArtifact, updateArtifact } = useArtifacts();
   const { artifactWidthPct, chatWidthPct, growArtifact, shrinkArtifact } = useSplitPane();
   const prevStatusRef = useRef(status);
@@ -452,7 +452,12 @@ export function ChatScreen({ initialModel, resumeConversationId, projectDir, ove
           <Text color="#475569">Role: {getRole(activeRole)?.name ?? activeRole}  /role clear to remove</Text>
         </Box>
       )}
-      <StatusBar status={status} messageCount={messages.length} activeToolName={activeToolName} />
+      <StatusBar
+        status={status}
+        messageCount={messages.length}
+        activeToolName={activeToolName}
+        sessionTokens={sessionTokens}
+      />
       <ChatInput
         onSubmit={handleSubmit}
         onCommand={handleCommand}
@@ -478,6 +483,8 @@ export function ChatScreen({ initialModel, resumeConversationId, projectDir, ove
                 updateArtifact(activeArtifact.id, { code: finalCode });
               }
             }}
+            onSave={handleSaveArtifact}
+            onCopy={handleCopyArtifact}
             focused={focusedPanel === 'artifact'}
             widthPct={artifactWidthPct}
           />
