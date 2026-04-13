@@ -5,6 +5,11 @@ import { ModelSelectorScreen } from './screens/ModelSelectorScreen.js';
 import { ConversationListScreen } from './screens/ConversationListScreen.js';
 import { ProviderSelectorScreen } from './screens/ProviderSelectorScreen.js';
 import { AddProviderScreen } from './screens/AddProviderScreen.js';
+import { RelayPickerScreen } from './screens/RelayPickerScreen.js';
+import { RelayRunScreen } from './screens/RelayRunScreen.js';
+import { RelayEditorScreen } from './screens/RelayEditorScreen.js';
+import { NetworkScanScreen } from './screens/NetworkScanScreen.js';
+import type { RelayPlan } from './lib/workflows/planSchema.js';
 import type { AuthMode, ProviderKind } from '@uplnk/providers';
 import { CommandPalette } from './components/layout/CommandPalette.js';
 import type { PaletteCommand } from './components/layout/CommandPalette.js';
@@ -12,7 +17,17 @@ import { ErrorBanner } from './components/layout/ErrorBanner.js';
 import type { UplnkError } from '@uplnk/shared';
 import type { Config } from './lib/config.js';
 
-export type Screen = 'chat' | 'model-selector' | 'conversations' | 'provider-selector' | 'add-provider' | 'edit-provider';
+export type Screen =
+  | 'chat'
+  | 'model-selector'
+  | 'conversations'
+  | 'provider-selector'
+  | 'add-provider'
+  | 'edit-provider'
+  | 'relay-picker'
+  | 'relay-run'
+  | 'relay-editor'
+  | 'network-scan';
 
 interface EditingProvider {
   id: string;
@@ -63,13 +78,28 @@ export function App({ initialModel = 'qwen2.5:7b', resumeConversationId, project
   // path. Cleared on save/cancel.
   const [editingProvider, setEditingProvider] = useState<EditingProvider | null>(null);
 
+  // Relay run state — the picker hands a (plan, userInput) pair to the run
+  // screen via App so we can route back to the picker on Esc/done.
+  const [activeRelayRun, setActiveRelayRun] = useState<{ plan: RelayPlan; userInput: string } | null>(null);
+  // planId being edited in RelayEditorScreen (undefined = new plan).
+  const [editingRelayId, setEditingRelayId] = useState<string | undefined>(undefined);
+
   useInput((input, key) => {
     // Ctrl+K opens/closes command palette
     if (key.ctrl && input === 'k') { setPaletteOpen((o) => !o); return; }
     // Ctrl+C is handled by exitOnCtrlC in render() — no manual exit() needed
     if (key.ctrl && input === 'l') { setCurrentScreen('conversations'); return; }
     if (key.escape && paletteOpen) { setPaletteOpen(false); return; }
-    if (key.escape && currentScreen !== 'chat') { setCurrentScreen('chat'); return; }
+    // Screens with multi-step internal Esc handling own their own back nav.
+    // The global "Esc → chat" shortcut would otherwise stomp on their state
+    // (e.g. RelayEditorScreen's wizard step-back, RelayRunScreen's abort+
+    // return-to-picker, NetworkScanScreen's cancelScan).
+    const ownsEsc =
+      currentScreen === 'relay-editor' ||
+      currentScreen === 'relay-run' ||
+      currentScreen === 'relay-picker' ||
+      currentScreen === 'network-scan';
+    if (key.escape && currentScreen !== 'chat' && !ownsEsc) { setCurrentScreen('chat'); return; }
   });
 
   const handleNavigate = useCallback((screen: string) => {
@@ -121,6 +151,16 @@ export function App({ initialModel = 'qwen2.5:7b', resumeConversationId, project
       id: 'conversations', name: 'Conversation history', shortcut: 'Ctrl+L',
       description: 'Browse and resume past conversations', group: 'chat',
       execute: () => setCurrentScreen('conversations'),
+    },
+    {
+      id: 'relay', name: 'Relays', shortcut: '/relay',
+      description: 'Browse and run two-phase scout/anchor relays', group: 'chat',
+      execute: () => setCurrentScreen('relay-picker'),
+    },
+    {
+      id: 'scan', name: 'Network scan', shortcut: '/scan',
+      description: 'Discover local AI servers on this machine or subnet', group: 'chat',
+      execute: () => setCurrentScreen('network-scan'),
     },
     {
       id: 'fork', name: 'Fork current conversation', shortcut: '/fork',
@@ -239,6 +279,58 @@ export function App({ initialModel = 'qwen2.5:7b', resumeConversationId, project
             setEditingProvider(null);
             setCurrentScreen('provider-selector');
           }}
+        />
+      )}
+
+      {!paletteOpen && currentScreen === 'relay-picker' && (
+        <RelayPickerScreen
+          onRunRelay={(plan, input) => {
+            setActiveRelayRun({ plan, userInput: input });
+            setCurrentScreen('relay-run');
+          }}
+          onEdit={(planId) => {
+            setEditingRelayId(planId);
+            setCurrentScreen('relay-editor');
+          }}
+          onNew={() => {
+            setEditingRelayId(undefined);
+            setCurrentScreen('relay-editor');
+          }}
+          onBack={() => setCurrentScreen('chat')}
+        />
+      )}
+
+      {!paletteOpen && currentScreen === 'relay-run' && activeRelayRun !== null && (
+        <RelayRunScreen
+          plan={activeRelayRun.plan}
+          userInput={activeRelayRun.userInput}
+          onBack={() => {
+            setActiveRelayRun(null);
+            setCurrentScreen('relay-picker');
+          }}
+        />
+      )}
+
+      {!paletteOpen && currentScreen === 'relay-editor' && (
+        <RelayEditorScreen
+          {...(editingRelayId !== undefined ? { planId: editingRelayId } : {})}
+          onDone={() => {
+            setEditingRelayId(undefined);
+            setCurrentScreen('relay-picker');
+          }}
+          onCancel={() => {
+            setEditingRelayId(undefined);
+            setCurrentScreen('relay-picker');
+          }}
+        />
+      )}
+
+      {!paletteOpen && currentScreen === 'network-scan' && (
+        <NetworkScanScreen
+          onBack={() => setCurrentScreen('chat')}
+          {...(config?.networkScanner?.subnetConfirmedAt !== undefined
+            ? { subnetConfirmedAt: config.networkScanner.subnetConfirmedAt }
+            : {})}
         />
       )}
     </Box>
