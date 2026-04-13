@@ -16,6 +16,12 @@ import type { Config } from '../lib/config.js';
 import { ModelRouter } from '../lib/modelRouter.js';
 import { buildProjectContext } from '../lib/projectContext.js';
 import { exportConversation } from '../lib/exportConversation.js';
+import {
+  splitForCompaction,
+  summariseMessages,
+  formatSummaryContent,
+  COMPACT_MIN_MESSAGES,
+} from '../lib/compactConversation.js';
 import { getRole, BUILT_IN_ROLES } from '../lib/roles.js';
 import { MessageList } from '../components/chat/MessageList.js';
 import { MessageListWindowed } from '../components/chat/MessageListWindowed.js';
@@ -124,7 +130,7 @@ export function ChatScreen({ initialModel, resumeConversationId, projectDir, ove
 
   // Conversation must come before useMcp so conversationId is available for
   // BC-5 rate limiting (tool call counter resets on new conversation).
-  const { conversationId, messages, addMessage, appendAssistantToState } = useConversation(resumeConversationId);
+  const { conversationId, messages, addMessage, appendAssistantToState, replaceWithSummary } = useConversation(resumeConversationId);
 
   // MCP tools (file-browse + git always on; command-exec feature-flagged)
   // BC-3: pass commandExecConfirmedAt so useMcp can enforce the double-check.
@@ -177,7 +183,113 @@ export function ChatScreen({ initialModel, resumeConversationId, projectDir, ove
   const { streamedText, status, activeToolName, error, sessionTokens, send, abort } = useStream(activeModel);
   const { activeArtifact, promoteArtifact, dismissArtifact, updateArtifact } = useArtifacts();
   const { artifactWidthPct, chatWidthPct, growArtifact, shrinkArtifact } = useSplitPane();
+  const { columns: termCols, rows: termRows } = useTerminalSize();
   const prevStatusRef = useRef(status);
+
+  // ─── Scrollback state ──────────────────────────────────────────────────────
+  // `scrollTopLine` is the line index (from the top of the full transcript)
+  // that should appear at the top of the viewport. 0 means "pinned to the
+  // bottom / live mode" — same semantics as the existing <Static> renderer.
+  //
+  // We store the TOP line rather than an offset-from-bottom so that when
+  // new messages arrive while the user is scrolled up, their view doesn't
+  // jump: the same starting message stays at the top of the viewport.
+  const [scrollTopLine, setScrollTopLine] = useState(0);
+  const inScrollback = scrollTopLine > 0;
+
+  // Effective chat pane columns (accounting for split pane with artifact).
+  const chatCols = activeArtifact !== null
+    ? Math.max(20, Math.floor((termCols * chatWidthPct) / 100) - 2)
+    : Math.max(20, termCols - 2);
+
+  // Chrome reservation — header (2) + status bar (1) + input area (~3) +
+  // streaming placeholder (~2) + indicator line (1). Err on the generous
+  // side; worst case the window shrinks slightly.
+  const CHROME_LINES = 10;
+  const viewportLines = Math.max(5, termRows - CHROME_LINES);
+
+  const lineIndex = useMemo(
+    () => buildLineIndex(messages, chatCols),
+    [messages, chatCols],
+  );
+  const totalContentLines = totalLines(lineIndex);
+
+  // Visible slice for the current scroll position. Memoised on messages +
+  // geometry so scrollback feels instant on long transcripts.
+  const { startIdx: scrollStartIdx, endIdx: scrollEndIdx } = useMemo(() => {
+    if (scrollTopLine <= 0) return { startIdx: 0, endIdx: 0 };
+    return windowByLineOffset(lineIndex, scrollTopLine, viewportLines);
+  }, [lineIndex, scrollTopLine, viewportLines]);
+
+  // When new messages arrive or streaming starts, drop back to live mode.
+  // A new assistant response should always be visible — even if the user
+  // forgot they were scrolled up.
+  const lastMessageCountRef = useRef(messages.length);
+  useEffect(() => {
+    if (messages.length !== lastMessageCountRef.current) {
+      lastMessageCountRef.current = messages.length;
+      setScrollTopLine(0);
+    }
+  }, [messages.length]);
+  useEffect(() => {
+    if (status === 'streaming' || status === 'connecting') {
+      setScrollTopLine(0);
+    }
+  }, [status]);
+
+  /**
+   * Locate the message currently at the top of the viewport. In scrollback
+   * mode this is the first message whose start line is >= scrollTopLine.
+   * In live mode (scrollTopLine === 0), it's the first message visible in
+   * the bottom viewport window.
+   */
+  const findCurrentTopMessage = useCallback((): number => {
+    if (lineIndex.length === 0) return 0;
+    const targetLine = inScrollback
+      ? scrollTopLine
+      : Math.max(0, totalContentLines - viewportLines);
+    let top = 0;
+    for (let i = 0; i < lineIndex.length; i++) {
+      // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+      const start = i === 0 ? 0 : lineIndex[i - 1]!.cumulative;
+      if (start >= targetLine) return i;
+      top = i;
+    }
+    return top;
+  }, [inScrollback, lineIndex, scrollTopLine, totalContentLines, viewportLines]);
+
+  /** Scroll up by one message — snap the top of the next-older message to the top of the viewport. */
+  const scrollUpOneMessage = useCallback(() => {
+    if (lineIndex.length === 0) return;
+    const currentTop = findCurrentTopMessage();
+    const nextMsg = currentTop - 1;
+    if (nextMsg < 0) {
+      // Already at the first message. If live view already shows it, noop;
+      // otherwise snap to line 1 so the first message sits at the top.
+      if (totalContentLines > viewportLines) setScrollTopLine(1);
+      return;
+    }
+    const nextLine = messageStartLine(lineIndex, nextMsg + 1);
+    setScrollTopLine(Math.max(1, nextLine));
+  }, [findCurrentTopMessage, lineIndex, totalContentLines, viewportLines]);
+
+  /** Scroll down by one message. Drop back to live mode if we pass the bottom. */
+  const scrollDownOneMessage = useCallback(() => {
+    if (!inScrollback || lineIndex.length === 0) return;
+    const currentTop = findCurrentTopMessage();
+    const nextMsg = currentTop + 1;
+    if (nextMsg >= lineIndex.length) {
+      setScrollTopLine(0);
+      return;
+    }
+    const nextLine = messageStartLine(lineIndex, nextMsg + 1);
+    if (nextLine >= Math.max(0, totalContentLines - viewportLines)) {
+      setScrollTopLine(0);
+      return;
+    }
+    setScrollTopLine(Math.max(1, nextLine));
+  }, [findCurrentTopMessage, inScrollback, lineIndex, totalContentLines, viewportLines]);
+  // ───────────────────────────────────────────────────────────────────────────
 
   // Focus ownership: 'chat' lets ChatInput receive keys; 'artifact' forwards keys
   // to ArtifactPanel. Tab (in ChatScreen's useInput) toggles when a panel is open.
@@ -204,6 +316,9 @@ export function ChatScreen({ initialModel, resumeConversationId, projectDir, ove
   const [activeRole, setActiveRole] = useState<string | null>(null);
   // Transient feedback message (export confirmation, role applied, etc.)
   const [feedbackMsg, setFeedbackMsg] = useState<string | null>(null);
+  // True while /compact is generating a summary. Drives the StatusBar
+  // overrideLabel and re-entrancy guards in handleCompact.
+  const [isCompacting, setIsCompacting] = useState(false);
 
   // Build role system prompt — injected as system message if no existing one.
   // Declared here (above handleSubmit) so it's in scope for the useCallback dep array.
@@ -342,10 +457,62 @@ export function ChatScreen({ initialModel, resumeConversationId, projectDir, ove
     }
   }, [conversationId, messages, status, onForkedTo]);
 
+  // /compact — summarise the older portion of the conversation down to a
+  // single synthetic message to free context window space.
+  //
+  // Invariants:
+  //   - Uses the ACTIVE provider/model (`activeModel`) — no hardcoded id.
+  //   - On provider error, state is left UNTOUCHED. The user sees an error
+  //     feedback but the conversation is unchanged.
+  //   - Re-entrant calls are guarded by `isCompacting`.
+  //   - Cannot run while the main stream is live (would race with the
+  //     assistant message currently being written).
+  const handleCompact = useCallback(async () => {
+    if (isCompacting) return;
+    if (status === 'streaming') {
+      setFeedbackMsg('Cannot compact while streaming. Wait for the response to finish.');
+      setTimeout(() => setFeedbackMsg(null), 4000);
+      return;
+    }
+    if (messages.length < COMPACT_MIN_MESSAGES) {
+      setFeedbackMsg('Nothing to compact yet.');
+      setTimeout(() => setFeedbackMsg(null), 3000);
+      return;
+    }
+
+    const { toSummarise } = splitForCompaction(messages);
+    if (toSummarise.length === 0) {
+      setFeedbackMsg('Nothing to compact yet.');
+      setTimeout(() => setFeedbackMsg(null), 3000);
+      return;
+    }
+
+    setIsCompacting(true);
+    try {
+      const summary = await summariseMessages(activeModel, toSummarise);
+      // Only mutate state AFTER a successful summary. If generateText threw,
+      // we never get here and the conversation is untouched.
+      const idsToRemove = toSummarise.map((m) => m.id);
+      replaceWithSummary(idsToRemove, formatSummaryContent(summary));
+      setFeedbackMsg(`\u2713 Compacted ${idsToRemove.length} messages. Context freed.`);
+      setTimeout(() => setFeedbackMsg(null), 4000);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      setFeedbackMsg(`Compact failed: ${msg}`);
+      setTimeout(() => setFeedbackMsg(null), 5000);
+    } finally {
+      setIsCompacting(false);
+    }
+  }, [isCompacting, status, messages, activeModel, replaceWithSummary]);
+
   // Handle commands from ChatInput (slash commands and navigation)
   const handleCommand = useCallback((command: string) => {
     if (command === 'fork') {
       handleFork();
+      return;
+    }
+    if (command === 'compact') {
+      void handleCompact();
       return;
     }
     if (command.startsWith('export:') || command === 'export') {
@@ -390,7 +557,7 @@ export function ChatScreen({ initialModel, resumeConversationId, projectDir, ove
 
     // Navigation commands
     onCommand?.(command);
-  }, [messages, onCommand, handleFork]);
+  }, [messages, onCommand, handleFork, handleCompact]);
 
   useInput((input, key) => {
     if (key.ctrl && input === 'c') {
@@ -399,6 +566,28 @@ export function ChatScreen({ initialModel, resumeConversationId, projectDir, ove
       } else {
         exit();
       }
+    }
+
+    // Scrollback — Shift+PgUp / Shift+PgDn as the primary binding, with
+    // plain PgUp / PgDn as a fallback for terminals that don't forward the
+    // Shift modifier on function keys (most xterm variants don't). Alt+key
+    // sequences are deliberately avoided — they're unreliable across
+    // terminals and conflict with multi-line input in ChatInput.
+    //
+    // Esc while in scrollback returns to live mode. We only consume Esc
+    // when there's no artifact panel and we are actually scrolled up, so
+    // the common-case Esc-in-input-field still reaches ChatInput.
+    if (key.pageUp) {
+      scrollUpOneMessage();
+      return;
+    }
+    if (key.pageDown) {
+      scrollDownOneMessage();
+      return;
+    }
+    if (inScrollback && key.escape && activeArtifact === null) {
+      setScrollTopLine(0);
+      return;
     }
 
     if (activeArtifact !== null) {
@@ -438,10 +627,34 @@ export function ChatScreen({ initialModel, resumeConversationId, projectDir, ove
     );
   }
 
+  // Scrollback indicator — shown above the windowed view so the user has
+  // an obvious affordance for getting back to live mode.
+  const scrollIndicator = inScrollback ? (
+    <Box paddingX={1}>
+      <Text color="#FBBF24">
+        ── SCROLLBACK  msg {Math.min(scrollStartIdx + 1, messages.length)}–
+        {Math.min(scrollEndIdx, messages.length)}/{messages.length}  ·  Shift+PgDn / Esc to return ──
+      </Text>
+    </Box>
+  ) : null;
+
   const chatContent = (
     <Box flexDirection="column" flexGrow={1}>
-      <MessageList messages={messages} onPromote={promoteArtifact} />
-      <StreamingMessage text={streamedText} status={status} />
+      {inScrollback ? (
+        <>
+          {scrollIndicator}
+          <MessageListWindowed
+            messages={messages}
+            startIdx={scrollStartIdx}
+            endIdx={scrollEndIdx}
+          />
+        </>
+      ) : (
+        <>
+          <MessageList messages={messages} onPromote={promoteArtifact} />
+          <StreamingMessage text={streamedText} status={status} />
+        </>
+      )}
       {feedbackMsg !== null && (
         <Box paddingX={1} marginY={1}>
           <Text color="#4ADE80">{feedbackMsg}</Text>
@@ -457,11 +670,12 @@ export function ChatScreen({ initialModel, resumeConversationId, projectDir, ove
         messageCount={messages.length}
         activeToolName={activeToolName}
         sessionTokens={sessionTokens}
+        overrideLabel={isCompacting ? '\u2211 Compacting\u2026' : null}
       />
       <ChatInput
         onSubmit={handleSubmit}
         onCommand={handleCommand}
-        disabled={status === 'streaming' || focusedPanel === 'artifact'}
+        disabled={status === 'streaming' || focusedPanel === 'artifact' || isCompacting}
         {...(projectDir !== undefined ? { projectDir } : {})}
       />
     </Box>

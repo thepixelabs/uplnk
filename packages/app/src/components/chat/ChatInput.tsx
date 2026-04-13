@@ -108,6 +108,9 @@ export const ChatInput = memo(function ChatInput({
           case 'scan':
             onCommand?.('network-scan');
             return;
+          case 'compact':
+            onCommand?.('compact');
+            return;
           default:
             // Unknown command — fall through to normal submit so LLM can handle it
         }

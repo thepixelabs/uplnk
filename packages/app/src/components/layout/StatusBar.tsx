@@ -9,10 +9,15 @@ interface Props {
   /** Name of the currently executing tool (only present when status is 'tool-running') */
   activeToolName?: string | null;
   /**
+   * When non-null, overrides the normal status label with a transient message
+   * like "Compacting…". Used by the /compact flow so we don't have to add a
+   * brand-new StreamStatus just for background summarisation work.
+   */
+  overrideLabel?: string | null;
+  /**
    * Cumulative token count for the current session, as reported by the model's
    * `usage.totalTokens` across all completed steps. Rendered as a compact
-   * label (e.g. "1.2k") next to the status indicator. When 0 or undefined the
-   * gauge slot renders empty so the bar layout stays stable on first paint.
+   * label (e.g. "1.2k") next to the status indicator.
    */
   sessionTokens?: number;
   /**
@@ -75,13 +80,17 @@ export const StatusBar = memo(function StatusBar({
   status,
   messageCount,
   activeToolName,
+  overrideLabel,
   sessionTokens,
   contextWindow,
 }: Props) {
-  const label =
-    status === 'tool-running' && activeToolName != null && activeToolName.length > 0
+  const hasOverride = overrideLabel != null && overrideLabel.length > 0;
+  const label = hasOverride
+    ? overrideLabel
+    : status === 'tool-running' && activeToolName != null && activeToolName.length > 0
       ? `⚙ running tool: ${activeToolName}`
       : STATUS_LABELS[status];
+  const labelColor = hasOverride ? 'yellow' : STATUS_COLORS[status];
 
   const showGauge = typeof sessionTokens === 'number' && sessionTokens > 0;
   const hasContext = typeof contextWindow === 'number' && contextWindow > 0;
@@ -103,7 +112,7 @@ export const StatusBar = memo(function StatusBar({
     >
       {/* Fixed-width slot so label length changes never shift the hint text */}
       <Box minWidth={28}>
-        <Text color={STATUS_COLORS[status]}>{label}</Text>
+        <Text color={labelColor}>{label}</Text>
       </Box>
       {/* Token gauge — also fixed-width so it never shifts the hint */}
       <Box minWidth={26}>
