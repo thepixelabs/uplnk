@@ -3,7 +3,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    image: uplnk-dev
+    image: uplnk
     # Ink requires an interactive TTY — always run with `docker compose run uplnk`
     # or `docker run -it`. `docker compose up` will not produce a usable TUI.
     stdin_open: true

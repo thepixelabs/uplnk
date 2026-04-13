@@ -23,13 +23,13 @@ RUN pnpm install --frozen-lockfile
 # Copy full source
 COPY packages/ ./packages/
 
-# Build uplnk-app (tsup bundles uplnk-db + uplnk-shared inline;
+# Build @uplnk/app (tsup bundles @uplnk/db + @uplnk/shared inline;
 # better-sqlite3 stays external as a native .node module)
-RUN pnpm --filter uplnk-dev build
+RUN pnpm --filter @uplnk/app build
 
 # Copy migrations into the dist tree so import.meta.url-relative lookup works.
-# When tsup bundles migrate.ts into dist/bin/uplnk.js, import.meta.url points
-# to dist/bin/uplnk.js, so join(dirname, '../migrations') = dist/migrations/.
+# When tsup bundles migrate.ts into dist/uplnk.js, import.meta.url points
+# to dist/uplnk.js, so join(dirname, '../migrations') = dist/migrations/.
 RUN cp -r /build/packages/db/migrations /build/packages/app/dist/migrations
 
 
@@ -53,8 +53,7 @@ COPY --from=builder /build/node_modules/bindings/        ./node_modules/bindings
 COPY --from=builder /build/node_modules/file-uri-to-path/ ./node_modules/file-uri-to-path/
 
 # Migrations were staged into dist/migrations/ by the cp step above.
-# The dist/ COPY on line 46 already includes them — this line is a no-op
-# safety net kept for clarity.
+# The dist/ COPY already includes them — this line is a no-op safety net.
 # (dist/migrations/ is part of the dist/ tree copied two lines above)
 
 # Own the app tree (read-only at runtime; uplnk dir is a mounted volume)
@@ -72,4 +71,4 @@ ENV OLLAMA_BASE_URL=http://host.docker.internal:11434/v1
 VOLUME ["/home/uplnk/.uplnk"]
 
 # Must run with -it (docker run -it) — Ink requires an interactive TTY.
-ENTRYPOINT ["node", "/app/packages/app/dist/bin/uplnk.js"]
+ENTRYPOINT ["node", "/app/packages/app/dist/uplnk.js"]

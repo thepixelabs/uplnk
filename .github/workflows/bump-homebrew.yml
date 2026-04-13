@@ -24,9 +24,9 @@ jobs:
         run: |
           VERSION="${{ github.event.release.tag_name }}"
           VERSION="${VERSION#v}"
-          echo "Waiting for uplnk-dev@${VERSION} on npm..."
+          echo "Waiting for uplnk@${VERSION} on npm..."
           for i in $(seq 1 30); do
-            if npm view "uplnk-dev@${VERSION}" version 2>/dev/null | grep -q "${VERSION}"; then
+            if npm view "uplnk@${VERSION}" version 2>/dev/null | grep -q "${VERSION}"; then
               echo "Version ${VERSION} is live on npm."
               exit 0
             fi
@@ -41,7 +41,7 @@ jobs:
         run: |
           VERSION="${{ github.event.release.tag_name }}"
           VERSION="${VERSION#v}"
-          URL="https://registry.npmjs.org/uplnk-dev/-/uplnk-dev-${VERSION}.tgz"
+          URL="https://registry.npmjs.org/uplnk/-/uplnk-${VERSION}.tgz"
           SHA=$(curl -fsSL "${URL}" | shasum -a 256 | cut -d' ' -f1)
           echo "sha256=${SHA}" >> "$GITHUB_OUTPUT"
           echo "url=${URL}"    >> "$GITHUB_OUTPUT"

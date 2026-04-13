@@ -55,7 +55,7 @@ jobs:
       - name: Build all packages (tsup)
         run: pnpm build
 
-      - name: Publish uplnk-dev to npm
+      - name: Publish @uplnk/app to npm
         working-directory: packages/app
         run: pnpm publish --no-git-checks --access public
         env:

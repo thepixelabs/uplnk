@@ -5,4 +5,4 @@
 # Example:
 # [[IgnoredVulns]]
 # id = "GHSA-xxxx-xxxx-xxxx"
-# reason = "Only affects Windows builds; Uplnk targets macOS/Linux"
+# reason = "Only affects Windows builds; uplnk targets macOS/Linux"
