@@ -524,6 +524,9 @@ export function ChatScreen({
 
   const handleCommand = useCallback((command: string) => {
     if (command === 'help') { setShowHelp((prev) => !prev); return; }
+    if (command === 'settings') { onCommand?.('settings'); return; }
+    if (command === 'provider-selector' || command === 'provider') { onCommand?.('provider-selector'); return; }
+    if (command === 'model-selector' || command === 'model') { onCommand?.('model-selector'); return; }
     if (command === 'fork') { handleFork(); return; }
     if (command === 'compact') { void handleCompact(); return; }
     if (command.startsWith('export:') || command === 'export') {
@@ -666,8 +669,8 @@ export function ChatScreen({
                 <Text dimColor>  switch provider</Text>
               </Text>
               <Text>
-                <Text color="#60A5FA">Enter</Text>
-                <Text dimColor>  submit</Text>
+                <Text color="#60A5FA">/settings</Text>
+                <Text dimColor>  app configuration</Text>
               </Text>
             </Box>
             <Box flexDirection="row" justifyContent="space-between">
