@@ -1,3 +1,16 @@
+## [1.1.0](https://github.com/thepixelabs/uplnk/compare/v1.0.1...v1.1.0) (2026-04-14)
+
+### Features
+
+* add settings screen and refine selector modals ([e168329](https://github.com/thepixelabs/uplnk/commit/e168329f8eb043607a7e4413559bcd95c6c7697f))
+
+### Bug Fixes
+
+* **app:** align SettingsScreen props with component interface ([9e199f9](https://github.com/thepixelabs/uplnk/commit/9e199f95524cca585f4e5f8b32c6751ef959cd69))
+* **app:** move workspace deps to devDependencies, add better-sqlite3 to runtime deps ([67a70bc](https://github.com/thepixelabs/uplnk/commit/67a70bc422d959e8f16b90a93185e1e817853917))
+* **app:** update lockfile after dependency restructure ([8382ace](https://github.com/thepixelabs/uplnk/commit/8382ace81cbff62eabb1669a7896b5f014421386))
+* **app:** update ProviderSelectorScreen tests to match current UI text ([f6c797c](https://github.com/thepixelabs/uplnk/commit/f6c797cbb955cc9ca602319c0f2df948a30d4d34))
+
 ## [1.0.1](https://github.com/thepixelabs/uplnk/compare/v1.0.0...v1.0.1) (2026-04-14)
 
 ### Bug Fixes
