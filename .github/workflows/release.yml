@@ -31,12 +31,12 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
-          # Use a token that can push back to main past branch protection rules.
-          # The default GITHUB_TOKEN works if "Allow GitHub Actions to create and
-          # approve pull requests" is enabled and the branch protection allows
-          # pushes from Actions. If you have stricter rules, replace this with a
-          # GitHub App installation token.
-          token: ${{ secrets.GITHUB_TOKEN }}
+          # RELEASE_TOKEN must be a fine-grained PAT (or classic PAT with repo scope)
+          # belonging to a repo admin. With enforce_admins=false on the branch
+          # protection rule, an admin's PAT can push the version-bump commit directly
+          # to main without opening a PR. Falls back to GITHUB_TOKEN if unset
+          # (which will fail when branch protection is enforced).
+          token: ${{ secrets.RELEASE_TOKEN || secrets.GITHUB_TOKEN }}
 
       - name: Install pnpm
         uses: pnpm/action-setup@v4
@@ -106,7 +106,7 @@ jobs:
       - name: Run semantic-release
         id: sr
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.RELEASE_TOKEN || secrets.GITHUB_TOKEN }}
         run: |
           pnpm exec semantic-release
           # semantic-release exits 0 regardless of whether it released.
