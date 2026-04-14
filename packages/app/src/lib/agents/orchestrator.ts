@@ -12,8 +12,8 @@
  */
 
 import { streamText } from 'ai';
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 import type { LanguageModel, Tool, CoreMessage } from 'ai';
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 type AnyTool = Tool<any, any>;
 
 import { ulid } from 'ulid';
