@@ -130,6 +130,8 @@ jobs:
       # --no-git-checks: semantic-release has already committed and tagged; the
       #                  working tree may be clean but pnpm's git checks would
       #                  flag the detached state on the tag commit.
-      - name: Publish to npm (OIDC + provenance)
+      - name: Publish to npm
         if: steps.sr.outputs.released == 'true'
-        run: pnpm --filter uplnk publish --provenance --access public --no-git-checks
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: pnpm --filter uplnk publish --access public --no-git-checks
