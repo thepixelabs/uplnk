@@ -97,9 +97,16 @@ export function useConversation(resumeId?: string): UseConversationResult {
 
   const updateMessageInState = useCallback(
     (id: string, content: string): void => {
-      setMessages((prev) =>
-        prev.map((m) => (m.id === id ? { ...m, content } : m)),
-      );
+      setMessages((prev) => {
+        const idx = prev.findIndex((m) => m.id === id);
+        // Message not yet in state (e.g. pre-inserted to DB but not state yet) —
+        // return the same reference so React skips the re-render entirely.
+        if (idx === -1) return prev;
+        if (prev[idx]!.content === content) return prev;
+        const next = [...prev];
+        next[idx] = { ...prev[idx]!, content };
+        return next;
+      });
     },
     [],
   );

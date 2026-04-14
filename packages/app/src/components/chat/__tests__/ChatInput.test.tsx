@@ -3,6 +3,21 @@ import { render } from 'ink-testing-library';
 import React from 'react';
 import { ChatInput } from '../ChatInput.js';
 
+vi.mock('../../voice/VoiceAssistantProvider.js', () => ({
+  useVoiceAssistant: vi.fn(() => ({
+    isInitialized: false,
+    isDictating: false,
+    partialTranscription: '',
+    startDictation: vi.fn(),
+    stopDictation: vi.fn(),
+    toggleDictation: vi.fn(),
+    registerTranscriptionHandler: vi.fn(() => vi.fn()),
+    error: null,
+    statusMessage: null,
+  })),
+  VoiceAssistantProvider: ({ children }: { children: React.ReactNode }) => children,
+}));
+
 describe('ChatInput', () => {
   it('renders without errors', () => {
     const { lastFrame } = render(

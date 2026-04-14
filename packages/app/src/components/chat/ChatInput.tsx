@@ -1,10 +1,11 @@
-import { memo, useState, useRef, useCallback, useMemo } from 'react';
+import { memo, useState, useRef, useCallback, useMemo, useEffect } from 'react';
 import { Box, Text, useInput } from 'ink';
 import { execSync } from 'node:child_process';
 import clipboardy from 'clipboardy';
 import { MentionResolver } from '../../lib/agents/mentionResolver.js';
 import { getAgentRegistry } from '../../lib/agents/registry.js';
 import type { MentionCandidate } from '../../lib/agents/types.js';
+import { useVoiceAssistant } from '../voice/VoiceAssistantProvider.js';
 
 // Brand accent — cyan that matches the header gradient start
 const CURSOR_COLOR = '#00D9FF';
@@ -148,6 +149,22 @@ export const ChatInput = memo(function ChatInput({
   const [value, setValue] = useState('');
   const [cursorPos, setCursorPos] = useState(0);
   const [mention, setMention] = useState<MentionState>(EMPTY_MENTION);
+  const { isDictating, toggleDictation, partialTranscription, statusMessage, registerTranscriptionHandler } = useVoiceAssistant();
+
+  // Register the transcription callback with the provider
+  useEffect(() => {
+    return registerTranscriptionHandler((text: string) => {
+      // Append transcribed text at cursor position
+      setValue((prevValue) => {
+        const head = prevValue.slice(0, cursorPos);
+        const tail = prevValue.slice(cursorPos);
+        const spacer = head.length > 0 && !head.endsWith(' ') ? ' ' : '';
+        const newValue = `${head}${spacer}${text}${tail}`;
+        setCursorPos(newValue.length - tail.length);
+        return newValue;
+      });
+    });
+  }, [registerTranscriptionHandler, cursorPos]);
 
   // History: array of submitted messages, oldest-first.
   // historyIndex: -1 = not browsing history (current draft), 0+ = history index
@@ -267,6 +284,12 @@ export const ChatInput = memo(function ChatInput({
     (input, key) => {
       if (disabled) return;
 
+      // ~ (backtick/tilde) toggles voice dictation
+      if (input === '`' || input === '~') {
+        toggleDictation();
+        return;
+      }
+
       // ─── Ctrl+V paste ────────────────────────────────────────────────────
       if (key.ctrl && input === 'v') {
         // First check if clipboard holds an image (macOS only)
@@ -371,9 +394,9 @@ export const ChatInput = memo(function ChatInput({
       // ─── Normal-mode keys ────────────────────────────────────────────────
 
       // Kitty keyboard protocol: Shift+Enter is sent as ESC [ 13 ; 2 u.
-      // ink's keypress parser does not recognise this CSI u sequence, so it
-      // arrives here as a raw input string rather than key.return+key.shift.
-      if (input === '\x1b[13;2u') {
+      // Ink's useInput strips the leading ESC from unrecognised sequences, so
+      // the handler receives '[13;2u' (without the ESC prefix).
+      if (input === '[13;2u') {
         const newVal = value.slice(0, cursorPos) + '\n' + value.slice(cursorPos);
         setValue(newVal);
         setCursorPos(cursorPos + 1);
@@ -382,20 +405,13 @@ export const ChatInput = memo(function ChatInput({
       }
 
       // ─── Word navigation — raw Kitty sequences (ESC[key;mod u) ──────────
-      // These must be checked BEFORE the generic Kitty drop handler below.
-
-      // Kitty Alt+Left → ESC [ 1 ; 3 D
-      if (input === '\x1b[1;3D') {
-        setCursorPos(moveWordLeft(value, cursorPos));
-        return;
-      }
-      // Kitty Alt+Right → ESC [ 1 ; 3 C
-      if (input === '\x1b[1;3C') {
-        setCursorPos(moveWordRight(value, cursorPos));
-        return;
-      }
-      // Kitty Alt+Backspace → ESC [ 127 ; 3 u
-      if (input === '\x1b[127;3u') {
+      // Alt+Left/Right (ESC[1;3D / ESC[1;3C) are already handled by Ink's
+      // fnKeyRe parser which sets key.leftArrow/rightArrow + key.meta=true.
+      // The key.leftArrow + key.meta path below (line ~493) handles those.
+      //
+      // Alt+Backspace (ESC[127;3u) is NOT recognised by fnKeyRe, so we must
+      // match it explicitly. Ink strips the leading ESC → arrives as '[127;3u'.
+      if (input === '[127;3u') {
         const newPos = moveWordLeft(value, cursorPos);
         setValue(value.slice(0, newPos) + value.slice(cursorPos));
         setCursorPos(newPos);
@@ -404,10 +420,10 @@ export const ChatInput = memo(function ChatInput({
       }
 
       // Kitty protocol encodes ALL modifier+key combos as ESC[<keycode>;<mod>u.
-      // ink doesn't parse these, so unhandled ones (e.g. Ctrl+K = ESC[107;5u)
-      // would otherwise fall through to the character input handler and appear
-      // as literal text. Drop them here.
-      if (/^\x1b\[\d+;\d+u$/.test(input)) {
+      // Ink strips the leading ESC from unrecognised sequences, so they arrive
+      // as '[<keycode>;<mod>u'. Drop any remaining unhandled ones here so they
+      // don't fall through to the character input handler and appear as text.
+      if (/^\[\d+;\d+u$/.test(input)) {
         return;
       }
 
@@ -571,30 +587,42 @@ export const ChatInput = memo(function ChatInput({
 
   return (
     <Box flexDirection="column">
+      {statusMessage && (
+        <Box marginBottom={1}>
+          <Text color="yellow">Voice: {statusMessage}</Text>
+        </Box>
+      )}
+      {isDictating && (
+        <Box marginBottom={1} borderStyle="round" borderColor="#4ADE80" paddingX={1}>
+          <Text color="#4ADE80">🎤 Listening… </Text>
+          <Text dimColor>{partialTranscription || 'speak now'}</Text>
+        </Box>
+      )}
       {mention.active && (
-        <Box flexDirection="column" marginBottom={1} paddingX={1}>
-          <Text dimColor>
-            @  <Text color="#60A5FA">{mention.query || '…'}</Text>
-            {filtered.length === 0 ? <Text color="yellow">  no matches</Text> : null}
-          </Text>
+        <Box flexDirection="column" marginBottom={1} borderStyle="round" borderColor="#7B6FFF" paddingX={1}>
+          <Box>
+            <Text color="#7B6FFF">@ </Text>
+            <Text color="#00D9FF" bold>{mention.query || '…'}</Text>
+            {filtered.length === 0 ? <Text color="#FBBF24">  no matches</Text> : null}
+          </Box>
           {visibleFiltered.map((candidate, i) => {
             const isSelected = i === mention.cursor;
             const prefix = isSelected ? '▶ ' : '  ';
             if (candidate.kind === 'agent') {
-              const agentColor = isSelected ? (candidate.color as string) : undefined;
+              const agentColor = isSelected ? ((candidate.color as string | undefined) ?? '#00D9FF') : '#64748B';
               return (
                 <Box key={candidate.name} flexDirection="column">
-                  <Text {...(agentColor !== undefined ? { color: agentColor } : {})}>
+                  <Text color={agentColor}>
                     {prefix}{candidate.icon} <Text bold={isSelected}>{candidate.name}</Text>
                   </Text>
-                  <Text dimColor>    {candidate.description.slice(0, 60)}</Text>
+                  <Text color="#475569">    {candidate.description.slice(0, 60)}</Text>
                 </Box>
               );
             }
             if (candidate.kind === 'folder') {
               return (
                 <Box key={candidate.path}>
-                  <Text {...(isSelected ? { color: '#60A5FA' as const } : { dimColor: true })}>
+                  <Text color={isSelected ? '#00D9FF' : '#64748B'}>
                     {prefix}📁 {candidate.path}
                   </Text>
                 </Box>
@@ -603,7 +631,7 @@ export const ChatInput = memo(function ChatInput({
             // file
             return (
               <Box key={candidate.path}>
-                <Text {...(isSelected ? { color: '#60A5FA' as const } : {})}>
+                <Text color={isSelected ? '#00D9FF' : '#64748B'}>
                   {prefix}{candidate.path}
                 </Text>
               </Box>

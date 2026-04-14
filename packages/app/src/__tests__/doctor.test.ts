@@ -13,9 +13,17 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
 // ─── Module mocks (hoisted) ────────────────────────────────────────────────────
 
+const mockExistsSync = vi.hoisted(() => vi.fn(() => false));
+const mockExecSync = vi.hoisted(() => vi.fn(() => '/usr/bin/sox'));
+
 vi.mock('node:fs', () => ({
+  default: { existsSync: mockExistsSync },
   accessSync: vi.fn(),
   constants: { W_OK: 2 },
+}));
+
+vi.mock('node:child_process', () => ({
+  execSync: mockExecSync,
 }));
 
 // uplnk-db is imported both at the top of doctor.ts (for getUplnkDir /
@@ -83,6 +91,10 @@ function setAllChecksGreen(): void {
 
   // Ollama check: fetch returns a 200 response.
   fetchSpy.mockResolvedValue(new Response(null, { status: 200 }));
+
+  // Voice checks: sox is found and Vosk model exists.
+  mockExecSync.mockReturnValue('/usr/bin/sox');
+  mockExistsSync.mockReturnValue(true);
 }
 
 beforeEach(() => {

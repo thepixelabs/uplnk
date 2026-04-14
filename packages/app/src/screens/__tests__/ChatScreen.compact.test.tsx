@@ -63,14 +63,16 @@ vi.mock('@uplnk/db', () => ({
 type StreamStatus = 'idle' | 'connecting' | 'streaming' | 'done' | 'error';
 const mockUseStream = vi.hoisted(() =>
   vi.fn<() => {
-    streamedText: string;
+    streamedTextRef: React.MutableRefObject<string>;
+    subscribeToStreamText: (cb: () => void) => () => void;
     status: StreamStatus;
     activeToolName: string | null;
     error: unknown;
     send: (...args: unknown[]) => Promise<undefined>;
     abort: () => void;
   }>(() => ({
-    streamedText: '',
+    streamedTextRef: { current: '' },
+    subscribeToStreamText: vi.fn(() => vi.fn()),
     status: 'idle',
     activeToolName: null,
     error: null,
@@ -81,6 +83,21 @@ const mockUseStream = vi.hoisted(() =>
 
 vi.mock('../../hooks/useStream.js', () => ({
   useStream: mockUseStream,
+}));
+
+vi.mock('../../components/voice/VoiceAssistantProvider.js', () => ({
+  useVoiceAssistant: vi.fn(() => ({
+    isInitialized: false,
+    isDictating: false,
+    partialTranscription: '',
+    startDictation: vi.fn(),
+    stopDictation: vi.fn(),
+    toggleDictation: vi.fn(),
+    registerTranscriptionHandler: vi.fn(() => vi.fn()),
+    error: null,
+    statusMessage: null,
+  })),
+  VoiceAssistantProvider: ({ children }: { children: React.ReactNode }) => children,
 }));
 
 // useConversation mock — the only piece of state that matters is `messages`
@@ -174,6 +191,21 @@ vi.mock('../../lib/fileMention.js', () => ({
   __resetMentionCacheForTests: vi.fn(),
 }));
 
+vi.mock('../../components/voice/VoiceAssistantProvider.js', () => ({
+  VoiceAssistantProvider: ({ children }: { children: React.ReactNode }) => children,
+  useVoiceAssistant: vi.fn(() => ({
+    isInitialized: false,
+    isDictating: false,
+    partialTranscription: '',
+    startDictation: vi.fn(),
+    stopDictation: vi.fn(),
+    toggleDictation: vi.fn(),
+    registerTranscriptionHandler: vi.fn(() => vi.fn()),
+    error: null,
+    statusMessage: null,
+  })),
+}));
+
 // Mock the compact lib so we can drive success/failure without a model call.
 // We hand-roll the whole module (no importActual) to keep the factory sync
 // and avoid races with vi.hoisted + top-level await.
@@ -240,7 +272,8 @@ beforeEach(() => {
   mockReplaceWithSummary.mockReset();
   mockSummariseMessages.mockReset();
   mockUseStream.mockReturnValue({
-    streamedText: '',
+    streamedTextRef: { current: '' },
+    subscribeToStreamText: vi.fn(() => vi.fn()),
     status: 'idle' as const,
     activeToolName: null,
     error: null,

@@ -1,4 +1,5 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
+import type { MutableRefObject } from 'react';
 import { streamText } from 'ai';
 import type { LanguageModel, CoreMessage, Tool } from 'ai';
 import type { UplnkError } from '@uplnk/shared';
@@ -34,7 +35,22 @@ export interface SendOptions {
 }
 
 interface UseStreamResult {
-  streamedText: string;
+  /**
+   * Ref holding the accumulated streaming text. Mutated directly (not via
+   * React state) so token arrivals do not trigger a full-tree re-render.
+   * Read `.current` to get the latest text synchronously from anywhere that
+   * holds a reference to this hook's return value.
+   */
+  streamedTextRef: MutableRefObject<string>;
+  /**
+   * Subscribe to streaming text updates. The callback is called after every
+   * flush interval that produced new tokens, and also on the final synchronous
+   * flush before status transitions to 'done'. Returns an unsubscribe function.
+   *
+   * Intended for lightweight child components (e.g. StreamingTextOverlay) that
+   * need to re-render per token batch without causing their parent to re-render.
+   */
+  subscribeToStreamText: (cb: () => void) => () => void;
   status: StreamStatus;
   activeToolName: string | null;
   error: UplnkError | null;
@@ -63,7 +79,11 @@ const FLUSH_INTERVAL_MS = 33;
 const PERSIST_INTERVAL_MS = 500;
 
 export function useStream(model: LanguageModel): UseStreamResult {
-  const [streamedText, setStreamedText] = useState('');
+  // Streaming text lives in a ref rather than state so token arrivals do not
+  // schedule React re-renders. Components that need to repaint per token batch
+  // subscribe via subscribeToStreamText instead.
+  const streamedTextRef = useRef('');
+  const subscribersRef = useRef(new Set<() => void>());
   const [status, setStatus] = useState<StreamStatus>('idle');
   const [activeToolName, setActiveToolName] = useState<string | null>(null);
   const [error, setError] = useState<UplnkError | null>(null);
@@ -114,9 +134,9 @@ export function useStream(model: LanguageModel): UseStreamResult {
 
       streamBufferRef.current = '';
       accumulatedTextRef.current = '';
+      streamedTextRef.current = '';
       firstTokenRef.current = false;
       sawStepUsageRef.current = false;
-      setStreamedText('');
       setActiveToolName(null);
       setStatus('connecting');
       setError(null);
@@ -139,14 +159,16 @@ export function useStream(model: LanguageModel): UseStreamResult {
         // Stream is open but no tokens yet — show 'waiting' until first text-delta.
         setStatus('waiting');
 
-        // Start the UI flush interval. It appends whatever has been buffered
-        // since the last tick in one setState, producing at most ~30 React
-        // re-renders per second regardless of upstream token rate.
+        // Start the UI flush interval. It drains the token buffer into
+        // streamedTextRef and notifies subscribers at most ~30 times per second,
+        // regardless of upstream token rate. No React state update here — only
+        // subscribed overlay components re-render per flush.
         flushTimerRef.current = setInterval(() => {
           if (streamBufferRef.current.length === 0) return;
           const buffered = streamBufferRef.current;
           streamBufferRef.current = '';
-          setStreamedText((prev) => prev + buffered);
+          streamedTextRef.current += buffered;
+          subscribersRef.current.forEach(fn => fn());
         }, FLUSH_INTERVAL_MS);
 
         // Start the persistence interval — writes buffered text to SQLite
@@ -242,7 +264,8 @@ export function useStream(model: LanguageModel): UseStreamResult {
         if (streamBufferRef.current.length > 0) {
           const buffered = streamBufferRef.current;
           streamBufferRef.current = '';
-          setStreamedText((prev) => prev + buffered);
+          streamedTextRef.current += buffered;
+          subscribersRef.current.forEach(fn => fn());
         }
 
         // Final persist — synchronous, captures any tokens since the last tick.
@@ -278,7 +301,8 @@ export function useStream(model: LanguageModel): UseStreamResult {
     stopPersistTimer();
     streamBufferRef.current = '';
     accumulatedTextRef.current = '';
-    setStreamedText('');
+    streamedTextRef.current = '';
+    subscribersRef.current.forEach(fn => fn());
     setActiveToolName(null);
     setStatus('idle');
   }, [stopFlushTimer, stopPersistTimer]);
@@ -289,7 +313,8 @@ export function useStream(model: LanguageModel): UseStreamResult {
     stopPersistTimer();
     streamBufferRef.current = '';
     accumulatedTextRef.current = '';
-    setStreamedText('');
+    streamedTextRef.current = '';
+    subscribersRef.current.forEach(fn => fn());
     setActiveToolName(null);
     setStatus('idle');
     setError(null);
@@ -312,5 +337,13 @@ export function useStream(model: LanguageModel): UseStreamResult {
     };
   }, []);
 
-  return { streamedText, status, activeToolName, error, sessionTokens, send, abort, reset };
+  // Stable subscription function. Callers (e.g. StreamingTextOverlay) add a
+  // callback here to be notified after each flush rather than receiving
+  // streamedText as a prop — keeping re-renders scoped to the overlay itself.
+  const subscribeToStreamText = useCallback((cb: () => void) => {
+    subscribersRef.current.add(cb);
+    return () => { subscribersRef.current.delete(cb); };
+  }, []);
+
+  return { streamedTextRef, subscribeToStreamText, status, activeToolName, error, sessionTokens, send, abort, reset };
 }

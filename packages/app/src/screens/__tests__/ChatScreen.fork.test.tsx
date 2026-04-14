@@ -69,14 +69,16 @@ vi.mock('@uplnk/db', () => ({
 type StreamStatus = 'idle' | 'connecting' | 'streaming' | 'done' | 'error';
 const mockUseStream = vi.hoisted(() =>
   vi.fn<() => {
-    streamedText: string;
+    streamedTextRef: React.MutableRefObject<string>;
+    subscribeToStreamText: (cb: () => void) => () => void;
     status: StreamStatus;
     activeToolName: string | null;
     error: unknown;
     send: (...args: unknown[]) => Promise<undefined>;
     abort: () => void;
   }>(() => ({
-    streamedText: '',
+    streamedTextRef: { current: '' },
+    subscribeToStreamText: vi.fn(() => vi.fn()),
     status: 'idle',
     activeToolName: null,
     error: null,
@@ -87,6 +89,21 @@ const mockUseStream = vi.hoisted(() =>
 
 vi.mock('../../hooks/useStream.js', () => ({
   useStream: mockUseStream,
+}));
+
+vi.mock('../../components/voice/VoiceAssistantProvider.js', () => ({
+  useVoiceAssistant: vi.fn(() => ({
+    isInitialized: false,
+    isDictating: false,
+    partialTranscription: '',
+    startDictation: vi.fn(),
+    stopDictation: vi.fn(),
+    toggleDictation: vi.fn(),
+    registerTranscriptionHandler: vi.fn(() => vi.fn()),
+    error: null,
+    statusMessage: null,
+  })),
+  VoiceAssistantProvider: ({ children }: { children: React.ReactNode }) => children,
 }));
 
 // Mock useConversation — the conversation id and messages are what handleFork reads
@@ -177,6 +194,21 @@ vi.mock('../../lib/fileMention.js', () => ({
   __resetMentionCacheForTests: vi.fn(),
 }));
 
+vi.mock('../../components/voice/VoiceAssistantProvider.js', () => ({
+  VoiceAssistantProvider: ({ children }: { children: React.ReactNode }) => children,
+  useVoiceAssistant: vi.fn(() => ({
+    isInitialized: false,
+    isDictating: false,
+    partialTranscription: '',
+    startDictation: vi.fn(),
+    stopDictation: vi.fn(),
+    toggleDictation: vi.fn(),
+    registerTranscriptionHandler: vi.fn(() => vi.fn()),
+    error: null,
+    statusMessage: null,
+  })),
+}));
+
 import { ChatScreen } from '../ChatScreen.js';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -209,7 +241,8 @@ beforeEach(() => {
   mockMessages.current = [];
   // Reset useStream to idle between tests so streaming-state tests don't bleed
   mockUseStream.mockReturnValue({
-    streamedText: '',
+    streamedTextRef: { current: '' },
+    subscribeToStreamText: vi.fn(() => vi.fn()),
     status: 'idle' as const,
     activeToolName: null,
     error: null,
@@ -311,7 +344,8 @@ describe('ChatScreen /fork — streaming guard', () => {
   // returns early. We render ChatScreen with streaming status and confirm no fork.
   it('does not call forkConversation while streaming', async () => {
     mockUseStream.mockReturnValue({
-      streamedText: 'partial...',
+      streamedTextRef: { current: 'partial...' },
+      subscribeToStreamText: vi.fn(() => vi.fn()),
       status: 'streaming',
       activeToolName: null,
       error: null,
@@ -329,7 +363,8 @@ describe('ChatScreen /fork — streaming guard', () => {
 
   it('shows streaming indicator (input disabled) when streaming — fork is blocked', async () => {
     mockUseStream.mockReturnValue({
-      streamedText: 'partial...',
+      streamedTextRef: { current: 'partial...' },
+      subscribeToStreamText: vi.fn(() => vi.fn()),
       status: 'streaming',
       activeToolName: null,
       error: null,
