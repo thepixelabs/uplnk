@@ -1,3 +1,9 @@
+## [1.0.1](https://github.com/thepixelabs/uplnk/compare/v1.0.0...v1.0.1) (2026-04-14)
+
+### Bug Fixes
+
+* **ci:** use NPM_TOKEN for npm publish instead of OIDC provenance ([e4b3536](https://github.com/thepixelabs/uplnk/commit/e4b353607aa4d3e06f1361d858f843e4343b7502))
+
 ## 1.0.0 (2026-04-14)
 
 ### Features
