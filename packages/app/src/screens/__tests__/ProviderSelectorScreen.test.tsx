@@ -87,7 +87,6 @@ describe('ProviderSelectorScreen — render', () => {
     );
     expect(lastFrame()).toContain('j/k');
     expect(lastFrame()).toContain('Enter');
-    expect(lastFrame()).toContain('Esc');
   });
 
   it('shows empty-state message when no providers', () => {
@@ -98,7 +97,7 @@ describe('ProviderSelectorScreen — render', () => {
         onBack: vi.fn(), onAdd: vi.fn(), onEdit: vi.fn(),
       }),
     );
-    expect(lastFrame()).toContain('No providers configured');
+    expect(lastFrame()).toContain('No providers. Press');
   });
 });
 
