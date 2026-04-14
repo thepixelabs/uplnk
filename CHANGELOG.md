@@ -1,3 +1,32 @@
+## 1.0.0 (2026-04-14)
+
+### Features
+
+* **app:** add session token gauge to StatusBar ([02eafc7](https://github.com/thepixelabs/uplnk/commit/02eafc7e92996e2ab18811a49d96f4c461b3d614))
+* **app:** voice assistant, streaming overlay, header status, doctor voice checks ([3882587](https://github.com/thepixelabs/uplnk/commit/38825877167d15c76da4878579890992da107db4))
+* **chat:** add /compact command to summarize and truncate old context ([e8e4b2d](https://github.com/thepixelabs/uplnk/commit/e8e4b2d799043fcd1ed2cbf4f3ccaaf84db40759))
+* **landing:** remove comparison table, strip competitor names from scenarios ([ffde623](https://github.com/thepixelabs/uplnk/commit/ffde623e546ab2ac036929c998aa87ca0e574594))
+* multi-provider support, agent system, logo animation, chat refactor ([1a8b081](https://github.com/thepixelabs/uplnk/commit/1a8b081396c5324622dded1baea339f7b1771e7b))
+* Uplnk v0.3.0 — multi-provider, Relay Mode, Network Scanner, landing page ([86bdeea](https://github.com/thepixelabs/uplnk/commit/86bdeea537798acf1f95c70739753304742b5ce9))
+* Uplnk v1.0 — full feature set from scaffold to production ([03ecaa5](https://github.com/thepixelabs/uplnk/commit/03ecaa5b190820d8652b86d65792f7a9bf19a0fe))
+* Relay Mode + Network Scanner (v0.3.0) ([#2](https://github.com/thepixelabs/uplnk/issues/2)) ([fd7c03d](https://github.com/thepixelabs/uplnk/commit/fd7c03dbf9e67f71493ccd58fcd16e392f4953e5))
+
+### Bug Fixes
+
+* **app:** fix VoskService type errors for CI (Readable stream cast) ([d60e163](https://github.com/thepixelabs/uplnk/commit/d60e1635e46bbabc636e0d4153caf825ca33f234))
+* **app:** remove duplicate shebang from tsup banner ([33825de](https://github.com/thepixelabs/uplnk/commit/33825dec826a006f3ff58ab0cc2c81a724c6f53b))
+* **app:** resolve eslint errors in VoskService, VoiceAssistantProvider, orchestrator ([25746a2](https://github.com/thepixelabs/uplnk/commit/25746a2673ca44f52627c2d814dbe827fa788281))
+* **ci:** replace --version smoke test with build output check ([d417f36](https://github.com/thepixelabs/uplnk/commit/d417f365a4a3eb06f72b683be5858d7d98dc1c5d))
+* **ci:** run --version check within workspace context for external deps ([4d29534](https://github.com/thepixelabs/uplnk/commit/4d29534951122b88e0fa353179b31c44092ca784))
+* **ci:** trigger semantic-release pipeline test ([733fbb8](https://github.com/thepixelabs/uplnk/commit/733fbb8fe25731f80a51aa50b43ac08177675f15))
+* **ci:** use RELEASE_TOKEN PAT for semantic-release to bypass branch protection ([afc9233](https://github.com/thepixelabs/uplnk/commit/afc92332204be3a25372715e5b984e3e9bd5ff37))
+* **db:** prevent duplicate assistant row on stream completion ([85a0fc9](https://github.com/thepixelabs/uplnk/commit/85a0fc9b1440ad61db6905f6b6a71aae01420552))
+* pin Node.js to v22, add Volta + nvm config ([c3ba677](https://github.com/thepixelabs/uplnk/commit/c3ba67713d79903a52f58a5b86e27bd93996cf32))
+* **rag:** replace tautological WHERE clause with isNotNull filter ([4d40529](https://github.com/thepixelabs/uplnk/commit/4d40529c8d23982b9b6db9a6cfb13ceb49830e2d))
+* register migration 0004 in journal; fix uplnk-db import in bin ([42afaf1](https://github.com/thepixelabs/uplnk/commit/42afaf184cd05e25f96da3a4ca8c02adf13f41b4))
+* serve landing page from repo root for GitHub Pages ([528a864](https://github.com/thepixelabs/uplnk/commit/528a8640b7e47e7e5ce49a3b549ed4d483cd0aca))
+* **ui:** wire relay and scan screens into App router ([a42e2ce](https://github.com/thepixelabs/uplnk/commit/a42e2ced6d75ce275ac33f3383dd433131a655a6))
+
 # Changelog
 
 All notable changes to this project will be documented in this file.
