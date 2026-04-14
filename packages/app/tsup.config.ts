@@ -17,9 +17,8 @@ export default defineConfig([
     // ink and react must remain external so their singleton state (hooks, context)
     // is shared correctly across the render tree.
     external: ['better-sqlite3', 'ink', 'react'],
-    banner: {
-      js: '#!/usr/bin/env node',
-    },
+    // Shebang is in bin/uplnk.ts source — tsup preserves it in the output.
+    // Do NOT add a banner here or the shebang will be duplicated.
   },
   // Library entry — dist/ for programmatic imports and type declarations.
   {
