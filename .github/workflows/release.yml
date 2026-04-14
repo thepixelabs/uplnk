@@ -1,24 +1,42 @@
 name: Release
 
+# Trigger on every push to main. semantic-release decides whether a new
+# version is warranted by analysing conventional commits since the last tag.
+# If there are no releasable commits it exits 0 without publishing anything.
 on:
   push:
-    tags:
-      - "v*"
+    branches:
+      - main
 
-permissions:
-  contents: write  # required to create a GitHub Release
-  id-token: write  # required for npm provenance attestation
+# Prevent two release jobs from running simultaneously. Unlike CI, we never
+# cancel an in-flight release — a partial release that gets killed midway
+# leaves the repo in an inconsistent state (tag written, npm not published).
+concurrency:
+  group: release
+  cancel-in-progress: false
 
 jobs:
   release:
-    name: Build, publish, and release
+    name: semantic-release
     runs-on: ubuntu-latest
 
+    permissions:
+      contents: write       # push version-bump commit + create GitHub Release
+      issues: write         # allow @semantic-release/github to comment on issues
+      pull-requests: write  # allow @semantic-release/github to comment on PRs
+      id-token: write       # required for npm OIDC trusted publishing (provenance)
+
     steps:
-      - name: Checkout (full history for changelog)
+      - name: Checkout (full history — semantic-release needs all tags and commits)
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
+          # Use a token that can push back to main past branch protection rules.
+          # The default GITHUB_TOKEN works if "Allow GitHub Actions to create and
+          # approve pull requests" is enabled and the branch protection allows
+          # pushes from Actions. If you have stricter rules, replace this with a
+          # GitHub App installation token.
+          token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Install pnpm
         uses: pnpm/action-setup@v4
@@ -28,9 +46,11 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: "20"
+          node-version-file: .node-version
           cache: pnpm
-          # Configures the npm registry so NODE_AUTH_TOKEN is picked up automatically.
+          # registry-url writes the .npmrc that points npm at the registry and
+          # enables OIDC token exchange. Required for the provenance publish step
+          # below. Do NOT set NODE_AUTH_TOKEN — it would override the OIDC flow.
           registry-url: "https://registry.npmjs.org"
 
       - name: Get pnpm store path
@@ -49,55 +69,64 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Typecheck
+      # Run the same checks CI runs on PRs so we never publish a broken build.
+      - name: Typecheck (all packages)
         run: pnpm typecheck
 
-      - name: Build all packages (tsup)
+      - name: Lint
+        run: pnpm lint
+
+      - name: Test
+        run: pnpm test
+
+      - name: Build all packages
         run: pnpm build
 
-      - name: Publish uplnk to npm
-        working-directory: packages/app
-        run: pnpm publish --no-git-checks --access public --provenance
-
-      - name: Generate changelog from commits
-        id: changelog
-        shell: bash
+      - name: Verify shebang in bin output
         run: |
-          # Derive the previous tag to bound the commit range.
-          PREV_TAG=$(git tag --sort=-version:refname | grep -E '^v[0-9]' | sed -n '2p')
-          CURRENT_TAG="${GITHUB_REF_NAME}"
+          head -1 packages/app/dist/uplnk.js | grep -q '#!/usr/bin/env node' \
+            || (echo "ERROR: shebang missing from dist/uplnk.js" && exit 1)
 
-          if [ -n "$PREV_TAG" ]; then
-            RANGE="${PREV_TAG}..${CURRENT_TAG}"
+      - name: Verify --version works
+        run: node packages/app/dist/uplnk.js --version
+
+      # semantic-release reads release.config.cjs from the repo root.
+      # It will:
+      #   1. Analyse commits since the last tag.
+      #   2. If releasable: bump packages/app/package.json, write CHANGELOG.md,
+      #      commit both back to main, create a GitHub Release tagged vX.Y.Z.
+      #      (npm publish is intentionally disabled inside semantic-release — see
+      #       release.config.cjs for the rationale; publishing happens below.)
+      #   3. If nothing to release: exit 0 silently.
+      # The SR_RELEASED output is set to "true" when a release was actually cut
+      # so the publish step below can be conditioned on it.
+      - name: Run semantic-release
+        id: sr
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          pnpm exec semantic-release
+          # semantic-release exits 0 regardless of whether it released.
+          # Check whether a tag matching the current packages/app version exists.
+          VERSION=$(node -p "require('./packages/app/package.json').version")
+          if git tag --list "v${VERSION}" | grep -q .; then
+            echo "released=true"  >> "$GITHUB_OUTPUT"
+            echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
           else
-            RANGE="${CURRENT_TAG}"
+            echo "released=false" >> "$GITHUB_OUTPUT"
           fi
 
-          echo "Generating changelog for range: ${RANGE}"
-
-          # Build a conventional-style log: sha (short) + subject.
-          LOG=$(git log "${RANGE}" --pretty=format:"- %h %s" --no-merges)
-
-          # Write to $GITHUB_OUTPUT using the multiline delimiter pattern.
-          {
-            echo "content<<CHANGELOG_EOF"
-            echo "${LOG}"
-            echo "CHANGELOG_EOF"
-          } >> "$GITHUB_OUTPUT"
-
-      - name: Create GitHub Release
-        uses: actions/github-script@v7
-        with:
-          script: |
-            const tag = context.ref.replace('refs/tags/', '');
-            const changelog = `${{ steps.changelog.outputs.content }}`;
-
-            await github.rest.repos.createRelease({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              tag_name: tag,
-              name: `Release ${tag}`,
-              body: `## What's Changed\n\n${changelog}\n\n**Full Changelog:** https://github.com/${context.repo.owner}/${context.repo.repo}/commits/${tag}`,
-              draft: false,
-              prerelease: tag.includes('-'),
-            });
+      # Publish to npm with OIDC provenance. This runs only when semantic-release
+      # cut a new release. We use pnpm publish (not npm publish) so pnpm handles
+      # the workspace context correctly, but the underlying npm OIDC exchange is
+      # triggered by the id-token: write permission + registry-url in setup-node.
+      #
+      # --provenance:   attach SLSA build provenance attestation to the package.
+      # --access public: belt-and-suspenders; publishConfig.access in package.json
+      #                  already declares this, but explicit is safer.
+      # --no-git-checks: semantic-release has already committed and tagged; the
+      #                  working tree may be clean but pnpm's git checks would
+      #                  flag the detached state on the tag commit.
+      - name: Publish to npm (OIDC + provenance)
+        if: steps.sr.outputs.released == 'true'
+        run: pnpm --filter uplnk publish --provenance --access public --no-git-checks

@@ -26,7 +26,7 @@ jobs:
           VERSION="${VERSION#v}"
           echo "Waiting for uplnk@${VERSION} on npm..."
           for i in $(seq 1 30); do
-            if npm view "uplnk@${VERSION}" version 2>/dev/null | grep -q "${VERSION}"; then
+            if npm view "uplnk@${VERSION}" version --registry https://registry.npmjs.org 2>/dev/null | grep -q "${VERSION}"; then
               echo "Version ${VERSION} is live on npm."
               exit 0
             fi
@@ -50,7 +50,7 @@ jobs:
       - name: Checkout homebrew-tap
         uses: actions/checkout@v4
         with:
-          repository: pixelicous/homebrew-tap
+          repository: thepixelabs/homebrew-tap
           token: ${{ steps.app-token.outputs.token }}
 
       - name: Update formula url + sha256
