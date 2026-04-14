@@ -121,8 +121,8 @@ export const VoiceAssistantProvider: React.FC<Props> = ({ children, onCommand })
       setIsInitialized(true);
       setStatusMessage(null);
       return true;
-    } catch (err: any) {
-      setError(err.message as string);
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : String(err));
       setStatusMessage(null);
       return false;
     } finally {
