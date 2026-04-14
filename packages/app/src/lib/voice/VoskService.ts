@@ -17,7 +17,7 @@ export class VoskService extends EventEmitter {
   private model: Model | null = null;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   private recognizer: Recognizer<any> | null = null;
-  private micStream: NodeJS.ReadableStream | null = null;
+  private micStream: import('stream').Readable | null = null;
   private isListening = false;
   private modelPath: string;
 
@@ -53,9 +53,10 @@ export class VoskService extends EventEmitter {
         threshold: 0,
         verbose: false,
         recordProgram: 'sox',
-      }).stream();
+      }).stream() as unknown as import('stream').Readable;
 
-      this.micStream.on('data', (data: Buffer) => {
+      const mic = this.micStream;
+      mic.on('data', (data: Buffer) => {
         try {
           if (!this.recognizer) return;
           
@@ -76,7 +77,7 @@ export class VoskService extends EventEmitter {
         }
       });
 
-      this.micStream.on('error', (err: Error) => {
+      mic.on('error', (err: Error) => {
         this.emit('error', err);
         this.stopListening();
       });
