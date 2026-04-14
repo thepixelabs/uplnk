@@ -28,7 +28,7 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Build
-        run: pnpm --filter @uplnk/app build
+        run: pnpm --filter uplnk build
 
       - name: Verify shebang in bin output
         run: |
@@ -40,10 +40,10 @@ jobs:
 
       - name: Publish (stable)
         if: "!contains(github.event.release.tag_name, '-')"
-        run: pnpm --filter @uplnk/app publish --no-git-checks --provenance
+        run: pnpm --filter uplnk publish --no-git-checks --provenance
 
       - name: Publish (pre-release)
         if: "contains(github.event.release.tag_name, '-')"
         run: |
           TAG=$(echo "${{ github.event.release.tag_name }}" | sed 's/.*-\([a-z]*\).*/\1/')
-          pnpm --filter @uplnk/app publish --no-git-checks --provenance --tag "${TAG}"
+          pnpm --filter uplnk publish --no-git-checks --provenance --tag "${TAG}"
