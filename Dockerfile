@@ -25,7 +25,7 @@ COPY packages/ ./packages/
 
 # Build @uplnk/app (tsup bundles @uplnk/db + @uplnk/shared inline;
 # better-sqlite3 stays external as a native .node module)
-RUN pnpm --filter @uplnk/app build
+RUN pnpm --filter uplnk build
 
 # Copy migrations into the dist tree so import.meta.url-relative lookup works.
 # When tsup bundles migrate.ts into dist/uplnk.js, import.meta.url points
