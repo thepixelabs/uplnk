@@ -203,6 +203,16 @@ const ConfigSchema = z.object({
         .optional(),
     })
     .default({}),
+  networkScanner: z
+    .object({
+      /**
+       * ISO timestamp set when the user explicitly confirms subnet scanning
+       * via `uplnk config --confirm-subnet-scan`. Subnet scanning is only
+       * allowed when this field is present.
+       */
+      subnetConfirmedAt: z.string().optional(),
+    })
+    .default({}),
 });
 
 export type Config = z.infer<typeof ConfigSchema>;
