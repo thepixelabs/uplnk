@@ -4,6 +4,7 @@ import { ChatScreen } from './screens/ChatScreen.js';
 import { ModelSelectorScreen } from './screens/ModelSelectorScreen.js';
 import { ConversationListScreen } from './screens/ConversationListScreen.js';
 import { ProviderSelectorScreen } from './screens/ProviderSelectorScreen.js';
+import { SettingsScreen } from './screens/SettingsScreen.js';
 import { AddProviderScreen } from './screens/AddProviderScreen.js';
 import { RelayPickerScreen } from './screens/RelayPickerScreen.js';
 import { RelayRunScreen } from './screens/RelayRunScreen.js';
@@ -26,6 +27,7 @@ export type Screen =
   | 'model-selector'
   | 'conversations'
   | 'provider-selector'
+  | 'settings'
   | 'add-provider'
   | 'edit-provider'
   | 'relay-picker'
@@ -63,6 +65,7 @@ export interface AppProps {
 
 export function App({ initialModel = 'qwen2.5:7b', resumeConversationId, projectDir, config }: AppProps) {
   const [currentScreen, setCurrentScreen] = useState<Screen>('chat');
+  const [activeConfig, setActiveConfig] = useState<Config>(() => config!);
   const [activeModel, setActiveModel] = useState(initialModel);
   const [activeProvider, setActiveProvider] = useState<{
     baseUrl: string;
@@ -181,6 +184,11 @@ export function App({ initialModel = 'qwen2.5:7b', resumeConversationId, project
       execute: () => setCurrentScreen('provider-selector'),
     },
     {
+      id: 'settings', name: 'Settings', shortcut: '/settings',
+      description: 'Manage app configuration', group: 'chat',
+      execute: () => setCurrentScreen('settings'),
+    },
+    {
       id: 'add-provider', name: 'Add provider', shortcut: '/add-provider',
       description: 'Connect to a remote model server', group: 'chat',
       execute: () => setCurrentScreen('add-provider'),
@@ -254,12 +262,13 @@ export function App({ initialModel = 'qwen2.5:7b', resumeConversationId, project
           // fork — clears streaming state, tool-call counter, artifact panel,
           // history ref. providerKey is appended so a provider switch also
           // remounts ChatScreen, forcing it to re-read the new credentials
-          // from props instead of its cached providerRef.
-          key={`${activeConversationId ?? 'new'}-${providerKey}`}
+          // from props instead of its cached providerRef. activeConfig.displayName
+          // is included so changing the profile also remounts the chat.
+          key={`${activeConversationId ?? 'new'}-${providerKey}-${activeConfig.displayName ?? 'default'}`}
           initialModel={activeModel}
           {...(activeConversationId !== undefined ? { resumeConversationId: activeConversationId } : {})}
           {...(projectDir !== undefined ? { projectDir } : {})}
-          {...(config !== undefined ? { config } : {})}
+          config={activeConfig}
           {...(activeProvider !== null ? {
             overrideBaseUrl: activeProvider.baseUrl,
             overrideApiKey: activeProvider.apiKey,
@@ -277,7 +286,7 @@ export function App({ initialModel = 'qwen2.5:7b', resumeConversationId, project
         <ModelSelectorScreen
           onSelect={(model) => { setActiveModel(model); setCurrentScreen('chat'); }}
           onBack={() => setCurrentScreen('chat')}
-          {...(config?.modelRouter?.enabled === true ? { routerEnabled: true } : {})}
+          {...(activeConfig.modelRouter?.enabled === true ? { routerEnabled: true } : {})}
         />
       )}
 
@@ -302,6 +311,14 @@ export function App({ initialModel = 'qwen2.5:7b', resumeConversationId, project
             setEditingProvider(p);
             setCurrentScreen('edit-provider');
           }}
+        />
+      )}
+
+      {!paletteOpen && currentScreen === 'settings' && (
+        <SettingsScreen
+          onBack={() => setCurrentScreen('chat')}
+          activeConfig={activeConfig}
+          onConfigChange={setActiveConfig}
         />
       )}
 
@@ -372,8 +389,8 @@ export function App({ initialModel = 'qwen2.5:7b', resumeConversationId, project
       {!paletteOpen && currentScreen === 'network-scan' && (
         <NetworkScanScreen
           onBack={() => setCurrentScreen('chat')}
-          {...(config?.networkScanner?.subnetConfirmedAt !== undefined
-            ? { subnetConfirmedAt: config.networkScanner.subnetConfirmedAt }
+          {...(activeConfig.networkScanner?.subnetConfirmedAt !== undefined
+            ? { subnetConfirmedAt: activeConfig.networkScanner.subnetConfirmedAt }
             : {})}
         />
       )}

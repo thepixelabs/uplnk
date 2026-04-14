@@ -157,12 +157,21 @@ export function ModelSelectorScreen({ onSelect, onBack, routerEnabled, providerC
   });
 
   return (
-    <Box flexDirection="column" padding={1}>
+    <Box
+      flexDirection="column"
+      borderStyle="round"
+      borderColor="#60A5FA"
+      marginX={4}
+      marginY={1}
+      paddingX={1}
+    >
       <Box flexDirection="column">
-        <Box>
-          <Text bold>Models</Text>
-          <Text dimColor>   j/k navigate · / search · f filter · r refresh · Enter load · Esc back</Text>
-          {routerEnabled === true && <Text color="#60A5FA" dimColor>   (router)</Text>}
+        <Box justifyContent="space-between">
+          <Box>
+            <Text bold color="#60A5FA">Models</Text>
+            {routerEnabled === true && <Text color="#60A5FA" dimColor>   (router)</Text>}
+          </Box>
+          <Text dimColor>j/k navigate · / search · f filter · r refresh · Enter load · Esc back</Text>
         </Box>
         <Box>
           {effectiveConfig !== null ? (
@@ -214,7 +223,7 @@ export function ModelSelectorScreen({ onSelect, onBack, routerEnabled, providerC
             const badgeColor = m.source === 'catalog' ? '#64748B' : '#4ADE80';
             return (
               <Box key={`m-${m.id}-${String(i)}`}>
-                <Text {...(isCursor ? { color: '#60A5FA' as const } : {})}>
+                <Text {...(isCursor ? { color: '#60A5FA' as const } : {})} bold={isCursor}>
                   {isCursor ? '▶ ' : '  '}
                   <Text bold={isCursor}>{m.id.padEnd(30)}</Text>
                   {'  '}

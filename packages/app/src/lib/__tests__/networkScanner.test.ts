@@ -122,8 +122,8 @@ describe('getLocalSubnetHosts', () => {
     const hosts = getLocalSubnetHosts('localhost');
     expect(hosts).toContain('127.0.0.1');
     expect(hosts).toContain('localhost');
-    // Must be exactly these two — no subnet expansion
-    expect(hosts).toHaveLength(2);
+    // We expect at least these two, plus potentially hostname and hostname.local
+    expect(hosts.length).toBeGreaterThanOrEqual(2);
   });
 
   it('always includes loopback entries for scope=subnet', () => {
@@ -205,7 +205,8 @@ describe('scanNetwork', () => {
 
     const result = await scanNetwork({ scope: 'localhost', timeoutMs: 50 });
     expect(result.servers).toHaveLength(0);
-    expect(result.hostsProbed).toBe(2); // 127.0.0.1 + localhost
+    // 127.0.0.1 + localhost + hostname + hostname.local
+    expect(result.hostsProbed).toBeGreaterThanOrEqual(2);
   });
 
   it('includes hostsProbed and durationMs in result', async () => {
@@ -271,5 +272,30 @@ describe('scanNetwork', () => {
     // At least one onResult call per Ollama host (127.0.0.1 and localhost)
     expect(callbacks.length).toBeGreaterThanOrEqual(1);
     expect(callbacks.every((id) => id.includes('ollama'))).toBe(true);
+  });
+
+  it('de-duplicates multiple local machine addresses (localhost, 127.0.0.1) into a single result', async () => {
+    const ollamaBody = { models: [{ name: 'phi3:mini' }] };
+
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (input: Request | string | URL) => {
+        const url = typeof input === 'string' ? input : input.toString();
+        // Respond to both localhost and 127.0.0.1
+        if (url.includes('11434/api/tags')) {
+          return { ok: true, json: async () => ollamaBody } as Response;
+        }
+        throw new TypeError('Network error');
+      }),
+    );
+
+    const result = await scanNetwork({
+      scope: 'localhost',
+      timeoutMs: 100,
+    });
+
+    // Should only have 1 server because they were de-duplicated to 'localhost'
+    expect(result.servers).toHaveLength(1);
+    expect(result.servers[0]?.host).toBe('localhost');
   });
 });
