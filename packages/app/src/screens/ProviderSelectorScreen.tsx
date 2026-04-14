@@ -104,12 +104,7 @@ export const ProviderSelectorScreen = memo(function ProviderSelectorScreen({ onS
     if (key.return) {
       const p = providers[cursor];
       if (p !== undefined) {
-        // Persist the selection to the DB so it survives app restarts.
         setDefaultProvider(db, p.id);
-        // Resolve the DB column through the secrets backend so overrides
-        // passed up to App/ChatScreen always carry cleartext. Falls back
-        // to the literal 'ollama' placeholder so OpenAI-compat servers that
-        // don't verify auth still get a non-empty Bearer header.
         const resolvedKey = resolveSecret(p.apiKey) ?? 'ollama';
         onSelect(
           p.id,
@@ -126,11 +121,6 @@ export const ProviderSelectorScreen = memo(function ProviderSelectorScreen({ onS
     if (input === 'e') {
       const p = providers[cursor];
       if (p === undefined) return;
-      // Resolve the api_key column to cleartext before handing it to the
-      // edit form so the user sees their actual key (masked) instead of an
-      // opaque `@secret:` ref. We ALSO pass the raw column value through as
-      // `rawApiKey` so the save path can detect "key unchanged" and reuse
-      // the existing ref instead of orphaning it (H1 from security gate).
       onEdit({
         id: p.id,
         name: p.name,
@@ -178,46 +168,51 @@ export const ProviderSelectorScreen = memo(function ProviderSelectorScreen({ onS
   });
 
   return (
-    <Box flexDirection="column" padding={1}>
-      <Text bold>Providers  <Text dimColor>(j/k · Enter select · a add · e edit · t test · D default · d delete · Esc back)</Text></Text>
+    <Box
+      flexDirection="column"
+      borderStyle="round"
+      borderColor="#60A5FA"
+      marginX={4}
+      marginY={1}
+      paddingX={1}
+    >
+      <Box justifyContent="space-between">
+        <Text bold color="#60A5FA">Providers</Text>
+        <Text dimColor>j/k nav · Enter select · a add · e edit · t test · D default · d del</Text>
+      </Box>
+
       <Box flexDirection="column" marginTop={1}>
         {providers.length === 0 && (
-          <Text dimColor>No providers configured. Press <Text color="#60A5FA">a</Text> to add one.</Text>
+          <Text dimColor>No providers. Press <Text color="#60A5FA">a</Text> to add.</Text>
         )}
         {providers.map((p, i) => {
           const isCursor = i === cursor;
           return (
-            <Box key={p.id} flexDirection="column" marginY={0}>
-              <Text {...(isCursor ? { color: '#60A5FA' as const } : {})}>
-                {isCursor ? '▶ ' : '  '}
-                <Text bold>{p.name}</Text>
-                {'  '}
-                <Text dimColor>{p.providerType}</Text>
-                {'  '}
-                <Text dimColor>{p.baseUrl}</Text>
-                {p.isDefault ? <Text color="#4ADE80">  ● default</Text> : null}
-                {testingId === p.id ? <Text color="#60A5FA">  testing…</Text> : null}
-              </Text>
-              {isCursor && (
-                <Box flexDirection="column" marginLeft={4}>
-                  <Text dimColor>Model: {p.defaultModel ?? 'not set'}</Text>
-                  {p.lastTestStatus !== null && p.lastTestStatus !== undefined && (
-                    <Text dimColor>
-                      Last test: <Text color={p.lastTestStatus === 'ok' ? '#4ADE80' : 'red'}>{p.lastTestStatus}</Text>
-                      {' '}· {p.lastTestDetail ?? ''}
-                    </Text>
-                  )}
-                </Box>
-              )}
+            <Box key={p.id} justifyContent="space-between">
+              <Box>
+                <Text {...(isCursor ? { color: '#60A5FA' as const } : {})} bold={isCursor}>
+                  {isCursor ? '▶ ' : '  '}
+                  {p.name.padEnd(20)}
+                </Text>
+                <Text dimColor>  {p.providerType}  {p.baseUrl}</Text>
+              </Box>
+              <Box>
+                {p.isDefault && <Text color="#4ADE80">default </Text>}
+                {testingId === p.id && <Text color="#60A5FA">testing…</Text>}
+                {testingId !== p.id && p.lastTestStatus === 'ok' && <Text color="#4ADE80">ok</Text>}
+                {testingId !== p.id && p.lastTestStatus === 'fail' && <Text color="red">fail</Text>}
+              </Box>
             </Box>
           );
         })}
       </Box>
+
       {confirmDelete && providers[cursor] !== undefined && (
         <Box marginTop={1}>
           <Text color="red">Delete <Text bold>{providers[cursor].name}</Text>? y/n</Text>
         </Box>
       )}
+
       {msg !== null && (
         <Box marginTop={1}>
           <Text color={msg.color}>{msg.text}</Text>

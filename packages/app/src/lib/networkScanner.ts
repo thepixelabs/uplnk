@@ -1,4 +1,4 @@
-import { networkInterfaces } from 'node:os';
+import { networkInterfaces, hostname } from 'node:os';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -27,9 +27,9 @@ export interface DiscoveredServer {
 
 export interface ScanOptions {
   scope: 'localhost' | 'subnet';
-  /** Milliseconds per probe. Default: 800 */
+  /** Milliseconds per probe. Default: 1500 */
   timeoutMs?: number;
-  /** Max concurrent probes. Default: 16 */
+  /** Max concurrent probes. Default: 32 */
   concurrency?: number;
   /** Called as each server is discovered, before the final result. */
   onResult?: (server: DiscoveredServer) => void;
@@ -175,10 +175,32 @@ function isRFC1918(ip: string): boolean {
 const MAX_HOSTS = 512;
 
 /**
+ * Returns the set of all IP addresses and hostnames that refer to the
+ * local machine. Used for de-duplicating results (e.g. preferring
+ * 'localhost' over '127.0.0.1' or a local interface IP).
+ */
+export function getLocalMachineAddresses(): Set<string> {
+  const addrs = new Set<string>(['127.0.0.1', 'localhost', '::1', '0.0.0.0']);
+  const name = hostname();
+  if (name) {
+    addrs.add(name);
+    addrs.add(`${name}.local`);
+  }
+
+  const ifaces = networkInterfaces();
+  for (const iface of Object.values(ifaces)) {
+    for (const addr of iface ?? []) {
+      addrs.add(addr.address);
+    }
+  }
+  return addrs;
+}
+
+/**
  * Returns the list of hosts to probe based on `scope`.
  *
- * For 'localhost': only loopback addresses.
- * For 'subnet': loopback + the /24 derived from the primary RFC 1918 interface.
+ * For 'localhost': only loopback addresses + current hostname.
+ * For 'subnet': localhost + the /24 derived from the primary RFC 1918 interface.
  *
  * Security guarantees:
  *  - Subnet scanning is limited to RFC 1918 ranges only.
@@ -186,7 +208,14 @@ const MAX_HOSTS = 512;
  *  - Total host count is hard-capped at MAX_HOSTS (512).
  */
 export function getLocalSubnetHosts(scope: 'localhost' | 'subnet'): string[] {
-  const hosts: string[] = ['127.0.0.1', 'localhost'];
+  const hosts: string[] = ['localhost', '127.0.0.1'];
+
+  const name = hostname();
+  if (name) {
+    if (!hosts.includes(name)) hosts.push(name);
+    const localName = `${name}.local`;
+    if (!hosts.includes(localName)) hosts.push(localName);
+  }
 
   if (scope === 'localhost') return hosts;
 
@@ -197,9 +226,10 @@ export function getLocalSubnetHosts(scope: 'localhost' | 'subnet'): string[] {
       if (addr.family !== 'IPv4' || addr.internal) continue;
       if (!addr.cidr) continue;
 
-      // Safety: only scan /24 or narrower — refuse larger subnets
+      // Safety: only scan /16 or narrower — refuse larger subnets (like /8)
+      // to avoid massive sweeps. Even for /16, we only sweep the local /24.
       const prefix = Number(addr.cidr.split('/')[1]);
-      if (isNaN(prefix) || prefix < 24) continue;
+      if (isNaN(prefix) || prefix < 16) continue;
 
       // Refuse to scan non-RFC1918 addresses (e.g. a cloud VM's public IP)
       if (!isRFC1918(addr.address)) continue;
@@ -338,12 +368,20 @@ export async function scanNetwork(opts: ScanOptions): Promise<ScanResult> {
     }
   }
 
-  const timeoutMs = opts.timeoutMs ?? 800;
-  const concurrency = opts.concurrency ?? 16;
+  const timeoutMs = opts.timeoutMs ?? 1500;
+  const concurrency = opts.concurrency ?? 32;
   const signal = opts.signal;
 
   const hosts = getLocalSubnetHosts(opts.scope);
   const hostsProbed = hosts.length;
+
+  const localAddrs = getLocalMachineAddresses();
+
+  /**
+   * Track unique servers by canonical ID to prevent duplicates
+   * (e.g. localhost vs 127.0.0.1 vs local IP).
+   */
+  const discoveredMap = new Map<string, DiscoveredServer>();
 
   // Build the full (host × probeDef) task list up front so the concurrency
   // limiter can drain them in order. Each task is a closure capturing
@@ -361,7 +399,6 @@ export async function scanNetwork(opts: ScanOptions): Promise<ScanResult> {
     }
   }
 
-  const servers: DiscoveredServer[] = [];
   const startTime = Date.now();
 
   // Wrap each task to call onResult eagerly when a server is found
@@ -369,8 +406,23 @@ export async function scanNetwork(opts: ScanOptions): Promise<ScanResult> {
     if (signal?.aborted) return null;
     const result = await task();
     if (result !== null) {
-      servers.push(result);
-      opts.onResult?.(result);
+      // Canonicalize host: if it's local to this machine, use 'localhost'
+      // to ensure a stable ID and de-duplicate.
+      const isLocal = localAddrs.has(result.host);
+      const canonicalHost = isLocal ? 'localhost' : result.host;
+      const canonicalId = `${result.kind}@${canonicalHost}:${result.port}`;
+
+      if (!discoveredMap.has(canonicalId)) {
+        // If we de-duplicated a local IP to localhost, update the record
+        if (isLocal && result.host !== 'localhost') {
+          result.host = 'localhost';
+          result.url = `http://localhost:${result.port}`;
+          result.id = canonicalId;
+        }
+
+        discoveredMap.set(canonicalId, result);
+        opts.onResult?.(result);
+      }
     }
     return result;
   });
@@ -378,7 +430,7 @@ export async function scanNetwork(opts: ScanOptions): Promise<ScanResult> {
   await runWithConcurrency(wrappedTasks, concurrency);
 
   return {
-    servers,
+    servers: Array.from(discoveredMap.values()),
     hostsProbed,
     durationMs: Date.now() - startTime,
   };
