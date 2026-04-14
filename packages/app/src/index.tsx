@@ -317,8 +317,8 @@ export function App({ initialModel = 'qwen2.5:7b', resumeConversationId, project
       {!paletteOpen && currentScreen === 'settings' && (
         <SettingsScreen
           onBack={() => setCurrentScreen('chat')}
-          activeConfig={activeConfig}
-          onConfigChange={setActiveConfig}
+          config={activeConfig}
+          onDone={(newConfig) => { setActiveConfig(newConfig); setCurrentScreen('chat'); }}
         />
       )}
 
