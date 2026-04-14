@@ -23,6 +23,21 @@ import { describe, it, expect, vi, afterEach } from 'vitest';
 import { render, cleanup } from 'ink-testing-library';
 import { ChatInput } from '../components/chat/ChatInput.js';
 
+vi.mock('../components/voice/VoiceAssistantProvider.js', () => ({
+  useVoiceAssistant: vi.fn(() => ({
+    isInitialized: false,
+    isDictating: false,
+    partialTranscription: '',
+    startDictation: vi.fn(),
+    stopDictation: vi.fn(),
+    toggleDictation: vi.fn(),
+    registerTranscriptionHandler: vi.fn(() => vi.fn()),
+    error: null,
+    statusMessage: null,
+  })),
+  VoiceAssistantProvider: ({ children }: { children: React.ReactNode }) => children,
+}));
+
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------

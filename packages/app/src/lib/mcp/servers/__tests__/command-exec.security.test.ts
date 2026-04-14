@@ -163,7 +163,9 @@ describe('Layer 1 — validateCommand rejects NEVER_ALLOW commands', () => {
       );
 
       expect(result.allowed).toBe(false);
-      expect(result.reason).toMatch(/permanently blocked|not in the allowed command list/i);
+      if (result.allowed === false) {
+        expect(result.reason).toMatch(/permanently blocked|not in the allowed command list/i);
+      }
     },
   );
 

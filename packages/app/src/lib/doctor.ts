@@ -3,6 +3,11 @@ import { accessSync, constants } from 'node:fs';
 import { db, getUplnkDir, getUplnkDbPath, listProviders, setProviderApiKey } from '@uplnk/db';
 import { initSecretsBackend, getSecretsBackend, isSecretRef, migratePlaintext } from './secrets.js';
 
+import { execSync } from 'node:child_process';
+import os from 'os';
+import path from 'path';
+import fs from 'fs';
+
 interface Check {
   name: string;
   run: () => Promise<{ ok: boolean; detail: string }>;
@@ -15,6 +20,28 @@ const checks: Check[] = [
       const [major] = process.version.slice(1).split('.').map(Number);
       const ok = (major ?? 0) >= 20;
       return { ok, detail: `${process.version}${ok ? '' : ' (requires >=20)'}` };
+    },
+  },
+  {
+    name: 'Voice: sox (mic)',
+    run: async () => {
+      try {
+        const path = execSync('which sox', { encoding: 'utf8' }).trim();
+        return { ok: true, detail: path };
+      } catch {
+        const cmd = process.platform === 'darwin' ? 'brew install sox' : 'sudo apt install sox';
+        return { ok: false, detail: `Missing — run \`${cmd}\`` };
+      }
+    },
+  },
+  {
+    name: 'Voice: Vosk model',
+    run: async () => {
+      const modelPath = path.join(os.homedir(), '.uplnk', 'models', 'vosk-model-small-en-us');
+      if (fs.existsSync(modelPath)) {
+        return { ok: true, detail: '~/.uplnk/models/...' };
+      }
+      return { ok: false, detail: 'Not downloaded — will download on first use' };
     },
   },
   {

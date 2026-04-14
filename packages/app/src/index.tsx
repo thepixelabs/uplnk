@@ -17,6 +17,10 @@ import { ErrorBanner } from './components/layout/ErrorBanner.js';
 import type { UplnkError } from '@uplnk/shared';
 import type { Config } from './lib/config.js';
 
+import { VoiceAssistantProvider, VoiceCommand } from './components/voice/VoiceAssistantProvider.js';
+import { db, listProviders } from '@uplnk/db';
+import { resolveSecret } from './lib/secrets.js';
+
 export type Screen =
   | 'chat'
   | 'model-selector'
@@ -89,6 +93,34 @@ export function App({ initialModel = 'qwen2.5:7b', resumeConversationId, project
   const [activeRelayRun, setActiveRelayRun] = useState<{ plan: RelayPlan; userInput: string } | null>(null);
   // planId being edited in RelayEditorScreen (undefined = new plan).
   const [editingRelayId, setEditingRelayId] = useState<string | undefined>(undefined);
+
+  const handleVoiceCommand = useCallback((cmd: VoiceCommand) => {
+    if (cmd.type === 'CHANGE_PROVIDER') {
+      const allProviders = listProviders(db);
+      const match = allProviders.find(p => 
+        p.name.toLowerCase().includes(cmd.providerName.toLowerCase()) ||
+        cmd.providerName.toLowerCase().includes(p.name.toLowerCase())
+      );
+      if (match) {
+        const resolved = resolveSecret(match.apiKey);
+        setActiveProvider({
+          baseUrl: match.baseUrl,
+          apiKey: resolved || '',
+          providerType: match.providerType as ProviderKind,
+          authMode: (match.authMode || 'none') as AuthMode,
+        });
+        if (match.defaultModel) setActiveModel(match.defaultModel);
+        setProviderKey(k => k + 1);
+        setCurrentScreen('chat');
+      }
+    } else if (cmd.type === 'SWITCH_MODEL') {
+      setActiveModel(cmd.modelName);
+      setCurrentScreen('chat');
+    } else if (cmd.type === 'CLEAR_CHAT') {
+      setActiveConversationId(undefined);
+      setCurrentScreen('chat');
+    }
+  }, []);
 
   useInput((input, key) => {
     // Ctrl+K opens/closes command palette
@@ -206,16 +238,17 @@ export function App({ initialModel = 'qwen2.5:7b', resumeConversationId, project
   ];
 
   return (
-    <Box flexDirection="column">
-      {globalError && (
-        <ErrorBanner error={globalError} onDismiss={() => setGlobalError(null)} />
-      )}
+    <VoiceAssistantProvider onCommand={handleVoiceCommand}>
+      <Box flexDirection="column">
+        {globalError && (
+          <ErrorBanner error={globalError} onDismiss={() => setGlobalError(null)} />
+        )}
 
-      {paletteOpen && (
-        <CommandPalette commands={paletteCommands} onClose={() => setPaletteOpen(false)} />
-      )}
+        {paletteOpen && (
+          <CommandPalette commands={paletteCommands} onClose={() => setPaletteOpen(false)} />
+        )}
 
-      {!paletteOpen && currentScreen === 'chat' && (
+        {!paletteOpen && currentScreen === 'chat' && (
         <ChatScreen
           // `key` on the conversation id forces a clean remount on resume /
           // fork — clears streaming state, tool-call counter, artifact panel,
@@ -345,5 +378,6 @@ export function App({ initialModel = 'qwen2.5:7b', resumeConversationId, project
         />
       )}
     </Box>
+    </VoiceAssistantProvider>
   );
 }
