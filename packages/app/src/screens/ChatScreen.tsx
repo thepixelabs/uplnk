@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Box, Text, useApp, useInput, useStdout } from 'ink';
+import { Box, Text, useApp, useInput } from 'ink';
 import { writeFile } from 'node:fs/promises';
 import clipboard from 'clipboardy';
 import type { CoreMessage, LanguageModel } from 'ai';
@@ -39,8 +39,9 @@ import {
   totalLines,
 } from '../lib/messageLines.js';
 import { ChatInput } from '../components/chat/ChatInput.js';
+import { useTerminalSize } from '../hooks/useTerminalSize.js';
+import { StreamingTextOverlay } from '../components/chat/StreamingTextOverlay.js';
 import { Header } from '../components/layout/Header.js';
-import { StatusBar } from '../components/layout/StatusBar.js';
 import { ArtifactPanel } from '../components/artifacts/ArtifactPanel.js';
 import { ApprovalDialog } from '../components/mcp/ApprovalDialog.js';
 import type { UplnkError } from '@uplnk/shared';
@@ -71,7 +72,6 @@ interface Props {
 }
 
 const HEADER_HEIGHT = 6; // Outer border plus two inner metadata rows
-const STATUS_BAR_HEIGHT = 1;
 const CHAT_INPUT_HEIGHT = 5; // Fixed height ChatInput area
 
 const DEFAULT_CONFIG: Config = {
@@ -88,9 +88,20 @@ const DEFAULT_CONFIG: Config = {
   networkScanner: { timeoutMs: 2000, concurrency: 16 },
 };
 
-export function ChatScreen({ initialModel, resumeConversationId, projectDir, overrideBaseUrl, overrideApiKey, overrideProviderType, overrideAuthMode, config: configProp, onError, onCommand, onForkedTo }: Props) {
+export function ChatScreen({
+  initialModel,
+  resumeConversationId,
+  projectDir,
+  overrideBaseUrl,
+  overrideApiKey,
+  overrideProviderType,
+  overrideAuthMode,
+  config: configProp,
+  onError,
+  onCommand,
+  onForkedTo,
+}: Props) {
   const { exit } = useApp();
-  const { stdout } = useStdout();
 
   // Use config passed from bin/pylon.ts. Falls back to getOrCreateConfig() for
   // non-CLI entry points (tests, Storybook). In production the config is always
@@ -149,7 +160,7 @@ export function ChatScreen({ initialModel, resumeConversationId, projectDir, ove
 
   // Conversation must come before useMcp so conversationId is available for
   // BC-5 rate limiting (tool call counter resets on new conversation).
-  const { conversationId, messages, addMessage, updateMessageInState, appendAssistantToState, replaceWithSummary } = useConversation(resumeConversationId);
+  const { conversationId, messages, addMessage, appendAssistantToState, replaceWithSummary } = useConversation(resumeConversationId);
   const [conversationTitle, setConversationTitle] = useState(() =>
     resumeConversationId !== undefined
       ? getConversation(db, resumeConversationId)?.title ?? 'New conversation'
@@ -225,11 +236,11 @@ export function ChatScreen({ initialModel, resumeConversationId, projectDir, ove
     projectContextRef.current = ctx?.systemPrompt ?? null;
   }
 
-  const { streamedText, status, activeToolName, error, sessionTokens, send, abort } = useStream(activeModel);
+  const { streamedTextRef, subscribeToStreamText, status, error, sessionTokens, send, abort } = useStream(activeModel);
   const connectionState = useProviderConnectivity({ providerType, baseURL, apiKey, authMode });
   const { activeArtifact, promoteArtifact, dismissArtifact, updateArtifact } = useArtifacts();
   const { artifactWidthPct, chatWidthPct, growArtifact, shrinkArtifact } = useSplitPane();
-  const { columns: termCols, rows: termRows } = stdout || { columns: 80, rows: 24 };
+  const { columns: termCols, rows: termRows } = useTerminalSize();
   const prevStatusRef = useRef(status);
   const currentDirectory = projectDir ?? process.cwd();
   const connectionDisplay = buildProviderConnectionDisplay(connectionState);
@@ -256,7 +267,6 @@ export function ChatScreen({ initialModel, resumeConversationId, projectDir, ove
   // Fixed reservation height (Header + StatusBar + ChatInput + feedback area + scroll indicator)
   const CHROME_HEIGHT =
     HEADER_HEIGHT +
-    STATUS_BAR_HEIGHT +
     CHAT_INPUT_HEIGHT +
     (feedbackMsg !== null ? 1 : 0) +
     (activeRole !== null ? 1 : 0) +
@@ -336,23 +346,22 @@ export function ChatScreen({ initialModel, resumeConversationId, projectDir, ove
   // ─── Stream persistence ──────────────────────────────────────────────────
   const assistantMessageIdRef = useRef<string | null>(null);
 
-  // Keep assistant message content in sync with streamedText while streaming.
+  // When streaming completes, commit the final text to React state once.
+  // During streaming, streamedText is rendered directly via the live assistant
+  // overlay below (not through the messages array), so no state update is needed
+  // per-token — this eliminates the 33 ms spurious re-renders that were causing
+  // the full-screen flicker.
   useEffect(() => {
-    if (status === 'streaming' && assistantMessageIdRef.current) {
-      updateMessageInState(assistantMessageIdRef.current, streamedText);
-    }
-  }, [streamedText, status, updateMessageInState]);
-
-  useEffect(() => {
-    if (prevStatusRef.current === 'streaming' && status === 'done' && streamedText) {
+    if (prevStatusRef.current === 'streaming' && status === 'done') {
+      const text = streamedTextRef.current;
       const id = assistantMessageIdRef.current;
-      if (id !== null) {
-        appendAssistantToState(id, streamedText);
+      if (id !== null && text) {
+        appendAssistantToState(id, text);
       }
       assistantMessageIdRef.current = null;
     }
     prevStatusRef.current = status;
-  }, [status, streamedText, appendAssistantToState]);
+  }, [status, appendAssistantToState]);
 
   useEffect(() => {
     if (error) onError(error);
@@ -540,11 +549,19 @@ export function ChatScreen({ initialModel, resumeConversationId, projectDir, ove
   }, [messages, onCommand, handleFork, handleCompact]);
 
   useInput((input, key) => {
-    if (key.ctrl && input === 'c') {
+    // Ctrl+C: abort streaming / agent run / quit.
+    // Without Kitty protocol: key.ctrl=true, input='c'.
+    // With Kitty protocol: \x1b[99;5u — Ink strips leading ESC → input='[99;5u',
+    // key.ctrl=false. Also handle the ETX-codepoint variant '[3;5u'.
+    if ((key.ctrl && input === 'c') || input === '[99;5u' || input === '[3;5u') {
       if (agentRun.status === 'running') agentRun.abort();
       else if (status === 'streaming') abort();
       else exit();
     }
+    // Ctrl+K: toggle help panel.
+    // Without Kitty: key.ctrl=true, input='k'.
+    // With Kitty: \x1b[107;5u → Ink strips ESC → input='[107;5u'.
+    if ((key.ctrl && input === 'k') || input === '[107;5u') { setShowHelp((prev) => !prev); return; }
     if (key.pageUp) { scrollUpOneMessage(); return; }
     if (key.pageDown) { scrollDownOneMessage(); return; }
     if (showHelp && key.escape && !inScrollback && activeArtifact === null) { setShowHelp(false); return; }
@@ -566,11 +583,16 @@ export function ChatScreen({ initialModel, resumeConversationId, projectDir, ove
     connectionLabel: connectionDisplay.label,
     connectionDetail: connectionDisplay.detail,
     connectionColor: connectionDisplay.color,
+    messageCount: messages.length,
+    status,
+    sessionTokens,
+    columns: termCols,
+    ...(isCompacting ? { statusOverride: 'Compacting…' } : {}),
   };
 
   if (pendingApproval !== null) {
     return (
-      <Box flexDirection="column" height={termRows}>
+      <Box flexDirection="column" height={termRows - 1}>
         <Header {...headerProps} />
         <Box flexGrow={1} />
         <ApprovalDialog
@@ -618,6 +640,13 @@ export function ChatScreen({ initialModel, resumeConversationId, projectDir, ove
               registry={agentRegistry}
             />
           )}
+          {/* StreamingTextOverlay subscribes to token updates internally.
+              Only the overlay re-renders per 33ms flush — ChatScreen stays stable. */}
+          <StreamingTextOverlay
+            textRef={streamedTextRef}
+            subscribe={subscribeToStreamText}
+            isStreaming={status === 'streaming'}
+          />
         </Box>
       </Box>
 
@@ -715,13 +744,6 @@ export function ChatScreen({ initialModel, resumeConversationId, projectDir, ove
             <Text color="#475569">Role: {getRole(activeRole)?.name ?? activeRole}</Text>
           </Box>
         )}
-        <StatusBar
-          status={status}
-          messageCount={messages.length}
-          activeToolName={activeToolName}
-          sessionTokens={sessionTokens}
-          overrideLabel={isCompacting ? 'Compacting...' : null}
-        />
         <ChatInput
           onSubmit={handleSubmit}
           onCommand={handleCommand}
@@ -733,7 +755,7 @@ export function ChatScreen({ initialModel, resumeConversationId, projectDir, ove
   );
 
   return (
-    <Box flexDirection="column" height={termRows} overflow="hidden">
+    <Box flexDirection="column" height={termRows - 1} overflow="hidden">
       {/* Fixed Header */}
       <Box flexShrink={0} height={HEADER_HEIGHT}>
         <Header {...headerProps} />

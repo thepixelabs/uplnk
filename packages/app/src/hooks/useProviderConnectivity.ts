@@ -69,13 +69,19 @@ export function useProviderConnectivity({
         });
         const health = await provider.testConnection(controller.signal);
         if (disposed) return;
-        setState({
-          host,
-          connected: true,
-          checkedAt: health.checkedAt,
-          latencyMs: health.latencyMs,
-          disconnectedSince: null,
-          errorDetail: null,
+        setState((prev) => {
+          // Skip update if already connected and latency bucket unchanged (avoids re-render)
+          const prevBucket = prev.latencyMs !== null ? Math.floor(prev.latencyMs / 100) : -1;
+          const nextBucket = health.latencyMs !== null ? Math.floor(health.latencyMs / 100) : -1;
+          if (prev.connected && prev.host === host && prevBucket === nextBucket) return prev;
+          return {
+            host,
+            connected: true,
+            checkedAt: health.checkedAt,
+            latencyMs: health.latencyMs,
+            disconnectedSince: null,
+            errorDetail: null,
+          };
         });
       } catch (err) {
         if (disposed) return;

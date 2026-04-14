@@ -177,11 +177,11 @@ describe('useStream', () => {
       expect(result.current.status).toBe<StreamStatus>('idle');
     });
 
-    it('streamedText is an empty string', async () => {
+    it('streamedTextRef.current is an empty string', async () => {
       const { result } = renderHook();
       await tick();
 
-      expect(result.current.streamedText).toBe('');
+      expect(result.current.streamedTextRef.current).toBe('');
     });
 
     it('error is null', async () => {
@@ -254,29 +254,29 @@ describe('useStream', () => {
       expect(result.current.error).toBeNull();
     });
 
-    it('resets streamedText to empty when a new send() starts', async () => {
+    it('resets streamedTextRef.current to empty when a new send() starts', async () => {
       setupMockStream(['first-run']);
 
       const { result } = renderHook();
       await tick();
 
       await result.current.send(MESSAGES);
-      await waitForFlush(); // let flush interval fire so state updates
+      await waitForFlush(); // let flush interval fire
 
-      expect(result.current.streamedText).toBe('first-run');
+      expect(result.current.streamedTextRef.current).toBe('first-run');
 
       setupMockStream(['second-run']);
       await result.current.send(MESSAGES);
       await waitForFlush();
 
-      expect(result.current.streamedText).toBe('second-run');
+      expect(result.current.streamedTextRef.current).toBe('second-run');
     });
   });
 
   // ── Streaming text accumulation via flush interval ─────────────────────────
 
   describe('streaming text accumulation via flush interval', () => {
-    it('does not update streamedText before the first flush interval fires', async () => {
+    it('does not update streamedTextRef.current before the first flush interval fires', async () => {
       // Use a barrier BEFORE any chunks are yielded so the generator never
       // puts anything into streamBufferRef. No flush needed.
       const barrier = makeBarrier();
@@ -295,8 +295,8 @@ describe('useStream', () => {
       void result.current.send(MESSAGES);
       await tick();
 
-      // Generator blocked before yielding — buffer is empty, state is ''
-      expect(result.current.streamedText).toBe('');
+      // Generator blocked before yielding — buffer is empty, ref is ''
+      expect(result.current.streamedTextRef.current).toBe('');
 
       // Clean up
       result.current.abort();
@@ -304,9 +304,9 @@ describe('useStream', () => {
       await tick();
     });
 
-    it('flushes buffered tokens into streamedText when the flush interval fires', async () => {
+    it('flushes buffered tokens into streamedTextRef.current when the flush interval fires', async () => {
       // The stream yields chunks then blocks. The flush interval (33 ms)
-      // commits the buffer to React state.
+      // drains the buffer into streamedTextRef and notifies subscribers.
       const barrier = makeBarrier();
 
       aiMocks.streamText.mockImplementation(() => ({
@@ -327,7 +327,7 @@ describe('useStream', () => {
       await waitForFlush();
       await tick();
 
-      expect(result.current.streamedText).toBe('Hello, world!');
+      expect(result.current.streamedTextRef.current).toBe('Hello, world!');
 
       result.current.abort();
       barrier.release();
@@ -345,7 +345,7 @@ describe('useStream', () => {
       await result.current.send(MESSAGES);
       await tick();
 
-      expect(result.current.streamedText).toBe('Hello, world!');
+      expect(result.current.streamedTextRef.current).toBe('Hello, world!');
       expect(result.current.status).toBe<StreamStatus>('done');
     });
 
@@ -360,7 +360,7 @@ describe('useStream', () => {
       await result.current.send(MESSAGES);
       await tick();
 
-      expect(result.current.streamedText).toBe('only-chunk');
+      expect(result.current.streamedTextRef.current).toBe('only-chunk');
       expect(result.current.status).toBe<StreamStatus>('done');
     });
   });
@@ -387,9 +387,9 @@ describe('useStream', () => {
       await tick();
     });
 
-    it('clears streamedText on abort', async () => {
-      // The updated hook's abort() calls setStreamedText('') so text
-      // accumulated via the flush interval is cleared on abort.
+    it('clears streamedTextRef.current on abort', async () => {
+      // abort() zeroes streamedTextRef.current and notifies subscribers so
+      // any overlay component can clear its display.
       const barrier = makeBarrier();
 
       aiMocks.streamText.mockImplementation(() => ({
@@ -403,14 +403,14 @@ describe('useStream', () => {
       await tick();
 
       void result.current.send(MESSAGES);
-      await waitForFlush(); // let flush commit partial text
+      await waitForFlush(); // let flush interval drain the buffer
       await tick();
 
       result.current.abort();
       await tick();
 
-      // abort() calls setStreamedText('') — text is cleared
-      expect(result.current.streamedText).toBe('');
+      // abort() zeroes streamedTextRef.current
+      expect(result.current.streamedTextRef.current).toBe('');
 
       barrier.release();
       await tick();
@@ -596,7 +596,7 @@ describe('useStream', () => {
   // ── reset() ───────────────────────────────────────────────────────────────
 
   describe('reset()', () => {
-    it('clears streamedText, clears error, and returns to idle status', async () => {
+    it('clears streamedTextRef.current, clears error, and returns to idle status', async () => {
       setupErrorMock(new Error('fail'));
 
       const { result } = renderHook();
@@ -612,7 +612,7 @@ describe('useStream', () => {
       result.current.reset();
       await tick();
 
-      expect(result.current.streamedText).toBe('');
+      expect(result.current.streamedTextRef.current).toBe('');
       expect(result.current.error).toBeNull();
       expect(result.current.status).toBe<StreamStatus>('idle');
     });

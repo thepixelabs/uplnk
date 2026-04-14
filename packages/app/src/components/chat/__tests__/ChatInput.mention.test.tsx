@@ -29,6 +29,21 @@ vi.mock('../../../lib/agents/registry.js', () => ({
   getAgentRegistry: vi.fn(() => ({ list: () => [] })),
 }));
 
+vi.mock('../../voice/VoiceAssistantProvider.js', () => ({
+  useVoiceAssistant: vi.fn(() => ({
+    isInitialized: false,
+    isDictating: false,
+    partialTranscription: '',
+    startDictation: vi.fn(),
+    stopDictation: vi.fn(),
+    toggleDictation: vi.fn(),
+    registerTranscriptionHandler: vi.fn(() => vi.fn()),
+    error: null,
+    statusMessage: null,
+  })),
+  VoiceAssistantProvider: ({ children }: { children: React.ReactNode }) => children,
+}));
+
 // Must be declared before the ChatInput import so the mock is hoisted.
 // Path is relative to the component (src/components/chat/ChatInput.tsx imports
 // ../../lib/fileMention.js), so we use the absolute src path from the package root.
