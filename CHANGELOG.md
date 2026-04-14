@@ -1,3 +1,9 @@
+## [1.1.1](https://github.com/thepixelabs/uplnk/compare/v1.1.0...v1.1.1) (2026-04-14)
+
+### Bug Fixes
+
+* **ci:** test release pipeline with admin bypass via RELEASE_TOKEN ([f05f0c2](https://github.com/thepixelabs/uplnk/commit/f05f0c235ce377b5c6de4fc2c72b9238f432c706))
+
 ## [1.1.0](https://github.com/thepixelabs/uplnk/compare/v1.0.1...v1.1.0) (2026-04-14)
 
 ### Features
