@@ -15,8 +15,9 @@ export interface PartialVoiceResult {
 
 export class VoskService extends EventEmitter {
   private model: Model | null = null;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   private recognizer: Recognizer<any> | null = null;
-  private micStream: any = null;
+  private micStream: NodeJS.ReadableStream | null = null;
   private isListening = false;
   private modelPath: string;
 
@@ -70,16 +71,16 @@ export class VoskService extends EventEmitter {
               this.emit('partialResult', partial.partial);
             }
           }
-        } catch (err) {
+        } catch {
           // Silent catch for individual waveform errors
         }
       });
 
-      this.micStream.on('error', (err: any) => {
+      this.micStream.on('error', (err: Error) => {
         this.emit('error', err);
         this.stopListening();
       });
-    } catch (err) {
+    } catch {
       this.isListening = false;
     }
   }
