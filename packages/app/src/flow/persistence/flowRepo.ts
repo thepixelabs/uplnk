@@ -106,6 +106,17 @@ export interface UpsertStepResultOpts {
   messageId?: string;
 }
 
+/**
+ * Record a step result. Despite the name, this currently always INSERTs a
+ * new row — the FlowEngine calls it once per state transition (running,
+ * then succeeded/failed/skipped) so multiple rows per step are intentional
+ * in the current design. Queries that want the latest state should join
+ * `MAX(started_at) GROUP BY (run_id, step_id, iteration)` or migrate the
+ * schema to add a UNIQUE(run_id, step_id, iteration) and switch this to
+ * a real onConflictDoUpdate.
+ *
+ * Follow-up: see FLOW-123 — DB migration to make this a true upsert.
+ */
 export function upsertStepResult(opts: UpsertStepResultOpts): string {
   const id = randomUUID();
   db.insert(flowStepResults)
@@ -116,6 +127,7 @@ export function upsertStepResult(opts: UpsertStepResultOpts): string {
       stepIndex: opts.stepIndex,
       iteration: opts.iteration ?? 0,
       status: opts.status,
+      endedAt: opts.endedAt,
       inputJson: opts.inputJson,
       outputJson: opts.outputJson,
       errorJson: opts.errorJson,

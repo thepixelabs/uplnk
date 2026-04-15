@@ -11,9 +11,9 @@ CREATE TABLE robotic_sessions (
   conversation_id TEXT REFERENCES conversations(id),
   flow_run_id TEXT REFERENCES flow_runs(id)
 );
-
+--> statement-breakpoint
 CREATE INDEX robotic_sessions_status_idx ON robotic_sessions(status);
-
+--> statement-breakpoint
 CREATE TABLE robotic_turns (
   id TEXT PRIMARY KEY,
   session_id TEXT NOT NULL REFERENCES robotic_sessions(id) ON DELETE CASCADE,
@@ -25,16 +25,16 @@ CREATE TABLE robotic_turns (
   created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
   meta_json TEXT
 );
-
+--> statement-breakpoint
 CREATE INDEX robotic_turns_session_idx ON robotic_turns(session_id, idx);
-
+--> statement-breakpoint
 CREATE TABLE altergo_accounts (
   id TEXT PRIMARY KEY,
   providers_json TEXT NOT NULL,
   last_seen_at TEXT NOT NULL,
   meta_json TEXT
 );
-
+--> statement-breakpoint
 CREATE TABLE altergo_imports (
   id TEXT PRIMARY KEY,
   account TEXT NOT NULL,
@@ -45,5 +45,5 @@ CREATE TABLE altergo_imports (
   imported_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
   message_count INTEGER NOT NULL
 );
-
+--> statement-breakpoint
 CREATE INDEX altergo_imports_account_idx ON altergo_imports(account, provider);

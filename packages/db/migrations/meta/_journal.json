@@ -36,6 +36,20 @@
       "when": 1776030000000,
       "tag": "0004_workflows",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "6",
+      "when": 1776031200000,
+      "tag": "0005_flows_and_flow_runs",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "6",
+      "when": 1776032400000,
+      "tag": "0006_robotic_and_altergo",
+      "breakpoints": true
     }
   ]
 }
