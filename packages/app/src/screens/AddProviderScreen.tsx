@@ -1,9 +1,124 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Box, Text, useInput } from 'ink';
+import type { Key } from 'ink';
 import { db, upsertProviderConfig, setDefaultProvider, recordProviderTest } from '@uplnk/db';
 import type { AuthMode, ProviderConfig as PyProviderConfig, ProviderKind } from '@uplnk/providers';
 import { makeProvider, PROVIDER_KIND_OPTIONS, ProviderError } from '@uplnk/providers';
 import { migratePlaintext, isSecretRef, getSecretsBackend } from '../lib/secrets.js';
+
+// ---------------------------------------------------------------------------
+// Text-input helpers — cursor-aware, word navigation, readline shortcuts
+// ---------------------------------------------------------------------------
+
+function prevWordBoundary(text: string, pos: number): number {
+  let i = pos - 1;
+  while (i > 0 && /\s/.test(text[i] ?? '')) i--;
+  while (i > 0 && !/\s/.test(text[i - 1] ?? '')) i--;
+  return Math.max(0, i);
+}
+
+function nextWordBoundary(text: string, pos: number): number {
+  let i = pos;
+  while (i < text.length && !/\s/.test(text[i] ?? '')) i++;
+  while (i < text.length && /\s/.test(text[i] ?? '')) i++;
+  return i;
+}
+
+/**
+ * Manages cursor position for a plain-text field.
+ * Returns { cursor, handleKey } — the caller must forward useInput events here.
+ * onChange / onCommit / onBack are called for semantic actions; raw navigation
+ * key events are consumed without calling any of them.
+ */
+function useTextInput(
+  value: string,
+  onChange: (v: string) => void,
+  {
+    onCommit,
+    onBack,
+  }: { onCommit?: () => void; onBack?: () => void },
+) {
+  const [cursor, setCursor] = useState(value.length);
+
+  // Keep cursor in bounds if value is replaced externally.
+  useEffect(() => {
+    setCursor((c) => Math.min(c, value.length));
+  }, [value.length]);
+
+  function handleKey(input: string, key: Key) {
+    // --- escape / enter ---
+    if (key.escape) { onBack?.(); return; }
+    if (key.return) { onCommit?.(); return; }
+
+    // --- arrow navigation ---
+    if (key.leftArrow) {
+      if (key.meta) {
+        setCursor(prevWordBoundary(value, cursor));
+      } else if (key.ctrl) {
+        setCursor(0);
+      } else {
+        setCursor((c) => Math.max(0, c - 1));
+      }
+      return;
+    }
+    if (key.rightArrow) {
+      if (key.meta) {
+        setCursor(nextWordBoundary(value, cursor));
+      } else if (key.ctrl) {
+        setCursor(value.length);
+      } else {
+        setCursor((c) => Math.min(value.length, c + 1));
+      }
+      return;
+    }
+
+    // --- readline line-start / line-end ---
+    if (key.ctrl && input === 'a') { setCursor(0); return; }
+    if (key.ctrl && input === 'e') { setCursor(value.length); return; }
+
+    // --- delete ---
+    if (key.backspace || key.delete) {
+      if (key.meta || (key.ctrl && input === 'w')) {
+        // alt+backspace or ctrl+W: delete previous word
+        const start = prevWordBoundary(value, cursor);
+        onChange(value.slice(0, start) + value.slice(cursor));
+        setCursor(start);
+      } else if (cursor > 0) {
+        onChange(value.slice(0, cursor - 1) + value.slice(cursor));
+        setCursor((c) => c - 1);
+      }
+      return;
+    }
+    // ctrl+W as a standalone key (some terminals send it without backspace)
+    if (key.ctrl && input === 'w') {
+      const start = prevWordBoundary(value, cursor);
+      onChange(value.slice(0, start) + value.slice(cursor));
+      setCursor(start);
+      return;
+    }
+
+    // --- regular character ---
+    if (input.length === 1 && !key.ctrl && !key.meta) {
+      onChange(value.slice(0, cursor) + input + value.slice(cursor));
+      setCursor((c) => c + 1);
+    }
+  }
+
+  return { cursor, handleKey };
+}
+
+/** Renders a value string with a block cursor inserted at the given position. */
+function TextWithCursor({ value, cursor }: { value: string; cursor: number }) {
+  const before = value.slice(0, cursor);
+  const after = value.slice(cursor);
+  return (
+    <Text>
+      <Text color="#60A5FA">{before}</Text>
+      <Text>█</Text>
+      <Text color="#60A5FA">{after}</Text>
+    </Text>
+  );
+}
 
 interface Props {
   onDone: () => void;
@@ -89,11 +204,21 @@ export function AddProviderScreen({ onDone, onCancel, editing }: Props) {
       : EMPTY_DRAFT,
   );
 
+  // Q cancels the whole wizard from any step without having to Esc back
+  // through each individual step — but NOT when the user is typing in a text
+  // field (name/url/auth-key), where 'q' is just a character.
+  const isTextStep = step === 'name' || step === 'url' || step === 'auth';
+  useInput((input, key) => {
+    if (!isTextStep && !key.ctrl && !key.meta && (input === 'q' || input === 'Q')) {
+      onCancel();
+    }
+  });
+
   return (
     <Box flexDirection="column" padding={1}>
       <Box>
         <Text bold>{editing !== undefined ? 'Edit Provider' : 'Add Provider'}</Text>
-        <Text dimColor>  {stepLabel(step)}  ·  Esc back</Text>
+        <Text dimColor>  {stepLabel(step)}  ·  Esc back  ·  Q cancel</Text>
       </Box>
       <StepIndicator step={step} />
       <Box marginTop={1} flexDirection="column">
@@ -143,6 +268,7 @@ export function AddProviderScreen({ onDone, onCancel, editing }: Props) {
           <TestStep
             draft={draft}
             onRetry={() => {/* retry triggered by re-render of key */}}
+            onEditUrl={() => setStep('url')}
             onSave={(setDefault) => {
               // EDIT mode: keep the same id so we update the existing row.
               // ADD mode: mint a fresh id from the kind + timestamp.
@@ -276,17 +402,13 @@ function NameStep({
   onNext: () => void;
   onBack: () => void;
 }) {
-  useInput((input, key) => {
-    if (key.escape) { onBack(); return; }
-    if (key.return) { onNext(); return; }
-    if (key.backspace || key.delete) { onChange(value.slice(0, -1)); return; }
-    if (input.length === 1 && !key.ctrl && !key.meta) onChange(value + input);
-  });
+  const { cursor, handleKey } = useTextInput(value, onChange, { onCommit: onNext, onBack });
+  useInput(handleKey);
   return (
     <Box flexDirection="column">
       <Text>Name your provider</Text>
       <Box marginTop={1}>
-        <Text>{'> '}<Text color="#60A5FA">{value}</Text>█</Text>
+        <Text>{'> '}</Text><TextWithCursor value={value} cursor={cursor} />
       </Box>
       <Box marginTop={1}>
         <Text dimColor>Shown in status bar and model browser. Enter to continue.</Text>
@@ -303,17 +425,13 @@ function UrlStep({
   onNext: () => void;
   onBack: () => void;
 }) {
-  useInput((input, key) => {
-    if (key.escape) { onBack(); return; }
-    if (key.return) { onNext(); return; }
-    if (key.backspace || key.delete) { onChange(value.slice(0, -1)); return; }
-    if (input.length === 1 && !key.ctrl && !key.meta) onChange(value + input);
-  });
+  const { cursor, handleKey } = useTextInput(value, onChange, { onCommit: onNext, onBack });
+  useInput(handleKey);
   return (
     <Box flexDirection="column">
       <Text>Base URL</Text>
       <Box marginTop={1}>
-        <Text>{'> '}<Text color="#60A5FA">{value}</Text>█</Text>
+        <Text>{'> '}</Text><TextWithCursor value={value} cursor={cursor} />
       </Box>
       <Box marginTop={1}>
         <Text dimColor>Example: http://192.168.1.50:11434  ·  https://api.runpod.io/v1</Text>
@@ -337,6 +455,11 @@ function AuthStep({
   const needsKey = mode !== 'none';
   const canAdvance = !needsKey || apiKey !== '';
 
+  // Cursor-aware key field. Note: the key value is masked in the UI but the
+  // cursor position is tracked against the real (unmasked) string length.
+  const [keyCursor, setKeyCursor] = useState(apiKey.length);
+  useEffect(() => { setKeyCursor((c) => Math.min(c, apiKey.length)); }, [apiKey.length]);
+
   useInput((input, key) => {
     if (key.escape) { onBack(); return; }
     if (key.tab) {
@@ -345,8 +468,6 @@ function AuthStep({
     }
     if (key.return) {
       if (canAdvance) { onNext(); return; }
-      // If key is required but empty, jump focus to the key field instead of
-      // silently doing nothing.
       setField('key');
       return;
     }
@@ -357,12 +478,48 @@ function AuthStep({
       return;
     }
     if (field === 'key') {
-      if (key.backspace || key.delete) { onKeyChange(apiKey.slice(0, -1)); return; }
-      if (input.length >= 1 && !key.ctrl && !key.meta) onKeyChange(apiKey + input);
+      // Arrow navigation within the (masked) key field.
+      if (key.leftArrow) {
+        if (key.meta) setKeyCursor(prevWordBoundary(apiKey, keyCursor));
+        else if (key.ctrl) setKeyCursor(0);
+        else setKeyCursor((c) => Math.max(0, c - 1));
+        return;
+      }
+      if (key.rightArrow) {
+        if (key.meta) setKeyCursor(nextWordBoundary(apiKey, keyCursor));
+        else if (key.ctrl) setKeyCursor(apiKey.length);
+        else setKeyCursor((c) => Math.min(apiKey.length, c + 1));
+        return;
+      }
+      if (key.ctrl && input === 'a') { setKeyCursor(0); return; }
+      if (key.ctrl && input === 'e') { setKeyCursor(apiKey.length); return; }
+      if (key.backspace || key.delete) {
+        if (key.meta || (key.ctrl && input === 'w')) {
+          const start = prevWordBoundary(apiKey, keyCursor);
+          onKeyChange(apiKey.slice(0, start) + apiKey.slice(keyCursor));
+          setKeyCursor(start);
+        } else if (keyCursor > 0) {
+          onKeyChange(apiKey.slice(0, keyCursor - 1) + apiKey.slice(keyCursor));
+          setKeyCursor((c) => c - 1);
+        }
+        return;
+      }
+      if (key.ctrl && input === 'w') {
+        const start = prevWordBoundary(apiKey, keyCursor);
+        onKeyChange(apiKey.slice(0, start) + apiKey.slice(keyCursor));
+        setKeyCursor(start);
+        return;
+      }
+      if (input.length >= 1 && !key.ctrl && !key.meta) {
+        onKeyChange(apiKey.slice(0, keyCursor) + input + apiKey.slice(keyCursor));
+        setKeyCursor((c) => c + 1);
+      }
     }
   });
 
-  const masked = apiKey === '' ? '' : '•'.repeat(Math.min(apiKey.length, 24));
+  // Show masked characters with a cursor indicator at keyCursor position.
+  const maskedBefore = '•'.repeat(keyCursor);
+  const maskedAfter = '•'.repeat(apiKey.length - keyCursor);
   return (
     <Box flexDirection="column">
       <Text>Authentication</Text>
@@ -383,7 +540,16 @@ function AuthStep({
           </Text>
         </Box>
         <Box marginLeft={4}>
-          <Text>{'> '}<Text color="#60A5FA">{masked}</Text>{field === 'key' ? '█' : ''}</Text>
+          {field === 'key' && apiKey.length > 0 ? (
+            <Text>
+              {'> '}
+              <Text color="#60A5FA">{maskedBefore}</Text>
+              <Text>█</Text>
+              <Text color="#60A5FA">{maskedAfter}</Text>
+            </Text>
+          ) : (
+            <Text>{'> '}<Text color="#60A5FA">{apiKey === '' ? '' : '•'.repeat(Math.min(apiKey.length, 24))}</Text>{field === 'key' ? '█' : ''}</Text>
+          )}
         </Box>
       </Box>
       <Box marginTop={1}>
@@ -398,12 +564,14 @@ function AuthStep({
 }
 
 function TestStep({
-  draft, onSave, onBack,
+  draft, onSave, onBack, onEditUrl,
 }: {
   draft: Draft;
   onRetry: () => void;
   onSave: (setDefault: boolean) => void;
   onBack: () => void;
+  /** Jump directly back to the URL step to fix the address. */
+  onEditUrl: () => void;
 }) {
   const [status, setStatus] = useState<'testing' | 'ok' | 'fail'>('testing');
   const [detail, setDetail] = useState('');
@@ -456,6 +624,7 @@ function TestStep({
     }
     if (status === 'fail') {
       if (input === 'r' || input === 'R') { setRetryKey((k) => k + 1); return; }
+      if (input === 'e' || input === 'E') { onEditUrl(); return; }
     }
   });
 
@@ -483,7 +652,7 @@ function TestStep({
           <>
             <Text color="red">✗ {detail}</Text>
             <Box marginTop={1}>
-              <Text dimColor>R to retry · Esc to go back and edit</Text>
+              <Text dimColor>R retry · E edit URL · Esc edit auth</Text>
             </Box>
           </>
         )}
