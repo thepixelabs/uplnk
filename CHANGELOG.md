@@ -1,3 +1,10 @@
+## [1.3.2](https://github.com/thepixelabs/uplnk/compare/v1.3.1...v1.3.2) (2026-04-15)
+
+### Bug Fixes
+
+* **ci:** add workflow_dispatch to homebrew bump for manual retrigger ([95b4d62](https://github.com/thepixelabs/uplnk/commit/95b4d622209a938969693222e639844e635c24be))
+* **ci:** align homebrew bump secret names with shared infrastructure ([e174db2](https://github.com/thepixelabs/uplnk/commit/e174db2371dcf581362be96a761ffe87dac84b9f))
+
 ## [1.3.1](https://github.com/thepixelabs/uplnk/compare/v1.3.0...v1.3.1) (2026-04-15)
 
 ### Bug Fixes
