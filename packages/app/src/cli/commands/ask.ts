@@ -45,7 +45,7 @@ export async function runAsk(options: AskOptions): Promise<void> {
 
   // ── Provider resolution ───────────────────────────────────────────────────
   const providerId = options.provider ?? config.headless.defaultProvider;
-  let providerRow = providerId !== undefined
+  const providerRow = providerId !== undefined
     ? getProviderById(db, providerId)
     : getDefaultProvider(db);
 
