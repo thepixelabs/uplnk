@@ -237,6 +237,10 @@ const DEFAULT_CONFIG = {
   updates: { enabled: false, packageName: 'uplnk' },
   relayMode: { enabled: false },
   networkScanner: { timeoutMs: 2000, concurrency: 16 },
+  headless: { persist: false },
+  flows: { dir: '~/.uplnk/flows', autoReload: true, defaultTimeoutMs: 600000, allowShellStep: false, allowHttpStep: true, httpAllowlist: [] as string[], concurrency: 1 },
+  robotic: { enabled: false, transport: 'auto' as const, maxTurns: 40, turnTimeoutMs: 120000, minInterTurnMs: 750, judge: { provider: 'anthropic', model: 'claude-haiku-4-5-20251001', everyNTurns: 1 }, redact: { envPatterns: ['(?i)api[_-]?key', '(?i)token', '(?i)secret', '(?i)password'], customPatterns: [] as string[] }, targets: {} },
+  altergo: { binary: 'altergo', home: '~/.altergo', autoImport: false, autoImportAccounts: [] as string[], watchSessions: false, launchDetach: true },
 };
 
 function renderChatScreen(
