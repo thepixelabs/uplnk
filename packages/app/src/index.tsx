@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react';
-import { Box, useInput } from 'ink';
+import { Box, useApp, useInput } from 'ink';
 import { ChatScreen } from './screens/ChatScreen.js';
 import { ModelSelectorScreen } from './screens/ModelSelectorScreen.js';
 import { ConversationListScreen } from './screens/ConversationListScreen.js';
@@ -97,6 +97,8 @@ export function App({ initialModel = 'qwen2.5:7b', resumeConversationId, project
   // planId being edited in RelayEditorScreen (undefined = new plan).
   const [editingRelayId, setEditingRelayId] = useState<string | undefined>(undefined);
 
+  const { exit } = useApp();
+
   const handleVoiceCommand = useCallback((cmd: VoiceCommand) => {
     if (cmd.type === 'CHANGE_PROVIDER') {
       const allProviders = listProviders(db);
@@ -128,7 +130,12 @@ export function App({ initialModel = 'qwen2.5:7b', resumeConversationId, project
   useInput((input, key) => {
     // Ctrl+K opens/closes command palette
     if (key.ctrl && input === 'k') { setPaletteOpen((o) => !o); return; }
-    // Ctrl+C is handled by exitOnCtrlC in render() — no manual exit() needed
+    // Ctrl+C exits the app. On the chat screen, ChatScreen owns this key so it
+    // can abort a stream first (abort on first press, exit on second). On every
+    // other screen there is no stream to abort, so we exit directly here.
+    if ((key.ctrl && input === 'c') || input === '[99;5u' || input === '[3;5u') {
+      if (currentScreen !== 'chat') { exit(); return; }
+    }
     if (key.ctrl && input === 'l') { setCurrentScreen('conversations'); return; }
     if (key.escape && paletteOpen) { setPaletteOpen(false); return; }
     // Screens with multi-step internal Esc handling own their own back nav.
@@ -139,7 +146,12 @@ export function App({ initialModel = 'qwen2.5:7b', resumeConversationId, project
       currentScreen === 'relay-editor' ||
       currentScreen === 'relay-run' ||
       currentScreen === 'relay-picker' ||
-      currentScreen === 'network-scan';
+      currentScreen === 'network-scan' ||
+      // Add/edit-provider is a multi-step wizard; step-back Esc is handled
+      // internally. The global handler would stomp on it and navigate away
+      // before the wizard's own handler runs, leaving the user stuck.
+      currentScreen === 'add-provider' ||
+      currentScreen === 'edit-provider';
     if (key.escape && currentScreen !== 'chat' && !ownsEsc) { setCurrentScreen('chat'); return; }
   });
 
