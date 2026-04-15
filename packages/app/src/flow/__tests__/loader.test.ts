@@ -7,7 +7,6 @@
  */
 
 import { describe, it, expect, afterEach } from 'vitest';
-import { join } from 'node:path';
 import { createHash } from 'node:crypto';
 import {
   loadFlowFromFile,
@@ -58,7 +57,7 @@ describe('getFlowsDir', () => {
 
 describe('loadFlowFromFile — valid files', () => {
   it('loads a valid YAML file and returns def, path, and hash', () => {
-    const { dir, writeYaml } = setup();
+    const { writeYaml } = setup();
     const filePath = writeYaml('my-flow', MINIMAL_VALID_FLOW_YAML);
 
     const loaded = loadFlowFromFile(filePath);
@@ -80,7 +79,7 @@ describe('loadFlowFromFile — valid files', () => {
   });
 
   it('loads a valid .yml extension file', () => {
-    const { dir, writeFlow } = setup();
+    const { writeFlow } = setup();
     const filePath = writeFlow('flow.yml', MINIMAL_VALID_FLOW_YAML);
 
     const loaded = loadFlowFromFile(filePath);
@@ -245,7 +244,7 @@ describe('findFlow', () => {
   });
 
   it('def.name match takes precedence over filename match when both exist', () => {
-    const { dir, writeYaml, writeFlow } = setup();
+    const { dir, writeYaml } = setup();
     // This file has def.name = 'test-flow', filename = 'test-flow'
     writeYaml('test-flow', MINIMAL_VALID_FLOW_YAML);
 

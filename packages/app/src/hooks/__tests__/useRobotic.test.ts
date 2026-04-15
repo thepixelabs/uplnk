@@ -493,7 +493,7 @@ describe('useRobotic', () => {
         events: async function* () { /* no events */ },
         close: vi.fn().mockResolvedValue(undefined),
         isReady: vi.fn(() => false),
-      }));
+      }) as never);
 
       const { result } = renderHook();
       await tick();
@@ -514,7 +514,7 @@ describe('useRobotic', () => {
         events: async function* () { /* no events */ },
         close: vi.fn().mockResolvedValue(undefined),
         isReady: vi.fn(() => false),
-      }));
+      }) as never);
 
       const { result } = renderHook();
       await tick();

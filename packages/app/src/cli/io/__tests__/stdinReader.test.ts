@@ -7,7 +7,7 @@
  * Readable in place of process.stdin to stay at the unit boundary.
  */
 
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import { Readable } from 'node:stream';
 
 // ── helpers ──────────────────────────────────────────────────────────────────

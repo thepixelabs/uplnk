@@ -250,7 +250,7 @@ describe('runAsk — EPIPE handling', () => {
     // The stream yields one token then simulates an EPIPE.
     // The AbortController in ask.ts will fire and the catch block
     // recognises the abort and exits cleanly.
-    mockStreamText.mockImplementationOnce((_opts: unknown) => {
+    mockStreamText.mockImplementationOnce(((_opts: unknown) => {
       async function* brokenStream() {
         // Give runAsk a tick to attach the stdout error listener.
         await new Promise<void>((r) => process.nextTick(r));
@@ -261,7 +261,7 @@ describe('runAsk — EPIPE handling', () => {
         yield { type: 'finish' as const, usage: { promptTokens: 0, completionTokens: 0 }, finishReason: 'stop' };
       }
       return { fullStream: brokenStream() };
-    });
+    }) as never);
 
     const spy = spyOnProcess();
     await runAsk({ prompt: 'test', format: 'plain', quiet: true });
@@ -274,12 +274,12 @@ describe('runAsk — EPIPE handling', () => {
 
 describe('runAsk — stream error event', () => {
   it('exits with code 1 when the fullStream emits an error event', async () => {
-    mockStreamText.mockImplementationOnce((_opts: unknown) => {
+    mockStreamText.mockImplementationOnce(((_opts: unknown) => {
       async function* errorStream() {
         yield { type: 'error' as const, error: new Error('model overloaded') };
       }
       return { fullStream: errorStream() };
-    });
+    }) as never);
 
     const spy = spyOnProcess();
     spy.exit.mockImplementation((code) => { throw new ProcessExitError(code as number); });

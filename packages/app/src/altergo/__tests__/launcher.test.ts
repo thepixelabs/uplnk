@@ -66,8 +66,8 @@ afterEach(() => {
  * Extract the `env` option that was passed to the most recent spawn() call.
  */
 function spawnEnvArg(): NodeJS.ProcessEnv {
-  const lastCall = spawnMock.mock.calls[spawnMock.mock.calls.length - 1];
-  const opts = lastCall?.[2] as { env?: NodeJS.ProcessEnv } | undefined;
+  const lastCall = spawnMock.mock.calls[spawnMock.mock.calls.length - 1] as unknown as [string, string[], { env?: NodeJS.ProcessEnv }] | undefined;
+  const opts = lastCall?.[2];
   return opts?.env ?? {};
 }
 
@@ -166,25 +166,25 @@ describe('launchAltergoAccount — provider name validation', () => {
 describe('launchAltergoAccount — spawn argument shape', () => {
   it('calls spawn with binaryPath as the first argument', () => {
     launchAltergoAccount('/usr/local/bin/altergo', 'alice');
-    const [binary] = spawnMock.mock.calls[0] as [string, ...unknown[]];
+    const [binary] = spawnMock.mock.calls[0] as unknown as [string, ...unknown[]];
     expect(binary).toBe('/usr/local/bin/altergo');
   });
 
   it('passes account as the first element of the args array', () => {
     launchAltergoAccount('/usr/bin/altergo', 'alice');
-    const [, args] = spawnMock.mock.calls[0] as [string, string[]];
+    const [, args] = spawnMock.mock.calls[0] as unknown as [string, string[]];
     expect(args[0]).toBe('alice');
   });
 
   it('omits provider from args when provider is undefined', () => {
     launchAltergoAccount('/usr/bin/altergo', 'alice');
-    const [, args] = spawnMock.mock.calls[0] as [string, string[]];
+    const [, args] = spawnMock.mock.calls[0] as unknown as [string, string[]];
     expect(args).toHaveLength(1);
   });
 
   it('appends provider as the second arg element when provided', () => {
     launchAltergoAccount('/usr/bin/altergo', 'alice', 'claude-code');
-    const [, args] = spawnMock.mock.calls[0] as [string, string[]];
+    const [, args] = spawnMock.mock.calls[0] as unknown as [string, string[]];
     expect(args).toHaveLength(2);
     expect(args[0]).toBe('alice');
     expect(args[1]).toBe('claude-code');
@@ -192,7 +192,7 @@ describe('launchAltergoAccount — spawn argument shape', () => {
 
   it('never concatenates account or provider into the binary path string', () => {
     launchAltergoAccount('/usr/bin/altergo', 'alice', 'claude-code');
-    const [binary] = spawnMock.mock.calls[0] as [string, string[]];
+    const [binary] = spawnMock.mock.calls[0] as unknown as [string, string[]];
     expect(binary).not.toContain('alice');
     expect(binary).not.toContain('claude-code');
   });
@@ -203,13 +203,13 @@ describe('launchAltergoAccount — spawn argument shape', () => {
 describe('launchAltergoAccount — detach mode (default)', () => {
   it('sets stdio: "ignore" in detach mode', () => {
     launchAltergoAccount('/usr/bin/altergo', 'alice');
-    const [, , opts] = spawnMock.mock.calls[0] as [string, string[], { stdio: string }];
+    const [, , opts] = spawnMock.mock.calls[0] as unknown as [string, string[], { stdio: string }];
     expect(opts.stdio).toBe('ignore');
   });
 
   it('sets detached: true in detach mode', () => {
     launchAltergoAccount('/usr/bin/altergo', 'alice');
-    const [, , opts] = spawnMock.mock.calls[0] as [string, string[], { detached: boolean }];
+    const [, , opts] = spawnMock.mock.calls[0] as unknown as [string, string[], { detached: boolean }];
     expect(opts.detached).toBe(true);
   });
 
@@ -225,7 +225,7 @@ describe('launchAltergoAccount — detach mode (default)', () => {
 
   it('explicit detach: true behaves identically to the default', () => {
     launchAltergoAccount('/usr/bin/altergo', 'alice', undefined, { detach: true });
-    const [, , opts] = spawnMock.mock.calls[0] as [string, string[], { stdio: string; detached: boolean }];
+    const [, , opts] = spawnMock.mock.calls[0] as unknown as [string, string[], { stdio: string; detached: boolean }];
     expect(opts.stdio).toBe('ignore');
     expect(opts.detached).toBe(true);
     expect(mockChildUnref).toHaveBeenCalledOnce();
@@ -237,7 +237,7 @@ describe('launchAltergoAccount — detach mode (default)', () => {
 describe('launchAltergoAccount — non-detach mode', () => {
   it('sets stdio: "inherit" when detach is false', () => {
     launchAltergoAccount('/usr/bin/altergo', 'alice', undefined, { detach: false });
-    const [, , opts] = spawnMock.mock.calls[0] as [string, string[], { stdio: string }];
+    const [, , opts] = spawnMock.mock.calls[0] as unknown as [string, string[], { stdio: string }];
     expect(opts.stdio).toBe('inherit');
   });
 

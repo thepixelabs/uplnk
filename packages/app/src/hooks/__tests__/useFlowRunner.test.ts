@@ -53,7 +53,7 @@ vi.mock('../../flow/persistence/flowRepo.js', () => ({
 // ─── Imports under test ───────────────────────────────────────────────────────
 
 import { useFlowRunner } from '../useFlowRunner.js';
-import type { FlowRunnerState, FlowStepStatus } from '../useFlowRunner.js';
+import type { FlowStepStatus } from '../useFlowRunner.js';
 import type { FlowEvent } from '../../flow/engine/FlowEngine.js';
 import { makeTestConfig } from '../../__tests__/fixtures/config.js';
 

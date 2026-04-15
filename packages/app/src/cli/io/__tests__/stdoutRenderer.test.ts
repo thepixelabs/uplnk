@@ -8,7 +8,7 @@
  * because that is the observable contract this module exposes.
  */
 
-import { describe, it, expect, afterEach } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import { spyOnProcess } from '../../../__tests__/helpers/processSpy.js';
 import { StdoutRenderer } from '../stdoutRenderer.js';
 

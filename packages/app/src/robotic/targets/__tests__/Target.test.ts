@@ -143,6 +143,7 @@ describe('resolveTarget — custom user-defined targets', () => {
       'my-bot': {
         launch: 'my-bot --flag value',
         readyRegex: '\\$',
+        quitKeys: 'q',
       },
     };
 
@@ -156,6 +157,7 @@ describe('resolveTarget — custom user-defined targets', () => {
       'solo': {
         launch: 'solo',
         readyRegex: '>',
+        quitKeys: 'q',
       },
     };
 
@@ -169,6 +171,7 @@ describe('resolveTarget — custom user-defined targets', () => {
       'prompt-bot': {
         launch: 'promptbot',
         readyRegex: '\\$',
+        quitKeys: 'q',
         promptMarker: '>> ',
       },
     };
@@ -183,6 +186,7 @@ describe('resolveTarget — custom user-defined targets', () => {
       'no-marker': {
         launch: 'nomarker',
         readyRegex: '\\$',
+        quitKeys: 'q',
       },
     };
 
@@ -196,6 +200,7 @@ describe('resolveTarget — custom user-defined targets', () => {
       'custom': {
         launch: 'custom-tool',
         readyRegex: '>',
+        quitKeys: 'q',
       },
     };
 
@@ -229,6 +234,7 @@ describe('resolveTarget — built-in takes precedence over custom config', () =>
       'gemini': {
         launch: 'fake-gemini',
         readyRegex: '>',
+        quitKeys: 'q',
       },
     };
 

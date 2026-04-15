@@ -43,7 +43,7 @@ vi.mock('../../persistence/flowRepo.js', () => ({
 // ─── Imports under test ────────────────────────────────────────────────────────
 
 import { FlowEngine } from '../FlowEngine.js';
-import type { FlowRunOptions, FlowEvent } from '../FlowEngine.js';
+import type { FlowEvent } from '../FlowEngine.js';
 import type { LoadedFlow } from '../../loader.js';
 import type { FlowDef } from '../../schema.js';
 import {
@@ -53,7 +53,6 @@ import {
   upsertStepResult as mockUpsertStepResult,
 } from '../../persistence/flowRepo.js';
 import { getDefaultProvider } from '@uplnk/db';
-import { setupStreamTextMock } from '../../../__tests__/helpers/streamTextMock.js';
 import { makeFakeProviderRow } from '../../../__tests__/helpers/fakeProviderRow.js';
 import { makeTestConfig } from '../../../__tests__/fixtures/config.js';
 
@@ -710,8 +709,6 @@ describe('FlowEngine', () => {
     it('stops mid-stream when signal is aborted while iterating the fullStream', async () => {
       const controller = new AbortController();
 
-      let abortedDuringStream = false;
-
       // Build a stream that aborts the controller mid-flight
       aiMocks.streamText.mockReturnValueOnce({
         fullStream: (async function* () {
@@ -749,16 +746,16 @@ describe('FlowEngine', () => {
       // setTimeout fires and aborts the step controller, the generator resumes
       // and throws — which propagates through the for-await in executeChatStep.
       aiMocks.streamText.mockImplementation(
-        ({ abortSignal }: { abortSignal?: AbortSignal }) => ({
+        (({ abortSignal }: { abortSignal?: AbortSignal }) => ({
           fullStream: (async function* () {
             await new Promise<void>((resolve) => {
               if (abortSignal !== undefined) {
-                abortSignal.addEventListener('abort', resolve, { once: true });
+                abortSignal.addEventListener('abort', () => resolve(), { once: true });
               }
             });
             throw new Error('Step slowstep timed out after 50ms');
           })(),
-        }),
+        })) as never,
       );
 
       const flow = makeLoadedFlow({
