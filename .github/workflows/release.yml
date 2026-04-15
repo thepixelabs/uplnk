@@ -119,19 +119,14 @@ jobs:
             echo "released=false" >> "$GITHUB_OUTPUT"
           fi
 
-      # Publish to npm with OIDC provenance. This runs only when semantic-release
-      # cut a new release. We use pnpm publish (not npm publish) so pnpm handles
-      # the workspace context correctly, but the underlying npm OIDC exchange is
-      # triggered by the id-token: write permission + registry-url in setup-node.
+      # NOTE: npm publish is being deprecated in favour of binary distribution.
+      # Standalone executables are now built and attached to GitHub Releases by
+      # .github/workflows/build-binaries.yml (triggered by on: release: published).
+      # The step below is commented out rather than deleted so it can be restored
+      # if needed. Confirm permanent removal separately before deleting.
       #
-      # --provenance:   attach SLSA build provenance attestation to the package.
-      # --access public: belt-and-suspenders; publishConfig.access in package.json
-      #                  already declares this, but explicit is safer.
-      # --no-git-checks: semantic-release has already committed and tagged; the
-      #                  working tree may be clean but pnpm's git checks would
-      #                  flag the detached state on the tag commit.
-      - name: Publish to npm
-        if: steps.sr.outputs.released == 'true'
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-        run: pnpm --filter uplnk publish --access public --no-git-checks
+      # - name: Publish to npm
+      #   if: steps.sr.outputs.released == 'true'
+      #   env:
+      #     NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+      #   run: pnpm --filter uplnk publish --access public --no-git-checks
