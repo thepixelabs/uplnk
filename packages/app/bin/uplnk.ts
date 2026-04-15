@@ -109,6 +109,8 @@ const { values, positionals } = parseArgs({
     plugin:                  { type: 'string' },
     'confirm-command-exec':  { type: 'boolean' },
     'confirm-subnet':        { type: 'boolean' },
+    goal:                    { type: 'string',  short: 'g' },
+    format:                  { type: 'string',  short: 'f' },
   },
   allowPositionals: true,
 });
@@ -131,6 +133,15 @@ USAGE
 
 COMMANDS
   chat                          Start or resume a conversation (default)
+  ask "<prompt>"                Ask a one-shot question (headless)
+  pipe                          Read prompt from stdin, stream response to stdout
+  flow list                     List available flows
+  flow run <name>               Run a flow headlessly
+  flow validate <name>          Validate a flow definition
+  altergo list                  List altergo accounts
+  altergo launch <account>      Launch an altergo account session
+  altergo import <account>      Import sessions from altergo account
+  robotic <target> --goal "..."  Start an autonomous robotic session
   doctor                        Run preflight checks
   doctor migrate-secrets        Migrate legacy plaintext API keys into the secrets backend
   doctor prune-secrets          Drop orphaned refs from the secrets store
@@ -148,6 +159,8 @@ OPTIONS
   -c, --conversation  Resume conversation by ID
   -t, --theme         Color theme: dark (default) or light
   -P, --project       Project directory to index into context
+  -g, --goal          Goal string for robotic mode
+  -f, --format        Output format (e.g. json, text)
   -h, --help          Show this help
   -v, --version       Show version
   `);
@@ -155,6 +168,78 @@ OPTIONS
 }
 
 const [subcommand] = positionals;
+
+// ─── Headless: ask ────────────────────────────────────────────────────────────
+if (subcommand === 'ask') {
+  const prompt = positionals[1];
+  if (prompt === undefined || prompt.trim() === '') {
+    process.stderr.write('Usage: uplnk ask "<prompt>"\n');
+    process.exit(1);
+  }
+  runMigrations();
+  const { initSecretsBackend } = await import('../src/lib/secrets.js');
+  await initSecretsBackend();
+  const { runAsk } = await import('../src/cli/commands/ask.js');
+  await runAsk({ prompt, provider: values.provider, model: values.model });
+  process.exit(0);
+}
+
+// ─── Headless: pipe ───────────────────────────────────────────────────────────
+if (subcommand === 'pipe') {
+  runMigrations();
+  const { initSecretsBackend } = await import('../src/lib/secrets.js');
+  await initSecretsBackend();
+  const { runPipe } = await import('../src/cli/commands/pipe.js');
+  await runPipe({ provider: values.provider, model: values.model });
+  process.exit(0);
+}
+
+// ─── Flow subcommand ──────────────────────────────────────────────────────────
+if (subcommand === 'flow') {
+  const action = positionals[1];
+  if (action === undefined) {
+    process.stderr.write('Usage: uplnk flow <list|run|validate> [name]\n');
+    process.exit(1);
+  }
+  runMigrations();
+  const { initSecretsBackend } = await import('../src/lib/secrets.js');
+  await initSecretsBackend();
+  const { runFlowCommand } = await import('../src/cli/commands/flow.js');
+  await runFlowCommand({ action, name: positionals[2], provider: values.provider, model: values.model });
+  process.exit(0);
+}
+
+// ─── Altergo subcommand ───────────────────────────────────────────────────────
+if (subcommand === 'altergo') {
+  const action = positionals[1];
+  if (action === undefined) {
+    process.stderr.write('Usage: uplnk altergo <list|launch|import> [args]\n');
+    process.exit(1);
+  }
+  runMigrations();
+  const { initSecretsBackend } = await import('../src/lib/secrets.js');
+  await initSecretsBackend();
+  const { runAltergoCommand } = await import('../src/cli/commands/altergo.js');
+  await runAltergoCommand({ action, args: positionals.slice(2) });
+  process.exit(0);
+}
+
+// ─── Robotic subcommand ───────────────────────────────────────────────────────
+if (subcommand === 'robotic') {
+  const target = positionals[1];
+  const goalFlag = process.argv.indexOf('--goal');
+  const goal = goalFlag !== -1 ? process.argv[goalFlag + 1] : values.goal;
+  if (target === undefined || goal === undefined) {
+    process.stderr.write('Usage: uplnk robotic <target> --goal "<goal>"\n');
+    process.exit(1);
+  }
+  runMigrations();
+  const { initSecretsBackend } = await import('../src/lib/secrets.js');
+  await initSecretsBackend();
+  const { runRoboticCommand } = await import('../src/cli/commands/robotic.js');
+  await runRoboticCommand({ target, goal, provider: values.provider, model: values.model });
+  process.exit(0);
+}
 
 if (subcommand === 'doctor') {
   // `uplnk doctor migrate-secrets` and `uplnk doctor prune-secrets` are

@@ -252,6 +252,63 @@ const ConfigSchema = z.object({
       enabled: z.boolean().default(true),
     })
     .optional(),
+  /**
+   * Headless CLI mode settings. Controls `uplnk ask` and `uplnk pipe`.
+   */
+  headless: z.object({
+    defaultProvider: z.string().optional(),
+    defaultModel: z.string().optional(),
+    persist: z.boolean().default(false),
+  }).default({}),
+  /**
+   * Flow engine settings. Controls flow loading, execution, and safety.
+   */
+  flows: z.object({
+    dir: z.string().default('~/.uplnk/flows'),
+    autoReload: z.boolean().default(true),
+    defaultTimeoutMs: z.number().int().positive().default(600_000),
+    allowShellStep: z.boolean().default(false),
+    allowHttpStep: z.boolean().default(true),
+    httpAllowlist: z.array(z.string()).default([]),
+    concurrency: z.number().int().positive().default(1),
+  }).default({}),
+  /**
+   * Robotic mode settings. Controls autonomous AI-to-AI orchestration sessions.
+   */
+  robotic: z.object({
+    enabled: z.boolean().default(false),
+    defaultTarget: z.string().optional(),
+    transport: z.enum(['auto', 'tmux', 'pty', 'pipe']).default('auto'),
+    maxTurns: z.number().int().positive().default(40),
+    turnTimeoutMs: z.number().int().positive().default(120_000),
+    minInterTurnMs: z.number().int().nonnegative().default(750),
+    judge: z.object({
+      provider: z.string().default('anthropic'),
+      model: z.string().default('claude-haiku-4-5-20251001'),
+      everyNTurns: z.number().int().positive().default(1),
+    }).default({}),
+    redact: z.object({
+      envPatterns: z.array(z.string()).default(['(?i)api[_-]?key', '(?i)token', '(?i)secret', '(?i)password']),
+      customPatterns: z.array(z.string()).default([]),
+    }).default({}),
+    targets: z.record(z.object({
+      launch: z.string(),
+      readyRegex: z.string(),
+      promptMarker: z.string().optional(),
+      quitKeys: z.string().default('C-c C-c'),
+    })).default({}),
+  }).default({}),
+  /**
+   * Altergo integration settings. Controls account management and session import.
+   */
+  altergo: z.object({
+    binary: z.string().default('altergo'),
+    home: z.string().default('~/.altergo'),
+    autoImport: z.boolean().default(false),
+    autoImportAccounts: z.array(z.string()).default([]),
+    watchSessions: z.boolean().default(false),
+    launchDetach: z.boolean().default(true),
+  }).default({}),
 });
 
 export type Config = z.infer<typeof ConfigSchema>;

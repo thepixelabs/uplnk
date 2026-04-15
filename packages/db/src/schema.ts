@@ -9,6 +9,7 @@ import {
   blob,
   index,
   check,
+  type AnySQLiteColumn,
 } from 'drizzle-orm/sqlite-core';
 import { sql } from 'drizzle-orm';
 
@@ -60,6 +61,8 @@ export const conversations = sqliteTable(
     totalInputTokens: integer('total_input_tokens').notNull().default(0),
     totalOutputTokens: integer('total_output_tokens').notNull().default(0),
     relayId: text('relay_id'),
+    source: text('source').notNull().default('tui'),
+    importedFrom: text('imported_from'),
     createdAt: text('created_at').notNull().default(isoTimestamp()),
     updatedAt: text('updated_at').notNull().default(isoTimestamp()),
     deletedAt: text('deleted_at'),
@@ -193,6 +196,143 @@ export const relayRuns = sqliteTable(
   ],
 );
 
+// ─── Flows ────────────────────────────────────────────────────────────────────
+
+export const flows = sqliteTable(
+  'flows',
+  {
+    id: text('id').primaryKey(),
+    name: text('name').notNull().unique(),
+    version: integer('version').notNull().default(1),
+    sourcePath: text('source_path').notNull(),
+    sourceHash: text('source_hash').notNull(),
+    definitionJson: text('definition_json').notNull(),
+    createdAt: text('created_at').notNull().default(isoTimestamp()),
+    updatedAt: text('updated_at').notNull().default(isoTimestamp()),
+  },
+);
+
+// ─── Flow Runs ────────────────────────────────────────────────────────────────
+
+export const flowRuns = sqliteTable(
+  'flow_runs',
+  {
+    id: text('id').primaryKey(),
+    flowId: text('flow_id').notNull().references(() => flows.id),
+    flowVersion: integer('flow_version').notNull(),
+    trigger: text('trigger').notNull(), // 'manual'|'file'|'cron'|'webhook'|'flow-child'
+    status: text('status').notNull(),   // 'pending'|'running'|'succeeded'|'failed'|'cancelled'
+    startedAt: text('started_at').notNull().default(isoTimestamp()),
+    endedAt: text('ended_at'),
+    inputJson: text('input_json'),
+    outputJson: text('output_json'),
+    errorJson: text('error_json'),
+    parentRunId: text('parent_run_id').references((): AnySQLiteColumn => flowRuns.id),
+  },
+  (table) => [
+    index('flow_runs_flow_id_idx').on(table.flowId),
+    index('flow_runs_status_idx').on(table.status),
+    check('flow_run_status_check', sql`${table.status} IN ('pending', 'running', 'succeeded', 'failed', 'cancelled')`),
+  ],
+);
+
+// ─── Flow Step Results ────────────────────────────────────────────────────────
+
+export const flowStepResults = sqliteTable(
+  'flow_step_results',
+  {
+    id: text('id').primaryKey(),
+    runId: text('run_id').notNull().references(() => flowRuns.id, { onDelete: 'cascade' }),
+    stepId: text('step_id').notNull(),
+    stepIndex: integer('step_index').notNull(),
+    iteration: integer('iteration').notNull().default(0),
+    status: text('status').notNull(),
+    startedAt: text('started_at').notNull().default(isoTimestamp()),
+    endedAt: text('ended_at'),
+    inputJson: text('input_json'),
+    outputJson: text('output_json'),
+    errorJson: text('error_json'),
+    messageId: text('message_id').references(() => messages.id),
+    roboticSessionId: text('robotic_session_id'),
+  },
+  (table) => [
+    index('flow_step_results_run_idx').on(table.runId, table.stepIndex, table.iteration),
+  ],
+);
+
+// ─── Robotic Sessions ─────────────────────────────────────────────────────────
+
+export const roboticSessions = sqliteTable(
+  'robotic_sessions',
+  {
+    id: text('id').primaryKey(),
+    createdAt: text('created_at').notNull().default(isoTimestamp()),
+    endedAt: text('ended_at'),
+    target: text('target').notNull(),
+    altergoAccount: text('altergo_account'),
+    transport: text('transport').notNull(),
+    goal: text('goal').notNull(),
+    status: text('status').notNull(),
+    conversationId: text('conversation_id').references(() => conversations.id),
+    flowRunId: text('flow_run_id').references(() => flowRuns.id),
+  },
+  (table) => [
+    index('robotic_sessions_status_idx').on(table.status),
+    check('robotic_session_status_check', sql`${table.status} IN ('running', 'succeeded', 'failed', 'aborted')`),
+  ],
+);
+
+// ─── Robotic Turns ────────────────────────────────────────────────────────────
+
+export const roboticTurns = sqliteTable(
+  'robotic_turns',
+  {
+    id: text('id').primaryKey(),
+    sessionId: text('session_id').notNull().references(() => roboticSessions.id, { onDelete: 'cascade' }),
+    idx: integer('idx').notNull(),
+    direction: text('direction').notNull(), // 'uplnk->target' | 'target->uplnk'
+    content: text('content').notNull(),
+    tokensIn: integer('tokens_in'),
+    tokensOut: integer('tokens_out'),
+    createdAt: text('created_at').notNull().default(isoTimestamp()),
+    metaJson: text('meta_json'),
+  },
+  (table) => [
+    index('robotic_turns_session_idx').on(table.sessionId, table.idx),
+  ],
+);
+
+// ─── Altergo Accounts ─────────────────────────────────────────────────────────
+
+export const altergoAccounts = sqliteTable(
+  'altergo_accounts',
+  {
+    id: text('id').primaryKey(),
+    providersJson: text('providers_json').notNull(),
+    lastSeenAt: text('last_seen_at').notNull(),
+    metaJson: text('meta_json'),
+  },
+);
+
+// ─── Altergo Imports ──────────────────────────────────────────────────────────
+
+export const altergoImports = sqliteTable(
+  'altergo_imports',
+  {
+    id: text('id').primaryKey(),
+    account: text('account').notNull(),
+    provider: text('provider').notNull(),
+    sourcePath: text('source_path').notNull().unique(),
+    sourceHash: text('source_hash').notNull(),
+    conversationId: text('conversation_id').notNull().references(() => conversations.id),
+    importedAt: text('imported_at').notNull().default(isoTimestamp()),
+    messageCount: integer('message_count').notNull(),
+  },
+  (table) => [
+    index('altergo_imports_account_idx').on(table.account, table.provider),
+  ],
+);
+
 // ─── Inferred types ────────────────────────────────────────────────────────────
 
 export type ProviderConfig = typeof providerConfigs.$inferSelect;
@@ -212,3 +352,18 @@ export type NewRagChunk = typeof ragChunks.$inferInsert;
 
 export type RelayRun = typeof relayRuns.$inferSelect;
 export type NewRelayRun = typeof relayRuns.$inferInsert;
+
+export type Flow = typeof flows.$inferSelect;
+export type NewFlow = typeof flows.$inferInsert;
+export type FlowRun = typeof flowRuns.$inferSelect;
+export type NewFlowRun = typeof flowRuns.$inferInsert;
+export type FlowStepResult = typeof flowStepResults.$inferSelect;
+export type NewFlowStepResult = typeof flowStepResults.$inferInsert;
+export type RoboticSession = typeof roboticSessions.$inferSelect;
+export type NewRoboticSession = typeof roboticSessions.$inferInsert;
+export type RoboticTurn = typeof roboticTurns.$inferSelect;
+export type NewRoboticTurn = typeof roboticTurns.$inferInsert;
+export type AltergoAccount = typeof altergoAccounts.$inferSelect;
+export type NewAltergoAccount = typeof altergoAccounts.$inferInsert;
+export type AltergoImport = typeof altergoImports.$inferSelect;
+export type NewAltergoImport = typeof altergoImports.$inferInsert;

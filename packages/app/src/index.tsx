@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react';
-import { Box, useApp, useInput } from 'ink';
+import { Box, Text, useApp, useInput } from 'ink';
 import { ChatScreen } from './screens/ChatScreen.js';
 import { ModelSelectorScreen } from './screens/ModelSelectorScreen.js';
 import { ConversationListScreen } from './screens/ConversationListScreen.js';
@@ -33,7 +33,11 @@ export type Screen =
   | 'relay-picker'
   | 'relay-run'
   | 'relay-editor'
-  | 'network-scan';
+  | 'network-scan'
+  | 'flow-list'
+  | 'flow-run'
+  | 'altergo'
+  | 'robotic';
 
 interface EditingProvider {
   id: string;
@@ -221,6 +225,21 @@ export function App({ initialModel = 'qwen2.5:7b', resumeConversationId, project
       execute: () => setCurrentScreen('network-scan'),
     },
     {
+      id: 'flows', name: 'Flows', shortcut: '/flows',
+      description: 'Browse and run autonomous flows', group: 'chat',
+      execute: () => setCurrentScreen('flow-list'),
+    },
+    {
+      id: 'altergo', name: 'Altergo accounts', shortcut: '/altergo',
+      description: 'Manage AI coding assistant accounts', group: 'chat',
+      execute: () => setCurrentScreen('altergo'),
+    },
+    {
+      id: 'robotic', name: 'Robotic mode', shortcut: '/robotic',
+      description: 'Autonomous AI-to-AI orchestration', group: 'chat',
+      execute: () => setCurrentScreen('robotic'),
+    },
+    {
       id: 'fork', name: 'Fork current conversation', shortcut: '/fork',
       description: 'Branch a new conversation from the latest message', group: 'chat',
       execute: () => handleNavigate('fork'),
@@ -405,6 +424,19 @@ export function App({ initialModel = 'qwen2.5:7b', resumeConversationId, project
             ? { subnetConfirmedAt: activeConfig.networkScanner.subnetConfirmedAt }
             : {})}
         />
+      )}
+
+      {!paletteOpen && currentScreen === 'flow-list' && (
+        <Box><Text>Flow engine coming soon...</Text></Box>
+      )}
+      {!paletteOpen && currentScreen === 'flow-run' && (
+        <Box><Text>Flow engine coming soon...</Text></Box>
+      )}
+      {!paletteOpen && currentScreen === 'altergo' && (
+        <Box><Text>Altergo integration coming soon...</Text></Box>
+      )}
+      {!paletteOpen && currentScreen === 'robotic' && (
+        <Box><Text>Robotic mode coming soon...</Text></Box>
       )}
     </Box>
     </VoiceAssistantProvider>
