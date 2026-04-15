@@ -192,19 +192,25 @@ export class FlowEngine {
 
         // Build a per-step abort signal that respects the parent signal and
         // the step's own timeout (if any).
-        let stepSignal = signal;
         if (step.timeoutMs !== undefined) {
           const timeoutController = new AbortController();
-          const timeoutId = setTimeout(() => timeoutController.abort(new Error(`Step ${step.id} timed out after ${step.timeoutMs}ms`)), step.timeoutMs);
+          const timeoutId = setTimeout(
+            () => timeoutController.abort(new Error(`Step ${step.id} timed out after ${step.timeoutMs}ms`)),
+            step.timeoutMs,
+          );
+          // Propagate parent-signal aborts to the step controller. Remove the
+          // listener once the step resolves so we don't accumulate one per
+          // step on the parent signal — that was a memory leak for long flows.
+          const onParentAbort = (): void => timeoutController.abort(signal?.reason);
           if (signal !== undefined) {
-            signal.addEventListener('abort', () => timeoutController.abort(signal.reason));
+            if (signal.aborted) onParentAbort();
+            else signal.addEventListener('abort', onParentAbort, { once: true });
           }
-          stepSignal = timeoutController.signal;
-          // We'll clear the timeout after the step resolves
           try {
-            output = await this.dispatchStep(step, ctx, { ...opts, signal: stepSignal });
+            output = await this.dispatchStep(step, ctx, { ...opts, signal: timeoutController.signal });
           } finally {
             clearTimeout(timeoutId);
+            signal?.removeEventListener('abort', onParentAbort);
           }
         } else {
           output = await this.dispatchStep(step, ctx, opts);
@@ -324,7 +330,12 @@ export class FlowEngine {
     const { fullStream } = streamText(streamOpts);
 
     for await (const event of fullStream) {
-      if (signal?.aborted) break;
+      // Abort check — streamText already receives abortSignal above, but
+      // we also bail out of the consumer loop so we don't keep emitting
+      // step.stream events after the caller has cancelled.
+      if (signal?.aborted) {
+        throw new Error('Flow cancelled');
+      }
       if (event.type === 'text-delta') {
         accumulated += event.textDelta;
         onEvent?.({

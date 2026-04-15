@@ -87,6 +87,16 @@ export class PtyTransport implements Transport {
 
     return new Promise((resolve) => {
       const check = setInterval(() => {
+        // Bail out immediately if the transport closed while we were idle —
+        // prevents the interval from leaking when the child exits.
+        if (this.closed) {
+          clearInterval(check);
+          const result = this.outputBuffer;
+          this.outputBuffer = '';
+          resolve(result);
+          return;
+        }
+
         if (this.outputBuffer.length !== lastLength) {
           lastLength = this.outputBuffer.length;
           lastChangeAt = Date.now();

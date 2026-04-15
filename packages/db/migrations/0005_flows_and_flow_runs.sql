@@ -1,7 +1,8 @@
 -- uplnk v2 flows engine
 ALTER TABLE conversations ADD COLUMN source TEXT NOT NULL DEFAULT 'tui';
+--> statement-breakpoint
 ALTER TABLE conversations ADD COLUMN imported_from TEXT;
-
+--> statement-breakpoint
 CREATE TABLE flows (
   id TEXT PRIMARY KEY,
   name TEXT NOT NULL UNIQUE,
@@ -12,7 +13,7 @@ CREATE TABLE flows (
   created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
   updated_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
 );
-
+--> statement-breakpoint
 CREATE TABLE flow_runs (
   id TEXT PRIMARY KEY,
   flow_id TEXT NOT NULL REFERENCES flows(id),
@@ -26,10 +27,11 @@ CREATE TABLE flow_runs (
   error_json TEXT,
   parent_run_id TEXT REFERENCES flow_runs(id)
 );
-
+--> statement-breakpoint
 CREATE INDEX flow_runs_flow_id_idx ON flow_runs(flow_id);
+--> statement-breakpoint
 CREATE INDEX flow_runs_status_idx ON flow_runs(status);
-
+--> statement-breakpoint
 CREATE TABLE flow_step_results (
   id TEXT PRIMARY KEY,
   run_id TEXT NOT NULL REFERENCES flow_runs(id) ON DELETE CASCADE,
@@ -45,5 +47,5 @@ CREATE TABLE flow_step_results (
   message_id TEXT REFERENCES messages(id),
   robotic_session_id TEXT
 );
-
+--> statement-breakpoint
 CREATE INDEX flow_step_results_run_idx ON flow_step_results(run_id, step_index, iteration);

@@ -122,7 +122,7 @@ export class StdoutRenderer {
   }
 
   /** Write a single JSON-serialised line followed by a newline character. */
-  writeLine(obj: unknown): void {
+  private writeLine(obj: unknown): void {
     process.stdout.write(JSON.stringify(obj) + '\n');
   }
 }
