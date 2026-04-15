@@ -1,3 +1,9 @@
+## [1.3.1](https://github.com/thepixelabs/uplnk/compare/v1.3.0...v1.3.1) (2026-04-15)
+
+### Bug Fixes
+
+* **db:** register migrations 0005/0006 in journal, add CI guards ([f86be5c](https://github.com/thepixelabs/uplnk/commit/f86be5cf5dddca306b981f98668a2ca6e75c06ed))
+
 ## [1.3.0](https://github.com/thepixelabs/uplnk/compare/v1.2.0...v1.3.0) (2026-04-15)
 
 ### Features
