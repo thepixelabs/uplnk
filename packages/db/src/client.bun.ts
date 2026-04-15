@@ -24,8 +24,17 @@ export const getPylonDbPath = getUplnkDbPath;
 function createDb(dbPath?: string) {
   const sqlite = new Database(dbPath ?? getUplnkDbPath());
 
-  // bun:sqlite uses exec() instead of better-sqlite3's pragma() helper
-  sqlite.exec('PRAGMA journal_mode = WAL');
+  // bun:sqlite exec() is fire-and-forget. Use query().get() for WAL so we can
+  // validate the mode was actually accepted — on network filesystems or
+  // read-only mounts the pragma silently falls back to 'delete'.
+  const row = sqlite.query<{ journal_mode: string }, []>('PRAGMA journal_mode = WAL').get();
+  if (row?.journal_mode !== 'wal') {
+    process.stderr.write(
+      `[uplnk] SQLite WAL mode could not be set (got: ${row?.journal_mode ?? 'unknown'}). ` +
+      `Performance may be degraded on network or read-only filesystems.\n`
+    );
+  }
+
   sqlite.exec('PRAGMA foreign_keys = ON');
   sqlite.exec('PRAGMA cache_size = -65536');
 
