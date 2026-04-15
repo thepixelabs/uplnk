@@ -15,8 +15,8 @@ jobs:
         id: app-token
         uses: actions/create-github-app-token@v1
         with:
-          app-id: ${{ secrets.HOMEBREW_BUMP_APP_ID }}
-          private-key: ${{ secrets.HOMEBREW_BUMP_APP_KEY }}
+          app-id: ${{ secrets.HOMEBREW_TAP_APP_ID }}
+          private-key: ${{ secrets.HOMEBREW_TAP_APP_PRIVATE_KEY }}
           # Scoped to the tap repo only — this App has no write access elsewhere.
           repositories: homebrew-tap
 
