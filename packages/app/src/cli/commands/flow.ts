@@ -16,20 +16,12 @@
 import { readdirSync, readFileSync, existsSync } from 'node:fs';
 import { join, extname, basename } from 'node:path';
 import { homedir } from 'node:os';
-import { z } from 'zod';
 import yaml from 'js-yaml';
 import { getOrCreateConfig } from '../../lib/config.js';
-
-// ── Flow definition schema ────────────────────────────────────────────────────
-
-const FlowDef = z.object({
-  apiVersion: z.literal('uplnk.io/v1'),
-  name: z.string(),
-  description: z.string().optional(),
-  steps: z.array(z.any()).min(1),
-});
-
-type FlowDef = z.infer<typeof FlowDef>;
+// Use the same FlowDef schema the engine uses — keeping one schema prevents
+// `uplnk flow validate` from passing a flow that then fails inside the engine.
+import { FlowDef } from '../../flow/schema.js';
+import type { FlowDef as FlowDefType } from '../../flow/schema.js';
 
 // ── Public interface ──────────────────────────────────────────────────────────
 
@@ -116,17 +108,21 @@ async function runRun(flowsDir: string, options: FlowCommandOptions): Promise<vo
   const name = requireName(options, 'run');
   const { flow, file } = loadNamedFlow(flowsDir, name);
 
-  // Validation passed. Attempt to delegate to FlowEngine.
-  // The FlowEngine is not yet implemented — exit cleanly with an informative
-  // message rather than crashing so CI pipelines and scripts can detect this
-  // case via stdout rather than a non-zero exit code.
+  // Validation passed. The FlowEngine does exist now, but wiring it into
+  // the headless command (prompt for inputs, render per-step progress in
+  // a CI-friendly way, return outputs) is still outstanding — see flow
+  // engine roadmap. Until then, print what we loaded and exit with code 2
+  // so automation doesn't mistake this stub for a successful run.
   process.stdout.write(`Flow '${flow.name}' loaded from ${file}\n`);
   process.stdout.write(`  ${String(flow.steps.length)} step(s) defined\n`);
   if (flow.description !== undefined) {
     process.stdout.write(`  ${flow.description}\n`);
   }
-  process.stdout.write('\nFlow engine not yet initialized\n');
-  // Exit 0 — the file is valid; it just can't run yet.
+  process.stderr.write(
+    '\nuplnk flow run: headless execution is not yet available.\n' +
+      'Open the TUI (`uplnk`) and use the Flows screen to run this flow.\n',
+  );
+  process.exit(2);
 }
 
 async function runValidate(flowsDir: string, options: FlowCommandOptions): Promise<void> {
@@ -205,7 +201,7 @@ function discoverFlowFiles(dir: string): FlowEntry[] {
 }
 
 type LoadResult =
-  | { ok: true; flow: FlowDef }
+  | { ok: true; flow: FlowDefType }
   | { ok: false; error: string };
 
 function loadFlowFile(file: string): LoadResult {
@@ -245,7 +241,7 @@ function requireName(options: FlowCommandOptions, action: string): string {
  * Load a flow by name from the flows directory, exiting with an error message
  * if the directory, file, or schema is invalid.
  */
-function loadNamedFlow(flowsDir: string, name: string): { flow: FlowDef; file: string } {
+function loadNamedFlow(flowsDir: string, name: string): { flow: FlowDefType; file: string } {
   if (!existsSync(flowsDir)) {
     process.stderr.write(`uplnk flow: flows directory not found at ${flowsDir}\n`);
     process.exit(1);

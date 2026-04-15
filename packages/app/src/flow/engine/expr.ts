@@ -215,13 +215,26 @@ class Parser {
 }
 
 function compare(op: TokenKind, left: ParseResult, right: ParseResult): boolean {
-  // Coerce to comparable type
-  const l = left ?? null;
-  const r = right ?? null;
+  // Normalise undefined to null so `steps.missing.output == null` works.
+  const l = left === undefined ? null : left;
+  const r = right === undefined ? null : right;
 
   switch (op) {
-    case 'EQ':  return String(l) === String(r) || l === r;
-    case 'NEQ': return String(l) !== String(r) && l !== r;
+    case 'EQ': {
+      // Strict equality, with one lenient rule: allow string/number cross-type
+      // compare (e.g. `inputs.retries == 3` where inputs arrived as "3").
+      if (l === r) return true;
+      if (typeof l === 'number' && typeof r === 'string') return l === Number(r);
+      if (typeof l === 'string' && typeof r === 'number') return Number(l) === r;
+      return false;
+    }
+    case 'NEQ': {
+      if (l === r) return false;
+      if (typeof l === 'number' && typeof r === 'string') return l !== Number(r);
+      if (typeof l === 'string' && typeof r === 'number') return Number(l) !== r;
+      return true;
+    }
+    // Numeric comparisons: null/undefined → NaN → always false (matches JS).
     case 'LT':  return Number(l) < Number(r);
     case 'LTE': return Number(l) <= Number(r);
     case 'GT':  return Number(l) > Number(r);

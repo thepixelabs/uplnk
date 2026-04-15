@@ -1,6 +1,6 @@
 import { createHash, randomUUID } from 'node:crypto';
 import { readdirSync, statSync, realpathSync } from 'node:fs';
-import { join, resolve } from 'node:path';
+import { join, resolve, sep } from 'node:path';
 import { homedir } from 'node:os';
 import { db } from '@uplnk/db';
 import { conversations, messages, altergoImports } from '@uplnk/db';
@@ -55,17 +55,21 @@ function hashSourcePath(sourcePath: string): string {
 }
 
 /**
- * Verify that a path, after resolving all symlinks, stays within the permitted
- * root directories. We allow anything under ~/.altergo or the user's $HOME to
- * accommodate primary-home session symlinks that altergo creates.
+ * Verify that a path, after resolving all symlinks, stays strictly within
+ * ~/.altergo. Any symlink that points outside is treated as an attack and
+ * the import is aborted.
  *
  * Returns the resolved real path on success, or throws if the path escapes.
- * This is defence-in-depth — we never write to altergo directories, but we
- * don't want to accidentally follow a symlink pointing at /etc either.
+ * We never write to altergo directories — this guard only protects against
+ * a malicious symlink causing us to read a sensitive file (SSH keys, GPG
+ * keys, browser databases, etc.) and copy its contents into the uplnk DB.
+ *
+ * The previous implementation allowed anything under $HOME which was too
+ * permissive: a symlink from ~/.altergo/accounts/foo/.claude → ~/.ssh would
+ * have been permitted.
  */
 function safeRealpath(targetPath: string): string {
-  const home = homedir();
-  const altergoHome = join(home, '.altergo');
+  const altergoRoot = join(homedir(), '.altergo');
 
   let real: string;
   try {
@@ -75,9 +79,12 @@ function safeRealpath(targetPath: string): string {
     real = resolve(targetPath);
   }
 
-  if (!real.startsWith(altergoHome) && !real.startsWith(home)) {
+  // Use path.sep-aware boundary so "/home/user/.altergo-evil" is rejected
+  // (a prefix match alone would accept it).
+  const rootWithSep = altergoRoot.endsWith(sep) ? altergoRoot : altergoRoot + sep;
+  if (real !== altergoRoot && !real.startsWith(rootWithSep)) {
     throw new Error(
-      `Security: path ${real} is outside the permitted root (${home}). Import aborted.`,
+      `Security: path ${real} is outside the altergo root (${altergoRoot}). Import aborted.`,
     );
   }
 
