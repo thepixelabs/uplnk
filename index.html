@@ -4,12 +4,12 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>uplnk — Local-First AI Coding Assistant</title>
-  <meta name="description" content="uplnk is an open-source TUI coding assistant that runs entirely on your hardware. Claude Code quality, without giving up your code." />
+  <meta name="description" content="uplnk is an open-source TUI coding assistant that runs entirely on your hardware. Local models, full context, zero cloud." />
 
   <!-- Open Graph -->
   <meta property="og:type" content="website" />
   <meta property="og:title" content="uplnk — Local-First AI Coding Assistant" />
-  <meta property="og:description" content="Open-source TUI coding assistant. Local LLMs, no cloud, no subscriptions. Claude Code quality on your own hardware." />
+  <meta property="og:description" content="Open-source TUI coding assistant for Ollama, LM Studio, and vLLM. No cloud, no subscriptions. Your tokens never leave your hardware." />
   <meta property="og:image" content="landing/assets/uplnk-hero.png" />
   <meta name="twitter:card" content="summary_large_image" />
   <meta name="twitter:title" content="uplnk — Local-First AI Coding Assistant" />
@@ -346,8 +346,8 @@
       border-radius: 10px;
       box-shadow: 0 0 0 1px rgba(0,255,136,0.06), 0 32px 80px rgba(0,0,0,0.8), 0 0 60px rgba(0,255,136,0.04);
       font-family: 'JetBrains Mono', monospace;
-      font-size: 13px;
-      line-height: 1.6;
+      font-size: 12px;
+      line-height: 1.18;
       overflow: hidden;
     }
 
@@ -367,17 +367,19 @@
     }
 
     .terminal-body {
-      padding: 20px 24px;
-      min-height: 360px;
+      padding: 14px 18px;
       color: var(--text-primary);
       overflow: hidden;
     }
 
-    .term-green { color: var(--accent-green); }
+    .term-green { color: #4ADE80; }
     .term-amber { color: var(--accent-amber); }
-    .term-blue { color: var(--accent-blue); }
+    .term-blue { color: #60A5FA; }
     .term-dim { color: var(--text-secondary); }
     .term-white { color: #E8E8F0; }
+    .term-cyan { color: #00D9FF; }
+    .term-purple { color: #7B6FFF; }
+    .term-slate { color: #475569; }
 
     .cursor-block {
       display: inline-block;
@@ -650,13 +652,14 @@
       background: linear-gradient(90deg, transparent, var(--border), transparent);
     }
 
-    /* ── Big uplnk bg watermark ── */
-    .uplnk-watermark {
+    /* ── Big uplnk bg watermark (image) ── */
+    .uplnk-watermark-img {
       position: absolute;
-      opacity: 0.025;
       pointer-events: none;
+      user-select: none;
       z-index: 0;
     }
+    html.light .uplnk-watermark-img { opacity: 0.12 !important; }
 
     /* ── Step number ── */
     .step-number {
@@ -760,19 +763,14 @@
     <!-- Hero grid background -->
     <div class="hero-grid" aria-hidden="true"></div>
 
-    <!-- Big uplnk watermark -->
-    <svg class="uplnk-watermark" width="600" height="700" viewBox="0 0 32 36" style="top:50%;right:-5%;transform:translateY(-50%);" preserveAspectRatio="xMidYMid meet" aria-hidden="true">
-      <polygon points="16,5 20,11 19.5,18 12.5,18 12,11" fill="none" stroke="var(--brand)" stroke-width="0.5"/>
-      <line x1="12.5" y1="9" x2="19.5" y2="9" stroke="var(--brand)" stroke-width="0.4"/>
-      <line x1="12.2" y1="13" x2="19.8" y2="13" stroke="var(--brand)" stroke-width="0.4"/>
-      <line x1="11.8" y1="17" x2="20.2" y2="17" stroke="var(--brand)" stroke-width="0.4"/>
-      <polygon points="12.5,18 11,22 21,22 19.5,18" fill="none" stroke="var(--brand)" stroke-width="0.5"/>
-      <polygon points="11,22 8.5,27 23.5,27 21,22" fill="none" stroke="var(--brand)" stroke-width="0.5"/>
-      <rect x="6" y="27" width="20" height="3" fill="var(--brand)"/>
-      <line x1="16" y1="0" x2="16" y2="5" stroke="var(--brand)" stroke-width="0.5"/>
-      <line x1="16" y1="1" x2="11" y2="4" stroke="var(--brand)" stroke-width="0.3"/>
-      <line x1="16" y1="1" x2="21" y2="4" stroke="var(--brand)" stroke-width="0.3"/>
-    </svg>
+    <!-- Atmospheric tower watermark (generated) -->
+    <img
+      src="landing/assets/uplnk-tower-watermark.png"
+      alt=""
+      aria-hidden="true"
+      class="uplnk-watermark-img"
+      style="right:-3%; top:50%; transform:translateY(-50%); width:540px; max-width:50vw; opacity:0.18; filter:saturate(1.1);"
+    />
 
     <!-- Kirby dot overlay on hero -->
     <div class="kirby-dots absolute inset-0 pointer-events-none" style="opacity:0.5" aria-hidden="true"></div>
@@ -781,8 +779,8 @@
     <div class="absolute top-1/4 left-1/4 w-96 h-96 rounded-full pointer-events-none" style="background:radial-gradient(circle, rgba(245,166,35,0.07) 0%, transparent 70%); filter:blur(40px);" aria-hidden="true"></div>
     <div class="absolute bottom-1/4 right-1/3 w-64 h-64 rounded-full pointer-events-none" style="background:radial-gradient(circle, rgba(68,136,255,0.05) 0%, transparent 70%); filter:blur(40px);" aria-hidden="true"></div>
 
-    <div class="relative z-10 max-w-6xl mx-auto px-5 py-20 w-full">
-      <div class="grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-16 items-center">
+    <div class="relative z-10 max-w-6xl mx-auto px-4 py-20 w-full">
+      <div class="grid grid-cols-1 lg:grid-cols-[5fr_7fr] gap-8 lg:gap-10 items-center">
 
         <!-- Left column: copy -->
         <div class="space-y-7">
@@ -806,19 +804,42 @@
 
           <!-- Subheading -->
           <p class="text-text-secondary text-lg leading-relaxed max-w-lg">
-            uplnk is an open-source TUI coding assistant that runs entirely on your hardware. Claude Code quality — pointed at your local Ollama server. No cloud, no subscription, no data leaving your machine.
+            Open-source TUI coding assistant for Ollama, LM Studio, vLLM, and any OpenAI-compatible server. Your tokens never leave your hardware. No cloud routing, no subscription, no data you don't control.
           </p>
 
           <!-- CTAs -->
           <div class="flex flex-wrap gap-4 pt-1">
-            <a href="#install" class="btn-primary">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><path d="M12 2v14m0 0l-4-4m4 4l4-4M2 20h20"/></svg>
-              Install uplnk
-            </a>
-            <a href="https://github.com/thepixelabs/uplnk" target="_blank" rel="noopener" class="btn-outline">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 0C5.374 0 0 5.373 0 12c0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23A11.509 11.509 0 0112 5.803c1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576C20.566 21.797 24 17.3 24 12c0-6.627-5.373-12-12-12z"/></svg>
-              View on GitHub
-            </a>
+            <!-- Install button + stats beneath -->
+            <div class="flex flex-col gap-1.5">
+              <a href="#install" class="btn-primary">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><path d="M12 2v14m0 0l-4-4m4 4l4-4M2 20h20"/></svg>
+                Install uplnk
+              </a>
+              <div class="flex items-center gap-x-3 font-mono text-sm px-1" style="color:var(--brand); text-shadow:0 0 12px rgba(245,166,35,0.6), 0 0 28px rgba(245,166,35,0.25);">
+                <span id="hero-stat-downloads" style="opacity:0;"><span style="opacity:0.6;">↓</span> <span id="hero-dl-val">—</span> <span style="opacity:0.6;">/ wk</span></span>
+                <span id="hero-stat-sep" style="opacity:0.3;">·</span>
+                <span><span style="opacity:0.6;">v</span><span id="hero-ver-val">1.1.0</span></span>
+              </div>
+            </div>
+
+            <!-- GitHub button + stars/forks beneath -->
+            <div class="flex flex-col gap-1.5">
+              <a href="https://github.com/thepixelabs/uplnk" target="_blank" rel="noopener" class="btn-outline">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 0C5.374 0 0 5.373 0 12c0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23A11.509 11.509 0 0112 5.803c1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576C20.566 21.797 24 17.3 24 12c0-6.627-5.373-12-12-12z"/></svg>
+                View on GitHub
+              </a>
+              <div id="hero-gh-stats" class="flex items-center gap-x-3 font-mono text-sm px-1" style="opacity:0; color:var(--brand); text-shadow:0 0 12px rgba(245,166,35,0.6), 0 0 28px rgba(245,166,35,0.25);">
+                <span class="flex items-center gap-1.5">
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" style="opacity:0.75; flex-shrink:0;"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+                  <span id="hero-stars-val">—</span>
+                </span>
+                <span style="opacity:0.3;">·</span>
+                <span class="flex items-center gap-1.5">
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true" style="opacity:0.75; flex-shrink:0;"><circle cx="12" cy="18" r="3"/><circle cx="6" cy="6" r="3"/><circle cx="18" cy="6" r="3"/><path d="M18 9v1a2 2 0 01-2 2H8a2 2 0 01-2-2V9M12 15v-3"/></svg>
+                  <span id="hero-forks-val">—</span>
+                </span>
+              </div>
+            </div>
           </div>
 
           <!-- Works with -->
@@ -836,17 +857,29 @@
           <!-- Glow under terminal -->
           <div class="absolute -inset-4 rounded-2xl pointer-events-none" style="background:radial-gradient(ellipse at center, rgba(0,255,136,0.08) 0%, transparent 70%); filter:blur(20px);" aria-hidden="true"></div>
 
-          <div class="terminal-window relative" role="img" aria-label="uplnk terminal session demo">
+          <div class="terminal-window relative" role="img" aria-label="uplnk terminal session">
             <!-- Title bar -->
             <div class="terminal-titlebar">
               <div class="terminal-dot" style="background:#FF5F56;"></div>
               <div class="terminal-dot" style="background:#FFBD2E;"></div>
               <div class="terminal-dot" style="background:#27C93F;"></div>
-              <span class="flex-1 text-center text-xs font-mono" style="color:var(--text-secondary);">uplnk</span>
+              <span class="flex-1 text-center text-xs font-mono" style="color:var(--text-secondary);">uplnk — terminal</span>
             </div>
-            <!-- Terminal body with typewriter animation -->
-            <div class="terminal-body" id="terminal-output" aria-live="polite">
-              <!-- Populated by JS -->
+            <!-- Static terminal body -->
+            <div class="terminal-body" aria-label="uplnk session demo" style="font-variant-ligatures:none;">
+              <p style="margin:0;white-space:pre;line-height:1.18;" class="term-dim">┌────────────────────────────────────────────────────────────────────────────┐</p>
+              <p style="margin:0;white-space:pre;line-height:1.18;" class="term-dim">│ ┌─────────────────────────────┐  local code  ┌──────────────────────┐      │</p>
+              <p style="margin:0;white-space:pre;line-height:1.18;" class="term-dim">│ │ ▐█▌ UPLNK  v1.1.0           │   ● llama3.2 │ Ollama (local)       │      │</p>
+              <p style="margin:0;white-space:pre;line-height:1.18;" class="term-dim">│ │ cwd ~/dev/myproject         │              │ localhost:11434      │      │</p>
+              <p style="margin:0;white-space:pre;line-height:1.18;" class="term-dim">│ └─────────────────────────────┘              └──────────────────────┘      │</p>
+              <p style="margin:0;white-space:pre;line-height:1.18;" class="term-dim">└────────────────────────────────────────────────────────────────────────────┘</p>
+              <div style="height:240px;"></div>
+              <p style="margin:0;white-space:pre;line-height:1.18;" class="term-dim">┌────────────────────────────────────────────────────────────────────────────┐</p>
+              <p style="margin:0;white-space:pre;line-height:1.18;" class="term-dim">│ ●  ◆ 0.8k ▓▓▒░░ 18%     new conversation   Ctrl+C quit                     │</p>
+              <p style="margin:0;white-space:pre;line-height:1.18;" class="term-dim">└────────────────────────────────────────────────────────────────────────────┘</p>
+              <p style="margin:0;white-space:pre;line-height:1.18;" class="term-purple">╭────────────────────────────────────────────────────────────────────────────╮</p>
+              <p style="margin:0;white-space:pre;line-height:1.18;" class="term-cyan">│ ❯ <span class="cursor-block" aria-hidden="true"></span>                                                                        │</p>
+              <p style="margin:0;white-space:pre;line-height:1.18;" class="term-purple">╰────────────────────────────────────────────────────────────────────────────╯</p>
             </div>
           </div>
         </div>
@@ -857,35 +890,33 @@
 
 
   <!-- ══════════════════════════════════════════════ HERO ART ══ -->
-  <section class="relative overflow-hidden" aria-hidden="true" style="background:#06060C;">
-    <div class="relative w-full" style="max-height:520px; overflow:hidden;">
-      <!-- Gradient fade top -->
-      <div class="absolute top-0 left-0 right-0 z-10 pointer-events-none" style="height:120px; background:linear-gradient(to bottom, var(--bg-primary), transparent);"></div>
-      <!-- Hero illustration -->
-      <img
-        src="landing/assets/uplnk-hero.png"
-        alt="uplnk — retro sci-fi transmission tower in a dark digital void"
-        class="w-full object-cover"
-        style="object-position:center 30%; filter:saturate(1.1) contrast(1.05);"
-        loading="eager"
-        decoding="async"
-      />
-      <!-- Gradient fade bottom -->
-      <div class="absolute bottom-0 left-0 right-0 z-10 pointer-events-none" style="height:180px; background:linear-gradient(to top, var(--bg-primary), transparent);"></div>
-      <!-- Side fades -->
-      <div class="absolute top-0 left-0 bottom-0 z-10 pointer-events-none" style="width:80px; background:linear-gradient(to right, var(--bg-primary), transparent);"></div>
-      <div class="absolute top-0 right-0 bottom-0 z-10 pointer-events-none" style="width:80px; background:linear-gradient(to left, var(--bg-primary), transparent);"></div>
-    </div>
+  <section class="relative overflow-hidden" style="background:#06060C; height:clamp(480px, 80vh, 1100px);">
+    <!-- Hero illustration — fills the section, shows the full tower -->
+    <img
+      src="landing/assets/uplnk-hero.png"
+      alt="Retro sci-fi transmission tower crackling with lightning in a dark star-filled void — the uplnk brand illustration"
+      class="absolute inset-0 w-full h-full"
+      style="object-fit:cover; object-position:center 20%; filter:saturate(1.15) contrast(1.05);"
+      loading="eager"
+      decoding="async"
+    />
+    <!-- Top fade — blends into hero section above -->
+    <div class="absolute top-0 left-0 right-0 z-10 pointer-events-none" aria-hidden="true" style="height:12%; background:linear-gradient(to bottom, #06060C, transparent);"></div>
+    <!-- Side fades -->
+    <div class="absolute top-0 left-0 bottom-0 z-10 pointer-events-none" aria-hidden="true" style="width:6%; background:linear-gradient(to right, #06060C, transparent);"></div>
+    <div class="absolute top-0 right-0 bottom-0 z-10 pointer-events-none" aria-hidden="true" style="width:6%; background:linear-gradient(to left, #06060C, transparent);"></div>
+    <!-- Bottom fade — starts at 50% so base of tower stays visible; text overlaps from here -->
+    <div class="absolute bottom-0 left-0 right-0 z-10 pointer-events-none" aria-hidden="true" style="height:50%; background:linear-gradient(to top, #06060C 30%, rgba(6,6,12,0.7) 65%, transparent 100%);"></div>
   </section>
 
 
   <!-- ══════════════════════════════════════════════ THE SITUATION ══ -->
-  <section class="relative py-28 overflow-hidden" id="problem">
+  <section class="relative overflow-hidden" id="problem" style="margin-top:-22rem; padding-top:0; padding-bottom:7rem;">
     <div class="kirby-dots-amber absolute inset-0 pointer-events-none" aria-hidden="true"></div>
 
     <div class="relative z-10 max-w-4xl mx-auto px-5">
 
-      <div class="text-center mb-16">
+      <div class="text-center mb-16" style="padding-top:14rem;">
         <p class="font-mono text-xs tracking-widest text-text-secondary uppercase mb-6">The situation</p>
         <h2 class="text-4xl sm:text-5xl font-bold" style="letter-spacing:-0.03em;">
           You've been here before.
@@ -989,11 +1020,11 @@
               <path d="M4 16h5l3-8 4 16 3-11 2 3h7" stroke="var(--brand)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
             </svg>
           </div>
-          <h3 class="font-bold text-lg mb-2">Streaming That Doesn't Drop</h3>
-          <p class="text-text-secondary text-sm leading-relaxed">Built for local model latency. uplnk handles timeouts, backpressure, and slow inference without freezing — you see output as it arrives, not after it fails.</p>
+          <h3 class="font-bold text-lg mb-2">Smooth Streaming at ~30fps</h3>
+          <p class="text-text-secondary text-sm leading-relaxed">Built for local model latency. A 33ms render-flush buffer keeps the UI smooth even when a hot local model pushes 60+ tokens/sec — tokens accumulate in a ref, not state, so React never thrashes.</p>
         </div>
 
-        <!-- Card 4: File Context -->
+        <!-- Card 4: Codebase RAG -->
         <div class="feature-card">
           <div class="mb-5">
             <svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
@@ -1003,8 +1034,8 @@
               <path d="M20 22l2 2 4-4" stroke="var(--brand)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
             </svg>
           </div>
-          <h3 class="font-bold text-lg mb-2">File Context, Done Right</h3>
-          <p class="text-text-secondary text-sm leading-relaxed">Drag a file in or paste a snippet. uplnk attaches it as context so your LLM answers about your actual code. <span style="color:var(--brand); font-size:0.7rem;" class="font-mono">Full codebase indexing → v0.5</span></p>
+          <h3 class="font-bold text-lg mb-2">Codebase RAG</h3>
+          <p class="text-text-secondary text-sm leading-relaxed">Paste a file or enable local embeddings to index your whole project. uplnk chunks and stores vectors in SQLite — cosine-similarity search runs entirely on your machine. <span style="color:var(--brand); font-size:0.7rem;" class="font-mono">Opt-in — requires embedding endpoint</span></p>
         </div>
 
         <!-- Card 5: SQLite History -->
@@ -1032,7 +1063,7 @@
             </svg>
           </div>
           <h3 class="font-bold text-lg mb-2 text-accent-green">Zero Cloud</h3>
-          <p class="text-text-secondary text-sm leading-relaxed">No API keys sent to our servers. No telemetry without consent. No subscription required. Ever.</p>
+          <p class="text-text-secondary text-sm leading-relaxed">No API keys sent to our servers. No subscription required. Ever. Optional anonymous telemetry exists but is off by default and the transport isn't wired — nothing leaves your machine today.</p>
         </div>
 
       </div>
@@ -1040,7 +1071,20 @@
   </section>
 
 
-  <div class="section-divider max-w-5xl mx-auto"></div>
+  <!-- ══════════════════════════════════════════════ SIGNAL BRIDGE ══ -->
+  <section class="relative overflow-hidden" aria-hidden="true" style="height:260px; background:#06060C;">
+    <img
+      src="landing/assets/uplnk-signal-bridge.png"
+      alt=""
+      aria-hidden="true"
+      class="absolute inset-0 w-full h-full"
+      style="object-fit:cover; object-position:center; opacity:0.75; filter:saturate(1.1);"
+    />
+    <!-- Top fade -->
+    <div class="absolute top-0 left-0 right-0 pointer-events-none" style="height:45%; background:linear-gradient(to bottom, #06060C, transparent);"></div>
+    <!-- Bottom fade -->
+    <div class="absolute bottom-0 left-0 right-0 pointer-events-none" style="height:45%; background:linear-gradient(to top, #06060C, transparent);"></div>
+  </section>
 
 
   <!-- ══════════════════════════════════════════════ INSTALL ══ -->
@@ -1058,17 +1102,12 @@
 
       <!-- Code block -->
       <div class="code-block" role="region" aria-label="Installation steps">
-        <!-- Step bar -->
+        <!-- Title bar — dots only, no shared copy button -->
         <div class="flex items-center gap-3 px-6 py-3 border-b" style="border-color:var(--border); background:rgba(0,0,0,0.3);">
           <div class="w-2.5 h-2.5 rounded-full" style="background:#FF5F56;"></div>
           <div class="w-2.5 h-2.5 rounded-full" style="background:#FFBD2E;"></div>
           <div class="w-2.5 h-2.5 rounded-full" style="background:#27C93F;"></div>
           <span class="font-mono text-xs ml-2" style="color:var(--text-secondary);">shell</span>
-          <!-- Copy button -->
-          <button id="copy-install" class="ml-auto flex items-center gap-2 text-xs font-mono px-3 py-1.5 rounded transition-all duration-200" style="border:1px solid var(--border); color:var(--text-secondary);" onclick="copyInstall()" aria-label="Copy installation commands">
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
-            <span id="copy-text">copy</span>
-          </button>
         </div>
 
         <div class="p-6 space-y-6 pl-10">
@@ -1076,28 +1115,48 @@
           <!-- Step 1 -->
           <div class="flex gap-5 items-start">
             <div class="step-number mt-0.5" aria-hidden="true">1</div>
-            <div class="flex-1">
+            <div class="flex-1 min-w-0">
               <p class="text-xs font-mono mb-2" style="color:var(--text-secondary);"># Install uplnk globally</p>
-              <p class="font-mono"><span style="color:var(--text-secondary);">$</span> <span class="text-accent-green">npm</span> <span style="color:var(--text-primary);">install -g uplnk</span></p>
+              <div class="flex items-center justify-between gap-3">
+                <p class="font-mono truncate"><span style="color:var(--text-secondary);">$</span> <span class="text-accent-green">npm</span> <span style="color:var(--text-primary);">install -g uplnk</span></p>
+                <button class="step-copy-btn flex-shrink-0 flex items-center gap-1.5 font-mono text-xs px-2.5 py-1.5 rounded transition-all duration-200" style="border:1px solid var(--border); color:var(--text-secondary); opacity:0.45;" onclick="copyStep(this,'npm install -g uplnk')" onmouseenter="hoverIn(this)" onmouseleave="hoverOut(this)" aria-label="Copy: npm install -g uplnk">
+                  <svg class="step-copy-icon" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
+                  <span class="step-copy-label">copy</span>
+                </button>
+              </div>
             </div>
           </div>
 
           <!-- Step 2 -->
           <div class="flex gap-5 items-start">
             <div class="step-number mt-0.5" aria-hidden="true">2</div>
-            <div class="flex-1">
+            <div class="flex-1 min-w-0">
               <p class="text-xs font-mono mb-2" style="color:var(--text-secondary);"># Connect your local LLM</p>
-              <p class="font-mono"><span style="color:var(--text-secondary);">$</span> <span class="text-accent-green">uplnk</span> <span style="color:var(--text-primary);">config</span> <span style="color:var(--accent-amber);">--provider</span> <span style="color:var(--accent-blue);">ollama</span> <span style="color:var(--accent-amber);">--url</span> <span style="color:var(--accent-blue);">http://localhost:11434</span></p>
+              <div class="flex items-center justify-between gap-3">
+                <p class="font-mono text-sm truncate"><span style="color:var(--text-secondary);">$</span> <span class="text-accent-green">uplnk</span> <span style="color:var(--text-primary);">config</span> <span style="color:var(--accent-amber);">--provider</span> <span style="color:var(--accent-blue);">ollama</span> <span style="color:var(--accent-amber);">--url</span> <span style="color:var(--accent-blue);">http://localhost:11434</span></p>
+                <button class="step-copy-btn flex-shrink-0 flex items-center gap-1.5 font-mono text-xs px-2.5 py-1.5 rounded transition-all duration-200" style="border:1px solid var(--border); color:var(--text-secondary); opacity:0.45;" onclick="copyStep(this,'uplnk config --provider ollama --url http://localhost:11434')" onmouseenter="hoverIn(this)" onmouseleave="hoverOut(this)" aria-label="Copy: uplnk config command">
+                  <svg class="step-copy-icon" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
+                  <span class="step-copy-label">copy</span>
+                </button>
+              </div>
             </div>
           </div>
 
           <!-- Step 3 -->
           <div class="flex gap-5 items-start">
             <div class="step-number mt-0.5" aria-hidden="true">3</div>
-            <div class="flex-1">
+            <div class="flex-1 min-w-0">
               <p class="text-xs font-mono mb-2" style="color:var(--text-secondary);"># Start coding with AI</p>
-              <p class="font-mono"><span style="color:var(--text-secondary);">$</span> <span class="text-accent-green font-bold text-glow">uplnk</span></p>
-              <p class="font-mono mt-2" style="color:var(--text-secondary);">◆ uplnk v0.1.0 — Connected: Ollama (llama3:8b) <span style="color:var(--accent-green);">●</span></p>
+              <div class="flex items-start justify-between gap-3">
+                <div class="flex-1 min-w-0">
+                  <p class="font-mono"><span style="color:var(--text-secondary);">$</span> <span class="text-accent-green font-bold text-glow">uplnk</span></p>
+                  <p class="font-mono mt-2" style="color:var(--text-secondary);">◆ uplnk v0.1.0 — Connected: Ollama (llama3:8b) <span style="color:var(--accent-green);">●</span></p>
+                </div>
+                <button class="step-copy-btn flex-shrink-0 flex items-center gap-1.5 font-mono text-xs px-2.5 py-1.5 rounded transition-all duration-200" style="border:1px solid var(--border); color:var(--text-secondary); opacity:0.45;" onclick="copyStep(this,'uplnk')" onmouseenter="hoverIn(this)" onmouseleave="hoverOut(this)" aria-label="Copy: uplnk">
+                  <svg class="step-copy-icon" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
+                  <span class="step-copy-label">copy</span>
+                </button>
+              </div>
             </div>
           </div>
 
@@ -1116,132 +1175,106 @@
   <div class="section-divider max-w-5xl mx-auto"></div>
 
 
-  <!-- ══════════════════════════════════════════════ COMPARISON ══ -->
-  <section class="py-28" id="compare">
-    <div class="max-w-5xl mx-auto px-5">
+  <!-- ══════════════════════════════════════════════ PRINCIPLES ══ -->
+  <section class="relative py-28 overflow-hidden" id="principles">
+    <div class="kirby-dots-amber absolute inset-0 pointer-events-none" aria-hidden="true"></div>
 
-      <div class="text-center mb-12">
-        <p class="font-mono text-xs tracking-widest text-text-secondary uppercase mb-4">How it stacks up</p>
+    <div class="relative z-10 max-w-5xl mx-auto px-5">
+
+      <div class="text-center mb-16">
+        <p class="font-mono text-xs tracking-widest text-text-secondary uppercase mb-4">Our commitments</p>
         <h2 class="text-3xl sm:text-4xl font-bold" style="letter-spacing:-0.03em;">
-          The honest comparison.
+          What uplnk<br/><span style="color:var(--brand);">doesn't do.</span>
         </h2>
+        <p class="text-text-secondary mt-4 max-w-xl mx-auto text-base leading-relaxed">
+          Features are easy to list. Refusing certain things takes intention. Here's what we've deliberately left out.
+        </p>
       </div>
 
-      <!-- Legend -->
-      <div class="flex justify-center gap-6 mb-6 text-xs font-mono" style="color:var(--text-secondary);">
-        <span class="flex items-center gap-2"><span class="text-accent-green font-bold">✓</span> Supported</span>
-        <span class="flex items-center gap-2"><span style="color:#FF6060;" class="font-bold">✕</span> Not supported</span>
-        <span class="flex items-center gap-2"><span style="color:var(--brand);">~</span> Partial / cloud-only</span>
+      <!-- Manifesto grid -->
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-0 border rounded-xl overflow-hidden" style="border-color:var(--border);">
+
+        <!-- Item 1 -->
+        <article class="group relative p-8 border-b sm:border-r" style="border-color:var(--border);">
+          <div class="absolute left-0 top-0 bottom-0 w-0.5 transition-all duration-300" style="background:var(--brand); opacity:0.25;" aria-hidden="true"></div>
+          <div class="absolute left-0 top-0 bottom-0 w-0.5 transition-all duration-300 opacity-0 group-hover:opacity-100" style="background:var(--brand); box-shadow:0 0 8px var(--brand);" aria-hidden="true"></div>
+          <div class="flex items-start gap-4">
+            <span class="font-mono font-bold flex-shrink-0 leading-none select-none mt-0.5" style="font-size:1.5rem; color:var(--brand); opacity:0.4;" aria-hidden="true">×</span>
+            <div>
+              <h3 class="font-bold text-base mb-1.5" style="color:var(--text-primary); letter-spacing:-0.01em;">Phone home with your data</h3>
+              <p class="text-sm leading-relaxed" style="color:var(--text-secondary);">No telemetry, no analytics pipeline, no usage events. uplnk never opens a network connection you didn't initiate.</p>
+            </div>
+          </div>
+        </article>
+
+        <!-- Item 2 -->
+        <article class="group relative p-8 border-b" style="border-color:var(--border);">
+          <div class="absolute left-0 top-0 bottom-0 w-0.5 transition-all duration-300" style="background:var(--brand); opacity:0.25;" aria-hidden="true"></div>
+          <div class="absolute left-0 top-0 bottom-0 w-0.5 transition-all duration-300 opacity-0 group-hover:opacity-100" style="background:var(--brand); box-shadow:0 0 8px var(--brand);" aria-hidden="true"></div>
+          <div class="flex items-start gap-4">
+            <span class="font-mono font-bold flex-shrink-0 leading-none select-none mt-0.5" style="font-size:1.5rem; color:var(--brand); opacity:0.4;" aria-hidden="true">×</span>
+            <div>
+              <h3 class="font-bold text-base mb-1.5" style="color:var(--text-primary); letter-spacing:-0.01em;">Require a subscription to function</h3>
+              <p class="text-sm leading-relaxed" style="color:var(--text-secondary);">MIT licensed. Install once, use forever. No account, no trial, no "free tier" that expires when you rely on it.</p>
+            </div>
+          </div>
+        </article>
+
+        <!-- Item 3 -->
+        <article class="group relative p-8 border-b sm:border-r" style="border-color:var(--border);">
+          <div class="absolute left-0 top-0 bottom-0 w-0.5 transition-all duration-300" style="background:var(--brand); opacity:0.25;" aria-hidden="true"></div>
+          <div class="absolute left-0 top-0 bottom-0 w-0.5 transition-all duration-300 opacity-0 group-hover:opacity-100" style="background:var(--brand); box-shadow:0 0 8px var(--brand);" aria-hidden="true"></div>
+          <div class="flex items-start gap-4">
+            <span class="font-mono font-bold flex-shrink-0 leading-none select-none mt-0.5" style="font-size:1.5rem; color:var(--brand); opacity:0.4;" aria-hidden="true">×</span>
+            <div>
+              <h3 class="font-bold text-base mb-1.5" style="color:var(--text-primary); letter-spacing:-0.01em;">Force you into one model or vendor</h3>
+              <p class="text-sm leading-relaxed" style="color:var(--text-secondary);">If it speaks OpenAI-compatible API, uplnk talks to it. You pick the model, the hardware, and the server. We bring the tooling.</p>
+            </div>
+          </div>
+        </article>
+
+        <!-- Item 4 -->
+        <article class="group relative p-8 border-b" style="border-color:var(--border);">
+          <div class="absolute left-0 top-0 bottom-0 w-0.5 transition-all duration-300" style="background:var(--brand); opacity:0.25;" aria-hidden="true"></div>
+          <div class="absolute left-0 top-0 bottom-0 w-0.5 transition-all duration-300 opacity-0 group-hover:opacity-100" style="background:var(--brand); box-shadow:0 0 8px var(--brand);" aria-hidden="true"></div>
+          <div class="flex items-start gap-4">
+            <span class="font-mono font-bold flex-shrink-0 leading-none select-none mt-0.5" style="font-size:1.5rem; color:var(--brand); opacity:0.4;" aria-hidden="true">×</span>
+            <div>
+              <h3 class="font-bold text-base mb-1.5" style="color:var(--text-primary); letter-spacing:-0.01em;">Open a browser window or Electron shell</h3>
+              <p class="text-sm leading-relaxed" style="color:var(--text-secondary);">uplnk is a TUI. It lives in your terminal, next to your editor, where you already work. No context-switch tax.</p>
+            </div>
+          </div>
+        </article>
+
+        <!-- Item 5 -->
+        <article class="group relative p-8 sm:border-r" style="border-color:var(--border);">
+          <div class="absolute left-0 top-0 bottom-0 w-0.5 transition-all duration-300" style="background:var(--brand); opacity:0.25;" aria-hidden="true"></div>
+          <div class="absolute left-0 top-0 bottom-0 w-0.5 transition-all duration-300 opacity-0 group-hover:opacity-100" style="background:var(--brand); box-shadow:0 0 8px var(--brand);" aria-hidden="true"></div>
+          <div class="flex items-start gap-4">
+            <span class="font-mono font-bold flex-shrink-0 leading-none select-none mt-0.5" style="font-size:1.5rem; color:var(--brand); opacity:0.4;" aria-hidden="true">×</span>
+            <div>
+              <h3 class="font-bold text-base mb-1.5" style="color:var(--text-primary); letter-spacing:-0.01em;">Hide the source code</h3>
+              <p class="text-sm leading-relaxed" style="color:var(--text-secondary);">Every line is on GitHub. You can read exactly what uplnk does before you run it — and fork it if we ever get it wrong.</p>
+            </div>
+          </div>
+        </article>
+
+        <!-- Item 6 -->
+        <article class="group relative p-8" style="border-color:var(--border);">
+          <div class="absolute left-0 top-0 bottom-0 w-0.5 transition-all duration-300" style="background:var(--brand); opacity:0.25;" aria-hidden="true"></div>
+          <div class="absolute left-0 top-0 bottom-0 w-0.5 transition-all duration-300 opacity-0 group-hover:opacity-100" style="background:var(--brand); box-shadow:0 0 8px var(--brand);" aria-hidden="true"></div>
+          <div class="flex items-start gap-4">
+            <span class="font-mono font-bold flex-shrink-0 leading-none select-none mt-0.5" style="font-size:1.5rem; color:var(--brand); opacity:0.4;" aria-hidden="true">×</span>
+            <div>
+              <h3 class="font-bold text-base mb-1.5" style="color:var(--text-primary); letter-spacing:-0.01em;">Silently route your code to a cloud model</h3>
+              <p class="text-sm leading-relaxed" style="color:var(--text-secondary);">Cloud providers (Anthropic, OpenAI) are supported as explicit opt-in. Local inference is the default — not an afterthought bolted on later.</p>
+            </div>
+          </div>
+        </article>
+
       </div>
 
-      <div class="overflow-x-auto rounded-xl border" style="border-color:var(--border);">
-        <table class="compare-table" role="table">
-          <thead>
-            <tr>
-              <th class="text-text-secondary" style="min-width:220px;">Feature</th>
-              <th class="uplnk-col text-center">
-                <div class="flex flex-col items-center gap-1">
-                  <span style="color:var(--brand); font-weight:700;">UPLNK</span>
-                  <span class="text-xs font-mono font-normal" style="color:var(--text-secondary);">open-source</span>
-                </div>
-              </th>
-              <th class="text-center text-text-secondary">Aider</th>
-              <th class="text-center text-text-secondary">Continue.dev</th>
-              <th class="text-center text-text-secondary">Open WebUI</th>
-              <th class="text-center text-text-secondary">Cursor</th>
-            </tr>
-          </thead>
-          <tbody style="color:var(--text-secondary);">
-            <tr>
-              <td class="font-medium" style="color:var(--text-primary);">
-                Terminal UI (TUI)
-                <span class="block text-xs font-normal mt-0.5" style="color:var(--text-secondary);">Runs inside your existing terminal</span>
-              </td>
-              <td class="uplnk-col text-center"><span style="color:var(--brand);" class="text-lg font-bold">✓</span></td>
-              <td class="text-center"><span class="text-accent-green text-lg">✓</span></td>
-              <td class="text-center text-xs" style="color:var(--text-secondary);">IDE extension</td>
-              <td class="text-center text-xs" style="color:var(--text-secondary);">Web app</td>
-              <td class="text-center text-xs" style="color:var(--text-secondary);">IDE app</td>
-            </tr>
-            <tr>
-              <td class="font-medium" style="color:var(--text-primary);">
-                Local LLM native
-                <span class="block text-xs font-normal mt-0.5" style="color:var(--text-secondary);">Ollama, vLLM, llama.cpp first-class</span>
-              </td>
-              <td class="uplnk-col text-center"><span style="color:var(--brand);" class="text-lg font-bold">✓</span></td>
-              <td class="text-center"><span class="text-accent-green text-lg">✓</span></td>
-              <td class="text-center"><span class="text-accent-green text-lg">✓</span></td>
-              <td class="text-center"><span class="text-accent-green text-lg">✓</span></td>
-              <td class="text-center" style="color:#FF6060;">✕</td>
-            </tr>
-            <tr>
-              <td class="font-medium" style="color:var(--text-primary);">
-                MCP tool calling
-                <span class="block text-xs font-normal mt-0.5" style="color:var(--text-secondary);">Model Context Protocol — file browse + tools <span style="color:var(--brand);">(v0.5)</span></span>
-              </td>
-              <td class="uplnk-col text-center" title="Coming in v0.5"><span style="color:var(--brand);" class="text-lg font-bold">~</span></td>
-              <td class="text-center" style="color:#FF6060;">✕</td>
-              <td class="text-center"><span class="text-accent-green text-lg">✓</span></td>
-              <td class="text-center" style="color:var(--brand);">~</td>
-              <td class="text-center"><span class="text-accent-green text-lg">✓</span></td>
-            </tr>
-            <tr>
-              <td class="font-medium" style="color:var(--text-primary);">
-                Codebase-aware context
-                <span class="block text-xs font-normal mt-0.5" style="color:var(--text-secondary);">Full project indexing + .gitignore <span style="color:var(--brand);">(v0.5)</span></span>
-              </td>
-              <td class="uplnk-col text-center" title="Coming in v0.5"><span style="color:var(--brand);" class="text-lg font-bold">~</span></td>
-              <td class="text-center"><span class="text-accent-green text-lg">✓</span></td>
-              <td class="text-center"><span class="text-accent-green text-lg">✓</span></td>
-              <td class="text-center" style="color:#FF6060;">✕</td>
-              <td class="text-center"><span class="text-accent-green text-lg">✓</span></td>
-            </tr>
-            <tr>
-              <td class="font-medium" style="color:var(--text-primary);">
-                Portable local history
-                <span class="block text-xs font-normal mt-0.5" style="color:var(--text-secondary);">SQLite at <code class="font-mono text-xs">~/.uplnk/db.sqlite</code> — yours forever</span>
-              </td>
-              <td class="uplnk-col text-center"><span style="color:var(--brand);" class="text-lg font-bold">✓</span></td>
-              <td class="text-center" style="color:var(--brand);">~</td>
-              <td class="text-center" style="color:#FF6060;">✕</td>
-              <td class="text-center" style="color:var(--brand);">~</td>
-              <td class="text-center" style="color:#FF6060;">✕</td>
-            </tr>
-            <tr>
-              <td class="font-medium" style="color:var(--text-primary);">
-                Open source
-              </td>
-              <td class="uplnk-col text-center"><span style="color:var(--brand);" class="text-lg font-bold">✓</span></td>
-              <td class="text-center"><span class="text-accent-green text-lg">✓</span></td>
-              <td class="text-center"><span class="text-accent-green text-lg">✓</span></td>
-              <td class="text-center"><span class="text-accent-green text-lg">✓</span></td>
-              <td class="text-center" style="color:#FF6060;">✕</td>
-            </tr>
-            <tr>
-              <td class="font-medium" style="color:var(--text-primary);">
-                No subscription
-              </td>
-              <td class="uplnk-col text-center"><span style="color:var(--brand);" class="text-lg font-bold">✓</span></td>
-              <td class="text-center"><span class="text-accent-green text-lg">✓</span></td>
-              <td class="text-center"><span class="text-accent-green text-lg">✓</span></td>
-              <td class="text-center"><span class="text-accent-green text-lg">✓</span></td>
-              <td class="text-center" style="color:#FF6060;">✕</td>
-            </tr>
-            <tr>
-              <td class="font-medium" style="color:var(--text-primary);">
-                Runs fully offline / air-gapped
-              </td>
-              <td class="uplnk-col text-center"><span style="color:var(--brand);" class="text-lg font-bold">✓</span></td>
-              <td class="text-center"><span class="text-accent-green text-lg">✓</span></td>
-              <td class="text-center" style="color:var(--brand);">~</td>
-              <td class="text-center"><span class="text-accent-green text-lg">✓</span></td>
-              <td class="text-center" style="color:#FF6060;">✕</td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-
-      <p class="text-center text-text-secondary text-xs mt-4 font-mono">For uplnk, ~ = planned on the public roadmap (v0.5 or v1.0). For others, ~ = partial or requires workaround. Data based on public documentation, April 2026.</p>
+      <p class="text-center font-mono text-xs mt-10" style="color:var(--text-secondary); letter-spacing:0.08em;">THESE ARE COMMITMENTS, NOT MARKETING. IF WE BREAK ONE, <a href="https://github.com/thepixelabs/uplnk/issues" target="_blank" rel="noopener" class="hover:underline" style="color:var(--brand);">OPEN AN ISSUE.</a></p>
 
     </div>
   </section>
@@ -1279,7 +1312,7 @@
       </div>
 
       <h2 class="text-3xl sm:text-4xl lg:text-5xl font-bold mb-5" style="letter-spacing:-0.03em; line-height:1.1;">
-        Local LLMs deserve<br/><span class="text-accent-green text-glow">better tooling.</span>
+        Stop sending your codebase<br/><span class="text-accent-green text-glow">to someone else's server.</span>
       </h2>
 
       <p class="text-text-secondary text-lg mb-10 max-w-xl mx-auto">
@@ -1311,7 +1344,18 @@
             <span id="main-copy-text">copy</span>
           </span>
         </button>
-        <p class="text-text-secondary text-xs mt-3 font-mono">MIT License · Open source forever</p>
+        <!-- Stats bar -->
+        <div id="npm-stats" class="flex items-center justify-center flex-wrap gap-x-4 gap-y-1 mt-4 font-mono text-xs" style="color:var(--brand); text-shadow:0 0 10px rgba(245,166,35,0.5), 0 0 24px rgba(245,166,35,0.2); min-height:1.2em;" aria-live="polite">
+          <span id="stat-downloads" style="opacity:0;">
+            <span style="opacity:0.6;">↓</span> <span class="stat-val">—</span> <span style="opacity:0.6;">downloads/wk</span>
+          </span>
+          <span style="opacity:0.35;">·</span>
+          <span><span style="opacity:0.6;">v</span><span class="stat-val" id="stat-version">1.1.0</span></span>
+          <span style="opacity:0.35;">·</span>
+          <span style="opacity:0.75;">MIT</span>
+          <span style="opacity:0.35;">·</span>
+          <span style="opacity:0.75;">Node ≥18</span>
+        </div>
       </div>
 
     </div>
@@ -1336,7 +1380,7 @@
           </svg>
           <div>
             <div class="font-bold text-sm tracking-tight" style="font-family:'Space Grotesk',sans-serif; letter-spacing:-0.02em;">UPLNK</div>
-            <div class="text-xs font-mono" style="color:var(--text-secondary);">Local models. Studio-grade tooling. Yours to keep.</div>
+            <div class="text-xs font-mono" style="color:var(--text-secondary);">Local models. Full context. Zero cloud.</div>
           </div>
         </div>
 
@@ -1356,138 +1400,89 @@
 
   <!-- ══════════════════════════════════════════════ JS ══ -->
   <script>
-    // ── Terminal typewriter animation ───────────────────────────────
-    const terminalLines = [
-      { text: '$ uplnk', class: 'term-dim', delay: 0, speed: 60 },
-      { text: '', delay: 200 },
-      { text: '◆ uplnk v0.1.0  Connected: Ollama (llama3:8b) ', class: 'term-green', trailingDot: true, delay: 100 },
-      { text: '─────────────────────────────────────────────', class: 'term-dim', delay: 80 },
-      { text: '', delay: 300 },
-      { text: 'you › why is the auth middleware O(n²)?', class: 'term-amber', delay: 200, speed: 45 },
-      { text: '', delay: 200 },
-      { text: 'uplnk › Scanning project...', class: 'term-dim', delay: 100, speed: 40 },
-      { text: '', delay: 400 },
-      { text: 'The issue is in middleware/auth.ts:47.', class: 'term-white', delay: 60 },
-      { text: 'For each request, you\'re iterating through', class: 'term-white', delay: 50 },
-      { text: 'all sessions to find a match:', class: 'term-white', delay: 50 },
-      { text: '', delay: 200 },
-      { text: '┌─────────────────────────────────────────┐', class: 'term-dim', delay: 30 },
-      { text: '│ // O(n²) - sessions grows unbounded     │', class: 'term-dim', delay: 30 },
-      { text: '│ const session = sessions.find(s =>      │', class: 'term-dim', delay: 30 },
-      { text: '│   s.token === req.headers.token)        │', class: 'term-dim', delay: 30 },
-      { text: '└─────────────────────────────────────────┘', class: 'term-dim', delay: 30 },
-      { text: '', delay: 200 },
-      { text: 'Fix: use a Map<token, Session> instead.', class: 'term-white', delay: 60 },
-      { text: 'Lookup becomes O(1). ', class: 'term-white', trailingCheck: true, delay: 60 },
-      { text: '', delay: 300 },
-      { text: 'you › ', class: 'term-amber', cursor: true, delay: 200 },
-    ];
+    // Terminal is static HTML — no animation needed
 
-    const output = document.getElementById('terminal-output');
-    let lineIndex = 0;
-    let charIndex = 0;
-    let currentEl = null;
 
-    function typeChar() {
-      const line = terminalLines[lineIndex];
-      if (!line) return;
-
-      if (!currentEl) {
-        const p = document.createElement('p');
-        p.style.margin = '0';
-        p.style.whiteSpace = 'pre';
-
-        if (line.class) {
-          line.class.split(' ').forEach(c => p.classList.add(c));
+    // ── npm stats ────────────────────────────────────────────────────
+    (async () => {
+      try {
+        const res = await fetch('https://api.npmjs.org/downloads/point/last-week/uplnk');
+        if (!res.ok) return;
+        const data = await res.json();
+        const count = data.downloads ?? 0;
+        if (count === 0) return;
+        const fmt = count >= 1000 ? `${(count / 1000).toFixed(1)}k` : String(count);
+        const el = document.getElementById('stat-downloads');
+        if (el) {
+          el.querySelector('.stat-val').textContent = fmt;
+          el.style.opacity = '1';
         }
-
-        if (line.text === '') {
-          output.appendChild(p);
-          currentEl = null;
-          lineIndex++;
-          setTimeout(typeChar, line.delay || 50);
-          return;
+        const heroEl = document.getElementById('hero-stat-downloads');
+        if (heroEl) {
+          document.getElementById('hero-dl-val').textContent = fmt;
+          heroEl.style.opacity = '1';
         }
+      } catch (_) { /* silently skip if offline or package not yet published */ }
+    })();
 
-        output.appendChild(p);
-        currentEl = p;
-        charIndex = 0;
+    // ── GitHub stats ─────────────────────────────────────────────────
+    (async () => {
+      try {
+        const res = await fetch('https://api.github.com/repos/thepixelabs/uplnk');
+        if (!res.ok) return;
+        const data = await res.json();
+        const stars = data.stargazers_count ?? 0;
+        const forks = data.forks_count ?? 0;
+        const fmtNum = n => n >= 1000 ? `${(n / 1000).toFixed(1)}k` : String(n);
+        const ghEl = document.getElementById('hero-gh-stats');
+        if (ghEl) {
+          document.getElementById('hero-stars-val').textContent = fmtNum(stars);
+          document.getElementById('hero-forks-val').textContent = fmtNum(forks);
+          ghEl.style.opacity = '1';
+        }
+      } catch (_) { /* silently skip */ }
+    })();
+
+    // ── Per-step copy ────────────────────────────────────────────────
+    const COPY_SVG_DEFAULT = `<rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/>`;
+    const COPY_SVG_CHECK   = `<polyline points="20 6 9 17 4 12"/>`;
+
+    function hoverIn(btn) {
+      if (!btn.dataset.copied) {
+        btn.style.opacity = '1';
+        btn.style.borderColor = 'rgba(245,166,35,0.45)';
+        btn.style.color = 'var(--brand)';
       }
-
-      const line2 = terminalLines[lineIndex];
-      if (charIndex < line2.text.length) {
-        currentEl.textContent = line2.text.slice(0, charIndex + 1);
-        charIndex++;
-
-        // Scroll terminal into view as it fills
-        output.scrollTop = output.scrollHeight;
-
-        const speed = line2.speed || 30;
-        setTimeout(typeChar, speed + Math.random() * 20);
-      } else {
-        // Line complete — add trailing elements
-        if (line2.trailingDot) {
-          const dot = document.createElement('span');
-          dot.style.cssText = 'display:inline-block;width:8px;height:8px;border-radius:50%;background:#00FF88;box-shadow:0 0 6px #00FF88;animation:pulse-dot 2s ease-in-out infinite;vertical-align:middle;';
-          currentEl.appendChild(dot);
-        }
-        if (line2.trailingCheck) {
-          const chk = document.createElement('span');
-          chk.className = 'term-green';
-          chk.textContent = '✓';
-          currentEl.appendChild(chk);
-        }
-        if (line2.cursor) {
-          const cur = document.createElement('span');
-          cur.className = 'cursor-block';
-          cur.setAttribute('aria-hidden', 'true');
-          currentEl.appendChild(cur);
-        }
-
-        currentEl = null;
-        lineIndex++;
-
-        const nextLine = terminalLines[lineIndex];
-        const delay = nextLine ? (nextLine.delay || 50) : 0;
-        if (lineIndex < terminalLines.length) {
-          setTimeout(typeChar, delay);
-        }
+    }
+    function hoverOut(btn) {
+      if (!btn.dataset.copied) {
+        btn.style.opacity = '0.45';
+        btn.style.borderColor = 'var(--border)';
+        btn.style.color = 'var(--text-secondary)';
       }
     }
 
-    // Intersection observer — start animation when terminal scrolls into view
-    const terminalEl = document.getElementById('terminal-output');
-    const observer = new IntersectionObserver((entries) => {
-      entries.forEach(entry => {
-        if (entry.isIntersecting) {
-          observer.disconnect();
-          setTimeout(typeChar, 600);
-        }
-      });
-    }, { threshold: 0.3 });
-    observer.observe(terminalEl);
-
-
-    // ── Copy install commands ────────────────────────────────────────
-    const INSTALL_COMMANDS = `# 1. Install\nnpm install -g uplnk\n\n# 2. Connect your local LLM\nuplnk config --provider ollama --url http://localhost:11434\n\n# 3. Start coding with AI\nuplnk`;
-
-    function copyInstall() {
-      navigator.clipboard.writeText(INSTALL_COMMANDS).then(() => {
-        const btn = document.getElementById('copy-install');
-        const txt = document.getElementById('copy-text');
-        txt.textContent = 'copied!';
-        btn.style.borderColor = 'rgba(245,166,35,0.5)';
+    function copyStep(btn, text) {
+      navigator.clipboard.writeText(text).then(() => {
+        btn.dataset.copied = '1';
+        btn.style.opacity = '1';
+        btn.style.borderColor = 'rgba(245,166,35,0.6)';
         btn.style.color = 'var(--accent-green)';
+        const icon  = btn.querySelector('.step-copy-icon');
+        const label = btn.querySelector('.step-copy-label');
+        if (icon)  icon.innerHTML  = COPY_SVG_CHECK;
+        if (label) label.textContent = 'copied';
         setTimeout(() => {
-          txt.textContent = 'copy';
-          btn.style.borderColor = '';
-          btn.style.color = '';
+          delete btn.dataset.copied;
+          btn.style.opacity = '0.45';
+          btn.style.borderColor = 'var(--border)';
+          btn.style.color = 'var(--text-secondary)';
+          if (icon)  icon.innerHTML  = COPY_SVG_DEFAULT;
+          if (label) label.textContent = 'copy';
         }, 2000);
       }).catch(() => {
-        // Fallback for browsers without clipboard API
-        const txt = document.getElementById('copy-text');
-        txt.textContent = 'copy manually';
-        setTimeout(() => { txt.textContent = 'copy'; }, 2000);
+        const label = btn.querySelector('.step-copy-label');
+        if (label) { label.textContent = 'manual'; setTimeout(() => { label.textContent = 'copy'; }, 2000); }
       });
     }
 
@@ -1501,7 +1496,7 @@
 
 
     // ── Smooth reveal on scroll ──────────────────────────────────────
-    const revealEls = document.querySelectorAll('.feature-card, .compare-table, .code-block, section h2');
+    const revealEls = document.querySelectorAll('.feature-card, .code-block, section h2');
 
     const revealObserver = new IntersectionObserver((entries) => {
       entries.forEach(entry => {
