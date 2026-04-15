@@ -10,6 +10,11 @@ import { RelayPickerScreen } from './screens/RelayPickerScreen.js';
 import { RelayRunScreen } from './screens/RelayRunScreen.js';
 import { RelayEditorScreen } from './screens/RelayEditorScreen.js';
 import { NetworkScanScreen } from './screens/NetworkScanScreen.js';
+import { AltergoScreen } from './screens/AltergoScreen.js';
+import { FlowListScreen } from './screens/FlowListScreen.js';
+import { FlowRunnerScreen } from './screens/FlowRunnerScreen.js';
+import type { LoadedFlow } from './flow/loader.js';
+import type { FlowDef } from './flow/schema.js';
 import type { RelayPlan } from './lib/workflows/planSchema.js';
 import type { AuthMode, ProviderKind } from '@uplnk/providers';
 import { CommandPalette } from './components/layout/CommandPalette.js';
@@ -101,6 +106,9 @@ export function App({ initialModel = 'qwen2.5:7b', resumeConversationId, project
   // planId being edited in RelayEditorScreen (undefined = new plan).
   const [editingRelayId, setEditingRelayId] = useState<string | undefined>(undefined);
 
+  // Flow engine — the list screen hands us a LoadedFlow+FlowDef pair to run.
+  const [activeFlow, setActiveFlow] = useState<{ def: FlowDef; loaded: LoadedFlow } | null>(null);
+
   const { exit } = useApp();
 
   const handleVoiceCommand = useCallback((cmd: VoiceCommand) => {
@@ -151,6 +159,8 @@ export function App({ initialModel = 'qwen2.5:7b', resumeConversationId, project
       currentScreen === 'relay-run' ||
       currentScreen === 'relay-picker' ||
       currentScreen === 'network-scan' ||
+      currentScreen === 'flow-list' ||
+      currentScreen === 'flow-run' ||
       // Add/edit-provider is a multi-step wizard; step-back Esc is handled
       // internally. The global handler would stomp on it and navigate away
       // before the wizard's own handler runs, leaving the user stuck.
@@ -427,13 +437,34 @@ export function App({ initialModel = 'qwen2.5:7b', resumeConversationId, project
       )}
 
       {!paletteOpen && currentScreen === 'flow-list' && (
-        <Box><Text>Flow engine coming soon...</Text></Box>
+        <FlowListScreen
+          onBack={() => setCurrentScreen('chat')}
+          onRun={(def, loaded) => {
+            setActiveFlow({ def, loaded });
+            setCurrentScreen('flow-run');
+          }}
+          config={activeConfig}
+        />
       )}
-      {!paletteOpen && currentScreen === 'flow-run' && (
-        <Box><Text>Flow engine coming soon...</Text></Box>
+      {!paletteOpen && currentScreen === 'flow-run' && activeFlow !== null && (
+        <FlowRunnerScreen
+          loadedFlow={activeFlow.loaded}
+          onDone={() => {
+            setActiveFlow(null);
+            setCurrentScreen('flow-list');
+          }}
+          onBack={() => {
+            setActiveFlow(null);
+            setCurrentScreen('flow-list');
+          }}
+          config={activeConfig}
+        />
       )}
       {!paletteOpen && currentScreen === 'altergo' && (
-        <Box><Text>Altergo integration coming soon...</Text></Box>
+        <AltergoScreen
+          onBack={() => setCurrentScreen('chat')}
+          config={activeConfig}
+        />
       )}
       {!paletteOpen && currentScreen === 'robotic' && (
         <Box><Text>Robotic mode coming soon...</Text></Box>
