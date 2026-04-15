@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react';
-import { Box, Text, useApp, useInput } from 'ink';
+import { Box, useApp, useInput } from 'ink';
 import { ChatScreen } from './screens/ChatScreen.js';
 import { ModelSelectorScreen } from './screens/ModelSelectorScreen.js';
 import { ConversationListScreen } from './screens/ConversationListScreen.js';
@@ -10,6 +10,7 @@ import { RelayPickerScreen } from './screens/RelayPickerScreen.js';
 import { RelayRunScreen } from './screens/RelayRunScreen.js';
 import { RelayEditorScreen } from './screens/RelayEditorScreen.js';
 import { NetworkScanScreen } from './screens/NetworkScanScreen.js';
+import { RoboticScreen } from './screens/RoboticScreen.js';
 import { AltergoScreen } from './screens/AltergoScreen.js';
 import { FlowListScreen } from './screens/FlowListScreen.js';
 import { FlowRunnerScreen } from './screens/FlowRunnerScreen.js';
@@ -467,7 +468,10 @@ export function App({ initialModel = 'qwen2.5:7b', resumeConversationId, project
         />
       )}
       {!paletteOpen && currentScreen === 'robotic' && (
-        <Box><Text>Robotic mode coming soon...</Text></Box>
+        <RoboticScreen
+          onBack={() => setCurrentScreen('chat')}
+          config={activeConfig}
+        />
       )}
     </Box>
     </VoiceAssistantProvider>
