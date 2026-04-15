@@ -78,3 +78,56 @@ jobs:
 
       - name: Test
         run: pnpm test
+
+      # ── Migration journal integrity ─────────────────────────────────────────
+      # Every .sql file in packages/db/migrations/ (excluding meta/) MUST have
+      # a corresponding entry in _journal.json. Drizzle silently skips any file
+      # that is absent from the journal, which can hide schema drift until it
+      # causes a runtime crash (see: missing `source` column incident, 0005/0006).
+      - name: Check migration journal integrity
+        shell: bash
+        run: |
+          MIGRATIONS_DIR="packages/db/migrations"
+          JOURNAL="${MIGRATIONS_DIR}/meta/_journal.json"
+
+          if [ ! -f "$JOURNAL" ]; then
+            echo "ERROR: journal not found at $JOURNAL"
+            exit 1
+          fi
+
+          # Extract all registered tags from the journal (one per line).
+          registered=$(node -e "
+            const j = JSON.parse(require('fs').readFileSync('$JOURNAL', 'utf8'));
+            j.entries.forEach(e => console.log(e.tag));
+          ")
+
+          missing=()
+          for sql_file in "$MIGRATIONS_DIR"/*.sql; do
+            # Derive the tag from the filename (strip directory and .sql suffix).
+            tag=$(basename "$sql_file" .sql)
+            if ! echo "$registered" | grep -qxF "$tag"; then
+              missing+=("$tag")
+            fi
+          done
+
+          if [ ${#missing[@]} -gt 0 ]; then
+            echo "ERROR: The following migration files are NOT registered in _journal.json:"
+            for m in "${missing[@]}"; do
+              echo "  - ${m}.sql"
+            done
+            echo ""
+            echo "Run 'drizzle-kit generate' or manually add the entries to:"
+            echo "  $JOURNAL"
+            exit 1
+          fi
+
+          echo "OK: all $(echo "$registered" | wc -l | tr -d ' ') migration(s) are registered in the journal."
+
+      # ── Startup smoke test ──────────────────────────────────────────────────
+      # Verifies that the entry-point module loads, all static imports resolve,
+      # and argument parsing works — without launching the TUI or touching the
+      # database. The --version flag exits before runMigrations() so this test
+      # stays fast and hermetic. The migration journal check above is the gate
+      # for DB schema correctness; this gate is for module-graph correctness.
+      - name: Startup smoke test (--version exits 0)
+        run: node --import tsx/esm packages/app/bin/uplnk.ts --version
