@@ -1,3 +1,13 @@
+## [1.2.0](https://github.com/thepixelabs/uplnk/compare/v1.1.1...v1.2.0) (2026-04-15)
+
+### Features
+
+* **landing:** wider terminal mockup, hero layout refinements, atmospheric images ([0ff72e4](https://github.com/thepixelabs/uplnk/commit/0ff72e4dd4c4fb7caf1a14e01e45079d12fce38c))
+
+### Bug Fixes
+
+* **app:** ctrl+c exit on non-chat screens, provider wizard esc handling, cursor-aware text input ([9af4fbc](https://github.com/thepixelabs/uplnk/commit/9af4fbcd4ae30015753b2a9448c9805111bb48f1))
+
 ## [1.1.1](https://github.com/thepixelabs/uplnk/compare/v1.1.0...v1.1.1) (2026-04-14)
 
 ### Bug Fixes
