@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef } from 'react';
+import { useState, useCallback, useRef, useEffect } from 'react';
 import { randomUUID } from 'node:crypto';
 import { eq } from 'drizzle-orm';
 import { db, roboticSessions, getProviderById, getDefaultProvider } from '@uplnk/db';
@@ -65,6 +65,7 @@ export function useRobotic(config: Config): UseRoboticResult {
   const controllerRef = useRef<RoboticController | null>(null);
   const transportRef = useRef<Transport | null>(null);
   const abortRef = useRef<AbortController | null>(null);
+  const busUnsubRef = useRef<(() => void) | null>(null);
 
   const start = useCallback(
     async (opts: { target: string; goal: string; pane?: string }) => {
@@ -158,8 +159,12 @@ export function useRobotic(config: Config): UseRoboticResult {
       const plannerApiKey = judgeApiKey;
 
       // ── Set up event bus ─────────────────────────────────────────────────
+      // Drop any subscription left over from a previous run — otherwise we'd
+      // accumulate one handler per run and every event would fire for every
+      // past session, corrupting state.
+      busUnsubRef.current?.();
       const bus = new EventBus();
-      bus.subscribe((event: UplnkEvent) => {
+      const unsubscribe = bus.subscribe((event: UplnkEvent) => {
         if (event.kind === 'robotic.inject') {
           setState((prev) => ({
             ...prev,
@@ -193,6 +198,7 @@ export function useRobotic(config: Config): UseRoboticResult {
           setState((prev) => ({ ...prev, status: 'done', goalProgress: 1 }));
         }
       });
+      busUnsubRef.current = unsubscribe;
 
       // ── Create redactor ──────────────────────────────────────────────────
       const redactOpts = config.robotic.redact ?? { envPatterns: [], customPatterns: [] };
@@ -230,6 +236,11 @@ export function useRobotic(config: Config): UseRoboticResult {
       setState((prev) => ({ ...prev, status: 'running' }));
 
       // ── Run (async — does not block the React render loop) ───────────────
+      const cleanup = (): void => {
+        busUnsubRef.current?.();
+        busUnsubRef.current = null;
+      };
+
       controller.run().then((result) => {
         const finalStatus = result === 'succeeded' ? 'done' : result === 'aborted' ? 'idle' : 'error';
         setState((prev) => ({
@@ -239,11 +250,13 @@ export function useRobotic(config: Config): UseRoboticResult {
         }));
         updateSessionStatus(sessionId, result === 'succeeded' ? 'succeeded' : result === 'aborted' ? 'aborted' : 'failed');
         void transport.close();
+        cleanup();
       }).catch((err: unknown) => {
         const msg = err instanceof Error ? err.message : String(err);
         setState((prev) => ({ ...prev, status: 'error', error: msg }));
         updateSessionStatus(sessionId, 'failed');
         void transport.close();
+        cleanup();
       });
     },
     [config],
@@ -254,12 +267,23 @@ export function useRobotic(config: Config): UseRoboticResult {
     const sessionId = state.sessionId;
     if (sessionId !== null) updateSessionStatus(sessionId, 'aborted');
     void transportRef.current?.close();
+    busUnsubRef.current?.();
+    busUnsubRef.current = null;
     setState((prev) => ({ ...prev, status: 'idle', error: 'Aborted by user' }));
   }, [state.sessionId]);
 
   const pause = useCallback(() => {
     abortRef.current?.abort();
     setState((prev) => ({ ...prev, status: 'paused' }));
+  }, []);
+
+  // Clean up the event bus subscription when the hook unmounts to prevent
+  // a leak if the user navigates away mid-run.
+  useEffect(() => {
+    return () => {
+      busUnsubRef.current?.();
+      busUnsubRef.current = null;
+    };
   }, []);
 
   return { state, start, abort, pause };

@@ -7,22 +7,49 @@ export interface LaunchOptions {
 }
 
 /**
- * UPLNK_* env vars that should never leak into child processes.
- * Extend this list if new internal vars are added.
+ * Internal env var prefixes that should never leak into child processes.
  */
-const UPLNK_ENV_PREFIXES = ['UPLNK_'];
+const INTERNAL_ENV_PREFIXES = ['UPLNK_'];
+
+/**
+ * Env var name patterns that commonly hold user secrets. We strip these from
+ * the child environment because altergo (and the AI assistants it launches)
+ * have their own credential stores under ~/.altergo; any secrets uplnk holds
+ * in its shell environment should stay with uplnk. This is defence-in-depth —
+ * a leaked ANTHROPIC_API_KEY in the child env could end up exfiltrated by the
+ * assistant into its own logs or session state.
+ *
+ * Patterns are matched case-insensitively against the full env var name.
+ */
+const SENSITIVE_ENV_PATTERNS: RegExp[] = [
+  /api[_-]?key/i,
+  /secret/i,
+  /token/i,
+  /password/i,
+  /passwd/i,
+  /credential/i,
+  /^(aws|gcp|azure|gcloud|google)_/i,
+  /^anthropic_/i,
+  /^openai_/i,
+  /^cohere_/i,
+  /^hf_/i,
+  /^huggingface_/i,
+  /^github_/i,
+  /^gh_/i,
+];
 
 /**
  * Build a sanitised copy of the current process environment:
- *   - Strip all UPLNK_* variables so internal state doesn't bleed into the
- *     altergo-managed AI assistant sessions.
- *   - Preserve everything else — PATH, HOME, TERM, etc. all remain intact so
- *     the launched tool works normally.
+ *   - Strip all UPLNK_* internal variables.
+ *   - Strip anything that looks like a user secret (keys, tokens, cloud creds).
+ *   - Preserve infrastructure vars: PATH, HOME, USER, TERM, LANG, LC_*, SHELL,
+ *     TMPDIR, etc. — everything else stays intact so the launched tool works.
  */
 function sanitiseEnv(): NodeJS.ProcessEnv {
   const out: NodeJS.ProcessEnv = {};
   for (const [key, value] of Object.entries(process.env)) {
-    if (UPLNK_ENV_PREFIXES.some((prefix) => key.startsWith(prefix))) continue;
+    if (INTERNAL_ENV_PREFIXES.some((prefix) => key.startsWith(prefix))) continue;
+    if (SENSITIVE_ENV_PATTERNS.some((re) => re.test(key))) continue;
     out[key] = value;
   }
   return out;

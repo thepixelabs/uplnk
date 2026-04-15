@@ -23,7 +23,11 @@ export async function readStdin(): Promise<string> {
   if (process.stdin.isTTY) {
     process.stderr.write('Enter prompt (press Enter when done): ');
     return new Promise<string>((resolve, reject) => {
-      const rl = createInterface({ input: process.stdin, output: undefined });
+      // Route readline's echo/output to stderr so it never taints stdout —
+      // stdout is reserved for the model's response. `output: undefined`
+      // falls back to stdout on some Node versions, which would break
+      // pipelines like `uplnk pipe | grep foo` when run interactively.
+      const rl = createInterface({ input: process.stdin, output: process.stderr });
       let line = '';
       rl.once('line', (input) => {
         line = input;

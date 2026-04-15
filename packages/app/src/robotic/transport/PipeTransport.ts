@@ -56,6 +56,15 @@ export class PipeTransport implements Transport {
 
     return new Promise((resolve) => {
       const check = setInterval(() => {
+        // If the child exited, stop polling — the buffer won't grow.
+        if (this.exitCode !== null) {
+          clearInterval(check);
+          const result = this.outputBuffer;
+          this.outputBuffer = '';
+          resolve(result);
+          return;
+        }
+
         if (this.outputBuffer.length !== lastLength) {
           lastLength = this.outputBuffer.length;
           lastChangeAt = Date.now();

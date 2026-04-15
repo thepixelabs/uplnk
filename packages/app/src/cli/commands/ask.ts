@@ -86,9 +86,17 @@ export async function runAsk(options: AskOptions): Promise<void> {
   let outputTokens = 0;
   const controller = new AbortController();
 
-  // Handle SIGPIPE gracefully (e.g. `uplnk ask "..." | head -1`).
-  const onSigpipe = () => controller.abort();
-  process.once('SIGPIPE', onSigpipe);
+  // Handle broken-pipe gracefully (e.g. `uplnk ask "..." | head -1`).
+  // Node emits EPIPE as an 'error' event on the stdout stream rather than
+  // SIGPIPE, so we listen there. SIGPIPE is also wired up as a belt-and-braces
+  // measure — on some platforms (and when stdout is redirected to a FIFO)
+  // the signal fires before the error event.
+  const onBrokenPipe = (): void => controller.abort();
+  const onStdoutError = (err: NodeJS.ErrnoException): void => {
+    if (err.code === 'EPIPE') onBrokenPipe();
+  };
+  process.stdout.on('error', onStdoutError);
+  process.once('SIGPIPE', onBrokenPipe);
 
   try {
     const { fullStream } = streamText({
@@ -135,7 +143,8 @@ export async function runAsk(options: AskOptions): Promise<void> {
     renderer.onError(new Error(uplnkErr.message));
     process.exit(1);
   } finally {
-    process.removeListener('SIGPIPE', onSigpipe);
+    process.removeListener('SIGPIPE', onBrokenPipe);
+    process.stdout.off('error', onStdoutError);
   }
 
   // ── Persistence (optional) ────────────────────────────────────────────────

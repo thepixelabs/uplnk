@@ -130,7 +130,19 @@ export class TmuxTransport implements Transport {
     }
 
     return new Promise((resolve) => {
-      const poll = setInterval(async () => {
+      let stopped = false;
+      const stop = (): void => {
+        if (stopped) return;
+        stopped = true;
+        resolve(lastOutput);
+      };
+
+      // Serialised poll loop — uses setTimeout not setInterval so a slow
+      // capture-pane call never overlaps with the next one. Previously,
+      // setInterval(200ms) could stack unbounded if tmux took >200ms to
+      // reply, consuming file descriptors and eventually running out.
+      const tick = async (): Promise<void> => {
+        if (stopped) return;
         try {
           const { stdout } = await execFileAsync('tmux', captureArgs);
           const current = stripAnsi(stdout);
@@ -145,14 +157,20 @@ export class TmuxTransport implements Transport {
           const timedOut = now >= deadline;
 
           if (idleFor >= idleMs || timedOut) {
-            clearInterval(poll);
-            resolve(lastOutput);
+            stop();
+            return;
           }
         } catch {
-          clearInterval(poll);
-          resolve(lastOutput);
+          stop();
+          return;
         }
-      }, POLL_INTERVAL_MS);
+
+        if (!stopped) {
+          setTimeout(() => { void tick(); }, POLL_INTERVAL_MS);
+        }
+      };
+
+      setTimeout(() => { void tick(); }, POLL_INTERVAL_MS);
     });
   }
 

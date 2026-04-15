@@ -110,6 +110,8 @@ export class RoboticController {
     let goalMet = false;
     let goalProgress = 0;
     let lastTargetOutput = 'The target AI is ready. Start the task.';
+    let consecutivePlanFailures = 0;
+    const MAX_CONSECUTIVE_PLAN_FAILURES = 3;
 
     for (let turn = 0; turn < maxTurns && !goalMet; turn++) {
       if (signal?.aborted) return 'aborted';
@@ -118,8 +120,18 @@ export class RoboticController {
       let instruction: string;
       try {
         instruction = await this.planNextInstruction(lastTargetOutput, goal);
+        consecutivePlanFailures = 0;
       } catch {
-        // Planning failure is recoverable — skip this turn
+        // Planning failure — bail out after a few in a row so we don't
+        // burn an entire turn budget on a broken provider. Without this
+        // bound the loop would call the failing provider maxTurns times
+        // at full speed.
+        consecutivePlanFailures++;
+        if (consecutivePlanFailures >= MAX_CONSECUTIVE_PLAN_FAILURES) {
+          return 'failed';
+        }
+        // Small back-off before the next attempt to avoid tight spin.
+        await new Promise<void>((r) => setTimeout(r, 1000));
         continue;
       }
 
@@ -226,6 +238,7 @@ export class RoboticController {
       system: PLANNER_SYSTEM_PROMPT,
       prompt: userPrompt,
       maxTokens: 512,
+      ...(this.opts.signal !== undefined ? { abortSignal: this.opts.signal } : {}),
     });
 
     return text.trim();
@@ -259,6 +272,7 @@ export class RoboticController {
         system: JUDGE_SYSTEM_PROMPT,
         prompt: userPrompt,
         maxTokens: 16,
+        ...(this.opts.signal !== undefined ? { abortSignal: this.opts.signal } : {}),
       });
 
       const score = parseFloat(text.trim());
