@@ -1,3 +1,17 @@
+## [1.3.0](https://github.com/thepixelabs/uplnk/compare/v1.2.0...v1.3.0) (2026-04-15)
+
+### Features
+
+* **app:** add infrastructure for flows, robotic mode, altergo integration and headless CLI ([e739e8e](https://github.com/thepixelabs/uplnk/commit/e739e8e15120f12e11dc1f9ea1c1c169865018fa))
+* **app:** implement altergo integration with session import and account management ([d271e37](https://github.com/thepixelabs/uplnk/commit/d271e376fbe01cbc367219b65c69a75364c5adb5))
+* **app:** implement flow engine with YAML-based autonomous flows ([9e18e45](https://github.com/thepixelabs/uplnk/commit/9e18e4556e29809693877222187ae56b83e5ea08))
+* **app:** implement headless CLI ask, pipe, and flow commands ([a037135](https://github.com/thepixelabs/uplnk/commit/a0371350d9b81aad44f504be546da3e37596899b))
+* **app:** implement robotic mode with tmux/PTY transport and autonomous AI-to-AI communication ([afc8749](https://github.com/thepixelabs/uplnk/commit/afc87497616f5703c49996a91e84589fec9483b7))
+
+### Bug Fixes
+
+* **app:** use const for providerRow in ask command ([8600c00](https://github.com/thepixelabs/uplnk/commit/8600c006383557202897fdb363b7293fa7090495))
+
 ## [1.2.0](https://github.com/thepixelabs/uplnk/compare/v1.1.1...v1.2.0) (2026-04-15)
 
 ### Features
