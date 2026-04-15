@@ -3,16 +3,11 @@ name: Bump Homebrew Formula
 on:
   release:
     types: [published]
-  workflow_dispatch:
-    inputs:
-      tag:
-        description: "Release tag to bump (e.g. v1.3.1)"
-        required: true
 
 jobs:
   bump:
-    # For release events: skip pre-release tags. workflow_dispatch always runs.
-    if: "github.event_name == 'workflow_dispatch' || !contains(github.event.release.tag_name, '-')"
+    # Only run for stable releases (no pre-release suffix)
+    if: "!contains(github.event.release.tag_name, '-')"
     runs-on: ubuntu-latest
 
     steps:
@@ -27,7 +22,7 @@ jobs:
 
       - name: Wait for npm publish propagation
         run: |
-          VERSION="${{ github.event.release.tag_name || inputs.tag }}"
+          VERSION="${{ github.event.release.tag_name }}"
           VERSION="${VERSION#v}"
           echo "Waiting for uplnk@${VERSION} on npm..."
           for i in $(seq 1 30); do
@@ -44,7 +39,7 @@ jobs:
       - name: Compute sha256 of npm tarball
         id: sha
         run: |
-          VERSION="${{ github.event.release.tag_name || inputs.tag }}"
+          VERSION="${{ github.event.release.tag_name }}"
           VERSION="${VERSION#v}"
           URL="https://registry.npmjs.org/uplnk/-/uplnk-${VERSION}.tgz"
           SHA=$(curl -fsSL "${URL}" | shasum -a 256 | cut -d' ' -f1)
@@ -53,7 +48,7 @@ jobs:
           echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
 
       - name: Checkout homebrew-tap
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           repository: thepixelabs/homebrew-tap
           token: ${{ steps.app-token.outputs.token }}
@@ -73,7 +68,7 @@ jobs:
           branch: "bump/uplnk-${{ steps.sha.outputs.version }}"
           title: "uplnk: bump to ${{ steps.sha.outputs.version }}"
           body: |
-            Automated version bump triggered by release `${{ github.event.release.tag_name || inputs.tag }}`.
+            Automated version bump triggered by release `${{ github.event.release.tag_name }}`.
 
             - npm tarball: `${{ steps.sha.outputs.url }}`
             - sha256: `${{ steps.sha.outputs.sha256 }}`
