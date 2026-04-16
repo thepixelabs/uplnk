@@ -1,3 +1,9 @@
+## [1.4.3](https://github.com/thepixelabs/uplnk/compare/v1.4.2...v1.4.3) (2026-04-16)
+
+### Bug Fixes
+
+* **ci:** move def install to class level in Homebrew formula ([e780aa9](https://github.com/thepixelabs/uplnk/commit/e780aa9c611cb6a52ea42eabbeb8dad5ac2a6d1e))
+
 ## [1.4.2](https://github.com/thepixelabs/uplnk/compare/v1.4.1...v1.4.2) (2026-04-16)
 
 ### Bug Fixes
