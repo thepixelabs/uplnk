@@ -1,3 +1,9 @@
+## [1.4.2](https://github.com/thepixelabs/uplnk/compare/v1.4.1...v1.4.2) (2026-04-16)
+
+### Bug Fixes
+
+* **ci:** rewrite Write formula step to avoid heredoc in bump-homebrew ([7231c17](https://github.com/thepixelabs/uplnk/commit/7231c176a89be95a1a51c4301971d6e46b85b2a5))
+
 ## [1.4.1](https://github.com/thepixelabs/uplnk/compare/v1.4.0...v1.4.1) (2026-04-16)
 
 ### Bug Fixes
