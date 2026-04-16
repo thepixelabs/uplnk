@@ -232,7 +232,7 @@ export const ChatInput = memo(function ChatInput({
             onCommand?.('conversations');
             return;
           case 'fork':
-            onCommand?.('fork');
+            onCommand?.(cmdArgs.length > 0 ? `fork:${cmdArgs[0]}` : 'fork');
             return;
           case 'relay':
             onCommand?.('relay-picker');
