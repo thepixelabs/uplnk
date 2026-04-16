@@ -45,6 +45,7 @@ import { Header } from '../components/layout/Header.js';
 import { ArtifactPanel } from '../components/artifacts/ArtifactPanel.js';
 import { ApprovalDialog } from '../components/mcp/ApprovalDialog.js';
 import type { UplnkError } from '@uplnk/shared';
+import { toUplnkError } from '../lib/errors.js';
 import {
   buildProviderConnectionDisplay,
   inferProviderAuthMode,
@@ -263,6 +264,9 @@ export function ChatScreen({
   const [scrollTopLine, setScrollTopLine] = useState(0);
   const inScrollback = scrollTopLine > 0;
 
+  const [forkCursorIdx, setForkCursorIdx] = useState<number | null>(null);
+  const inForkCursor = forkCursorIdx !== null;
+
   // Effective chat pane columns (accounting for split pane with artifact).
   const chatCols = activeArtifact !== null
     ? Math.max(20, Math.floor((termCols * chatWidthPct) / 100) - 2)
@@ -274,7 +278,8 @@ export function ChatScreen({
     CHAT_INPUT_HEIGHT +
     (feedbackMsg !== null ? 1 : 0) +
     (activeRole !== null ? 1 : 0) +
-    (inScrollback ? 3 : 0);
+    (inScrollback ? 3 : 0) +
+    (inForkCursor ? 3 : 0);
   const viewportLines = Math.max(5, termRows - CHROME_HEIGHT);
 
   const lineIndex = useMemo(
@@ -302,6 +307,29 @@ export function ChatScreen({
       setScrollTopLine(0);
     }
   }, [status]);
+
+  // Clamp forkCursorIdx when messages are removed (e.g. by /compact).
+  useEffect(() => {
+    if (forkCursorIdx === null) return;
+    if (messages.length === 0) {
+      setForkCursorIdx(null);
+      return;
+    }
+    if (forkCursorIdx >= messages.length) {
+      setForkCursorIdx(messages.length - 1);
+    }
+  }, [messages.length, forkCursorIdx]);
+
+  // Auto-scroll the fork cursor target into view when it changes.
+  useEffect(() => {
+    if (forkCursorIdx === null) return;
+    const targetLine = messageStartLine(lineIndex, forkCursorIdx);
+    if (targetLine === undefined) return;
+    const currentTop = scrollTopLine > 0 ? scrollTopLine : Math.max(0, totalContentLines - viewportLines);
+    const currentBottom = currentTop + viewportLines;
+    if (targetLine >= currentTop && targetLine < currentBottom) return; // already visible
+    setScrollTopLine(Math.max(1, targetLine));
+  }, [forkCursorIdx, lineIndex, scrollTopLine, totalContentLines, viewportLines]);
 
   /** Locate the message currently at the top of the viewport. */
   const findCurrentTopMessage = useCallback((): number => {
@@ -484,21 +512,32 @@ export function ChatScreen({
     [conversationId, messages, status, send, addMessage, mcpTools, activeRole, projectContextRef, modelRouter, providerType, baseURL, apiKey]
   );
 
-  const handleFork = useCallback(() => {
+  const handleFork = useCallback((messageIndex?: number) => {
     if (status === 'streaming') return;
-    const lastMsg = messages[messages.length - 1];
-    if (lastMsg === undefined) {
-      setFeedbackMsg('Nothing to fork');
+
+    const target = messageIndex != null
+      ? messages[messageIndex - 1]
+      : messages[messages.length - 1];
+
+    if (target === undefined) {
+      setFeedbackMsg(messageIndex != null
+        ? `No message at index ${messageIndex}. Conversation has ${messages.length} message(s).`
+        : 'Nothing to fork');
       setTimeout(() => setFeedbackMsg(null), 3000);
       return;
     }
+
     try {
-      const forked = forkConversation(db, conversationId, lastMsg.id);
+      const forked = forkConversation(db, conversationId, target.id);
       setFeedbackMsg(`Forked → ${forked.title}`);
       setTimeout(() => setFeedbackMsg(null), 3000);
+      setForkCursorIdx(null);
       onForkedTo?.(forked.id);
     } catch (err) {
-      setFeedbackMsg(`Fork failed: ${err instanceof Error ? err.message : String(err)}`);
+      const uplnkErr = toUplnkError(err);
+      setFeedbackMsg(`Fork failed: ${uplnkErr.message}`);
+      setTimeout(() => setFeedbackMsg(null), 4000);
+      // Do NOT clear cursor — let user retry with a different selection.
     }
   }, [conversationId, messages, status, onForkedTo]);
 
@@ -531,7 +570,21 @@ export function ChatScreen({
     if (command === 'settings') { onCommand?.('settings'); return; }
     if (command === 'provider-selector' || command === 'provider') { onCommand?.('provider-selector'); return; }
     if (command === 'model-selector' || command === 'model') { onCommand?.('model-selector'); return; }
-    if (command === 'fork') { handleFork(); return; }
+    if (command === 'fork' || command.startsWith('fork:')) {
+      if (command.startsWith('fork:')) {
+        const rawIdx = command.slice('fork:'.length);
+        const idx = parseInt(rawIdx, 10);
+        if (isNaN(idx) || idx < 1 || idx > messages.length) {
+          setFeedbackMsg(`Usage: /fork [1–${messages.length}]`);
+          setTimeout(() => setFeedbackMsg(null), 3000);
+          return;
+        }
+        handleFork(idx);
+      } else {
+        handleFork();
+      }
+      return;
+    }
     if (command === 'compact') { void handleCompact(); return; }
     if (command.startsWith('export:') || command === 'export') {
       const format = command === 'export:json' ? 'json' : 'markdown';
@@ -569,6 +622,38 @@ export function ChatScreen({
     // Without Kitty: key.ctrl=true, input='k'.
     // With Kitty: \x1b[107;5u → Ink strips ESC → input='[107;5u'.
     if ((key.ctrl && input === 'k') || input === '[107;5u') { setShowHelp((prev) => !prev); return; }
+
+    // Ctrl+F — enter/exit fork cursor mode
+    if ((key.ctrl && input === 'f') || input === '[102;5u') {
+      if (status === 'streaming') return;
+      if (inForkCursor) {
+        setForkCursorIdx(null);
+      } else {
+        setForkCursorIdx(messages.length > 0 ? messages.length - 1 : null);
+      }
+      return;
+    }
+
+    // Arrow keys / Enter / Esc in fork cursor mode
+    if (inForkCursor) {
+      if (key.upArrow) {
+        setForkCursorIdx((i) => Math.max(0, (i ?? 0) - 1));
+        return;
+      }
+      if (key.downArrow) {
+        setForkCursorIdx((i) => Math.min(messages.length - 1, (i ?? 0) + 1));
+        return;
+      }
+      if (key.return) {
+        handleFork((forkCursorIdx ?? 0) + 1);
+        return;
+      }
+      if (key.escape) {
+        setForkCursorIdx(null);
+        return;
+      }
+    }
+
     if (key.pageUp) { scrollUpOneMessage(); return; }
     if (key.pageDown) { scrollDownOneMessage(); return; }
     if (showHelp && key.escape && !inScrollback && activeArtifact === null) { setShowHelp(false); return; }
@@ -620,10 +705,20 @@ export function ChatScreen({
     </Box>
   ) : null;
 
+  const forkCursorBar = inForkCursor ? (
+    <Box paddingX={1} borderStyle="single" borderColor="#A78BFA">
+      <Text color="#A78BFA">
+        ── FORK CURSOR  msg {(forkCursorIdx ?? 0) + 1}/{messages.length}
+        {'  ·  '}↑↓ navigate{'  ·  '}Enter confirm{'  ·  '}Esc cancel ──
+      </Text>
+    </Box>
+  ) : null;
+
   const chatContent = (
     <Box flexDirection="column" flexGrow={1} overflow="hidden">
       {/* Fixed scroll indicator at top of message area */}
       {scrollIndicator}
+      {forkCursorBar}
 
       {/* Scrollable Message List with flex-end alignment to the bottom */}
       <Box
@@ -638,6 +733,7 @@ export function ChatScreen({
             startIdx={scrollStartIdx}
             endIdx={scrollEndIdx}
             onPromote={promoteArtifact}
+            {...(forkCursorIdx !== null ? { cursorIndex: forkCursorIdx } : {})}
             {...(config.displayName !== undefined ? { displayName: config.displayName } : {})}
           />
           {(agentRun.status === 'running' || agentRun.events.length > 0) && (
@@ -689,8 +785,8 @@ export function ChatScreen({
             </Box>
             <Box flexDirection="row" justifyContent="space-between">
               <Text>
-                <Text color="#60A5FA">/fork</Text>
-                <Text dimColor>  branch conversation  </Text>
+                <Text color="#60A5FA">/fork [n]</Text>
+                <Text dimColor>  branch at msg n (Ctrl+F for cursor)  </Text>
                 <Text color="#60A5FA">/compact</Text>
                 <Text dimColor>  summarise context</Text>
               </Text>
