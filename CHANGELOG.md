@@ -1,3 +1,9 @@
+## [1.5.0](https://github.com/thepixelabs/uplnk/compare/v1.4.4...v1.5.0) (2026-04-16)
+
+### Features
+
+* **app:** fork conversation at any message via /fork <n> and Ctrl+F cursor mode ([66477b0](https://github.com/thepixelabs/uplnk/commit/66477b0ae1c9a81f84e7f355a83ea915195cc6d2))
+
 ## [1.4.4](https://github.com/thepixelabs/uplnk/compare/v1.4.3...v1.4.4) (2026-04-16)
 
 ### Bug Fixes
