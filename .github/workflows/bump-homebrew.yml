@@ -132,6 +132,10 @@ jobs:
           URL_LX_X64="${{ steps.sha.outputs.url_linux_x64 }}"
           SHA_LX_X64="${{ steps.sha.outputs.sha_linux_x64 }}"
 
+          # brew audit (rubocop) rejects `def install` inside on_* blocks
+          # ("Do not define methods in blocks"). The correct pattern is a single
+          # top-level def install that uses OS.mac? and Hardware::CPU.arm? at
+          # install time — those predicates are safe inside def install.
           {
             printf '%s\n' 'class Uplnk < Formula'
             printf '%s\n' '  desc "Terminal-native AI chat client — local-first, privacy-first"'
@@ -143,18 +147,10 @@ jobs:
             printf '%s\n' '    on_arm do'
             printf "      url \"%s\"\n"    "${URL_DA_ARM64}"
             printf "      sha256 \"%s\"\n" "${SHA_DA_ARM64}"
-            printf '\n'
-            printf '%s\n' '      def install'
-            printf '%s\n' '        bin.install "uplnk-darwin-arm64" => "uplnk"'
-            printf '%s\n' '      end'
             printf '%s\n' '    end'
             printf '%s\n' '    on_intel do'
             printf "      url \"%s\"\n"    "${URL_DA_X64}"
             printf "      sha256 \"%s\"\n" "${SHA_DA_X64}"
-            printf '\n'
-            printf '%s\n' '      def install'
-            printf '%s\n' '        bin.install "uplnk-darwin-x64" => "uplnk"'
-            printf '%s\n' '      end'
             printf '%s\n' '    end'
             printf '%s\n' '  end'
             printf '\n'
@@ -162,18 +158,18 @@ jobs:
             printf '%s\n' '    on_arm do'
             printf "      url \"%s\"\n"    "${URL_LX_ARM64}"
             printf "      sha256 \"%s\"\n" "${SHA_LX_ARM64}"
-            printf '\n'
-            printf '%s\n' '      def install'
-            printf '%s\n' '        bin.install "uplnk-linux-arm64" => "uplnk"'
-            printf '%s\n' '      end'
             printf '%s\n' '    end'
             printf '%s\n' '    on_intel do'
             printf "      url \"%s\"\n"    "${URL_LX_X64}"
             printf "      sha256 \"%s\"\n" "${SHA_LX_X64}"
+            printf '%s\n' '    end'
+            printf '%s\n' '  end'
             printf '\n'
-            printf '%s\n' '      def install'
-            printf '%s\n' '        bin.install "uplnk-linux-x64" => "uplnk"'
-            printf '%s\n' '      end'
+            printf '%s\n' '  def install'
+            printf '%s\n' '    if OS.mac?'
+            printf '%s\n' '      bin.install (Hardware::CPU.arm? ? "uplnk-darwin-arm64" : "uplnk-darwin-x64") => "uplnk"'
+            printf '%s\n' '    else'
+            printf '%s\n' '      bin.install (Hardware::CPU.arm? ? "uplnk-linux-arm64" : "uplnk-linux-x64") => "uplnk"'
             printf '%s\n' '    end'
             printf '%s\n' '  end'
             printf '\n'
