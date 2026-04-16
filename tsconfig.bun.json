@@ -1,0 +1,17 @@
+{
+  "extends": "./packages/app/tsconfig.json",
+  "compilerOptions": {
+    "types": ["bun"],
+    "paths": {
+      "@uplnk/db": ["./packages/db/src/index.bun.ts"],
+      "@uplnk/db/*": ["./packages/db/src/*"],
+      "@uplnk/shared": ["./packages/shared/src/index.ts"],
+      "@uplnk/catalog": ["./packages/catalog/src/index.ts"],
+      "@uplnk/providers": ["./packages/providers/src/index.ts"],
+      "uplnk-db": ["./packages/db/src/index.bun.ts"],
+      "uplnk-shared": ["./packages/shared/src/index.ts"],
+      "uplnk-catalog": ["./packages/catalog/src/index.ts"],
+      "uplnk-providers": ["./packages/providers/src/index.ts"]
+    }
+  }
+}

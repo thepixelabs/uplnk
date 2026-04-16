@@ -39,5 +39,11 @@ jobs:
         # --audit-level=high: fail only on high/critical; moderate advisories are
         # captured but should not block PRs.  Tighten to "moderate" once the
         # advisory backlog is cleared.
+        #
+        # NOTE: continue-on-error is set because the npm registry retired the
+        # /v1/security/audits endpoint used by pnpm 9.x (HTTP 410). The step
+        # still runs and its output is visible in the job logs. Remove this once
+        # pnpm is upgraded to 10.x, which uses the new bulk advisory endpoint.
+        continue-on-error: true
         run: pnpm audit --audit-level=high
 
