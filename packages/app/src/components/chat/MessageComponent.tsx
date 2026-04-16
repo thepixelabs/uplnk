@@ -10,6 +10,8 @@ interface MessageComponentProps {
   isUser: boolean;
   isSystem: boolean;
   displayName?: string;
+  isCursorTarget?: boolean;
+  index?: number;
 }
 
 export const MessageComponent = memo(function MessageComponent({
@@ -18,6 +20,8 @@ export const MessageComponent = memo(function MessageComponent({
   isUser,
   isSystem,
   displayName,
+  isCursorTarget,
+  index,
 }: MessageComponentProps) {
   if (isSystem) {
     return (
@@ -30,9 +34,16 @@ export const MessageComponent = memo(function MessageComponent({
   return (
     <Box flexDirection="column" marginY={1}>
       <Box>
+        {isCursorTarget
+          ? <Text color="#A78BFA" bold>{'▶ '}</Text>
+          : <Text>{'  '}</Text>
+        }
         <Text bold color={isUser ? 'white' : '#60A5FA'}>
           {isUser ? `  ${displayName ?? 'you'}  ` : 'uplnk'}
         </Text>
+        {index !== undefined && (
+          <Text dimColor>{` #${index}`}</Text>
+        )}
       </Box>
       <Box>
         {!isUser && <Text dimColor>{'│ '}</Text>}
