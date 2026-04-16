@@ -1,6 +1,10 @@
 import { randomUUID } from 'node:crypto';
 import { eq, isNull, desc, asc, sql } from 'drizzle-orm';
-import type { Db } from './client.js';
+import type { BaseSQLiteDatabase } from 'drizzle-orm/sqlite-core';
+import type * as schema from './schema.js';
+// Use an abstract Db type so both the better-sqlite3 driver (TRunResult=RunResult)
+// and the bun:sqlite driver (TRunResult=void) can be passed to query functions.
+type Db = BaseSQLiteDatabase<'sync', any, typeof schema>;
 import {
   conversations,
   messages,

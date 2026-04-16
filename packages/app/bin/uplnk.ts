@@ -7,6 +7,7 @@ import { join } from 'node:path';
 import { homedir } from 'node:os';
 import { App } from '../src/index.js';
 import { WORDMARK } from '../src/lib/colors.js';
+import { VERSION } from '../src/lib/version.js';
 import { runMigrations } from '@uplnk/db';
 
 // ─── IPv4-first global fetch dispatcher ──────────────────────────────────────
@@ -116,11 +117,7 @@ const { values, positionals } = parseArgs({
 });
 
 if (values.version) {
-  const { createRequire } = await import('node:module');
-  const require = createRequire(import.meta.url);
-  // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
-  const pkg = require('../package.json') as { version: string };
-  console.log(pkg.version);
+  console.log(VERSION);
   process.exit(0);
 }
 
@@ -573,16 +570,6 @@ const updateCheckPromise = import('../src/lib/selfUpdate.js').then(({ checkForUp
   }).catch(() => null),
 );
 
-// Read the package version once — passed into the UI for header display.
-let appVersion: string | undefined;
-try {
-  const { createRequire } = await import('node:module');
-  const require = createRequire(import.meta.url);
-  // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
-  const pkg = require('../package.json') as { version: string };
-  appVersion = pkg.version;
-} catch { /* version display is cosmetic */ }
-
 const { waitUntilExit } = render(
   React.createElement(App, {
     ...(values.model !== undefined ? { initialModel: values.model } : {}),
@@ -590,7 +577,6 @@ const { waitUntilExit } = render(
     ...(values.conversation !== undefined ? { resumeConversationId: values.conversation } : {}),
     ...(values.theme === 'light' || values.theme === 'dark' ? { theme: values.theme } : {}),
     ...(values.project !== undefined ? { projectDir: values.project } : {}),
-    ...(appVersion !== undefined ? { version: appVersion } : {}),
     subcommand: subcommand ?? 'chat',
     config: configResult.config,
   }),

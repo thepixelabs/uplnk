@@ -13,12 +13,15 @@
     "db:studio": "drizzle-kit studio"
   },
   "dependencies": {
-    "drizzle-orm": "^0.45.0",
+    "drizzle-orm": "^0.45.0"
+  },
+  "optionalDependencies": {
     "better-sqlite3": "^11.7.0"
   },
   "devDependencies": {
     "typescript": "^5.7.0",
     "drizzle-kit": "^0.30.0",
-    "@types/better-sqlite3": "^7.6.12"
+    "@types/better-sqlite3": "^7.6.12",
+    "@types/bun": "^1.0.0"
   }
 }
