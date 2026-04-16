@@ -39,5 +39,9 @@ jobs:
         # --audit-level=high: fail only on high/critical; moderate advisories are
         # captured but should not block PRs.  Tighten to "moderate" once the
         # advisory backlog is cleared.
-        run: pnpm audit --audit-level=high
+        #
+        # NOTE: pnpm 9.x uses the npm /v1/security/audits endpoint which was
+        # retired by npm (returns 410). Until pnpm is upgraded to 10.x (which
+        # uses the new bulk advisory API), we run npm audit as a fallback.
+        run: npm audit --audit-level=high
 
