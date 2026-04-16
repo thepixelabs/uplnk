@@ -116,7 +116,7 @@ function injectFakeRagConnection(manager: McpManager): void {
   }>;
 
   connections.set(BUILTIN_RAG_ID, {
-    config: { id: BUILTIN_RAG_ID, name: 'pylon-rag' },
+    config: { id: BUILTIN_RAG_ID, name: 'uplnk-rag' },
     client: {
       listTools: mockListTools,
       callTool: mockCallTool,

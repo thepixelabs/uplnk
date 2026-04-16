@@ -29,7 +29,7 @@ function createFile(root: string, relPath: string, content = ''): void {
 let tmpDir: string;
 
 beforeEach(() => {
-  tmpDir = mkdtempSync(join(tmpdir(), 'pylon-mention-test-'));
+  tmpDir = mkdtempSync(join(tmpdir(), 'uplnk-mention-test-'));
   __resetMentionCacheForTests();
 });
 

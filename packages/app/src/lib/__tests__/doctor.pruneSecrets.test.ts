@@ -53,8 +53,8 @@ vi.mock('@uplnk/db', () => ({
   db: mockDb,
   listProviders: mockListProviders,
   setProviderApiKey: vi.fn(),
-  getPylonDir: vi.fn(() => '/tmp/pylon-test-home/.pylon'),
-  getPylonDbPath: vi.fn(() => '/tmp/pylon-test-home/.uplnk/db.sqlite'),
+  getUplnkDir: vi.fn(() => '/tmp/uplnk-test-home/.uplnk'),
+  getUplnkDbPath: vi.fn(() => '/tmp/uplnk-test-home/.uplnk/db.sqlite'),
 }));
 
 vi.mock('../secrets.js', () => ({

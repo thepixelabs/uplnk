@@ -25,8 +25,8 @@ vi.mock('@uplnk/db', () => ({
   upsertProviderConfig: vi.fn(),
   setDefaultProvider: vi.fn(),
   recordProviderTest: vi.fn(),
-  getPylonDir: vi.fn(() => '/tmp/pylon-test-home/.pylon'),
-  getPylonDbPath: vi.fn(() => '/tmp/pylon-test-home/.uplnk/db.sqlite'),
+  getUplnkDir: vi.fn(() => '/tmp/uplnk-test-home/.uplnk'),
+  getUplnkDbPath: vi.fn(() => '/tmp/uplnk-test-home/.uplnk/db.sqlite'),
 }));
 
 // migratePlaintext is called in the save path — mock it to avoid secrets setup

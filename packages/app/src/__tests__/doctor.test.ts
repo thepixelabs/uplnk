@@ -26,14 +26,12 @@ vi.mock('node:child_process', () => ({
   execSync: mockExecSync,
 }));
 
-// uplnk-db is imported both at the top of doctor.ts (for getPylonDir /
-// getPylonDbPath) and dynamically inside the SQLite check. We mock the module
+// uplnk-db is imported both at the top of doctor.ts (for getUplnkDir /
+// getUplnkDbPath) and dynamically inside the SQLite check. We mock the module
 // once; the dynamic import will resolve to the same mock.
 vi.mock('@uplnk/db', () => ({
   getUplnkDir: vi.fn(() => '/home/testuser/.uplnk'),
   getUplnkDbPath: vi.fn(() => '/home/testuser/.uplnk/db.sqlite'),
-  getPylonDir: vi.fn(() => '/home/testuser/.uplnk'), // Keep for compat if needed in doctor.ts
-  getPylonDbPath: vi.fn(() => '/home/testuser/.uplnk/db.sqlite'),
   db: {
     get: vi.fn(),
   },
@@ -208,13 +206,13 @@ describe('runDoctor — Config directory check', () => {
     expect(exitSpy).not.toHaveBeenCalled();
   });
 
-  it('calls accessSync with the pylon directory and W_OK flag', async () => {
+  it('calls accessSync with the uplnk directory and W_OK flag', async () => {
     await runDoctor();
 
     expect(mockAccessSync).toHaveBeenCalledWith(UPLNK_DIR, 2 /* W_OK */);
   });
 
-  it('logs the pylon directory path in the detail when the check passes', async () => {
+  it('logs the uplnk directory path in the detail when the check passes', async () => {
     await runDoctor();
 
     const allOutput = consoleLogSpy.mock.calls.flat().join('\n');

@@ -184,7 +184,7 @@ export function trackEvent(event: TelemetryEvent): void {
  * ships in the follow-up PR that wires the CF Worker endpoint.
  *
  * This function is exported so the flush timer and session_end handler
- * in bin/pylon.ts can call it, giving them a stable surface to wire
+ * in bin/uplnk.ts can call it, giving them a stable surface to wire
  * against today.
  */
 export function flushEvents(): void {
@@ -201,7 +201,7 @@ export function flushEvents(): void {
   //   {
   //     event: evt.event,
   //     timestamp: new Date().toISOString(),
-  //     ..._meta,                    // session_id, pylon_version, model_name
+  //     ..._meta,                    // session_id, uplnk_version, model_name
   //     os_platform: process.platform,
   //     node_version: process.versions.node,
   //     properties: evt.properties,

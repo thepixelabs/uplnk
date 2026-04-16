@@ -3,7 +3,7 @@
  *
  * Responsibilities:
  *  1. Redirect os.homedir() to a stable fake path so tests that call
- *     getPylonDir() (which resolves relative to homedir) never touch the real
+ *     getUplnkDir() (which resolves relative to homedir) never touch the real
  *     ~/.uplnk directory on the developer's machine.
  *  2. Stub uplnk-db at the module level so tests that import config.ts
  *     (or any module that imports uplnk-db) do not open / migrate a real
@@ -51,9 +51,8 @@ vi.mock('@uplnk/db', () => ({
   // Schema tables (used as query builder inputs — export empty objects)
   ragChunks: {},
   // Path helpers
-  getPylonDir: vi.fn(() => '/tmp/uplnk-test-home/.uplnk'),
-  getPylonDbPath: vi.fn(() => '/tmp/uplnk-test-home/.uplnk/db.sqlite'),
   getUplnkDir: vi.fn(() => '/tmp/uplnk-test-home/.uplnk'),
+  getUplnkDbPath: vi.fn(() => '/tmp/uplnk-test-home/.uplnk/db.sqlite'),
   // Provider config queries
   upsertProviderConfig: vi.fn(),
   getDefaultProvider: vi.fn(() => undefined),

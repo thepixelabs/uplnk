@@ -2,9 +2,9 @@
  * McpManager audit log rotation tests.
  *
  * Strategy:
- * - Use a real temp dir for the pylon dir so actual file I/O is exercised.
+ * - Use a real temp dir for the uplnk dir so actual file I/O is exercised.
  * - Mock only the module boundaries we don't own: MCP SDK Client/Transport
- *   (prevents child-process spawning), uplnk-db/getPylonDir (controls path).
+ *   (prevents child-process spawning), uplnk-db/getUplnkDir (controls path).
  * - node:fs is NOT mocked here — rotation depends on real statSync / renameSync.
  * - logToolCall is private; we access it via a type cast so we can write
  *   audit entries directly without going through the full connect() lifecycle.
@@ -34,20 +34,18 @@ vi.mock('@modelcontextprotocol/sdk/client/streamableHttp.js', () => ({
   StreamableHTTPClientTransport: vi.fn().mockImplementation(() => ({})),
 }));
 
-// ─── uplnk-db mock — makes getPylonDir return our temp dir ───────────────────
+// ─── uplnk-db mock — makes getUplnkDir return our temp dir ───────────────────
 
 vi.mock('@uplnk/db', () => ({
   db: {},
-  getPylonDir: vi.fn(() => '/tmp/audit-test-default'),
   getUplnkDir: vi.fn(() => '/tmp/audit-test-default'),
 }));
 
-import { getPylonDir, getUplnkDir } from '@uplnk/db';
+import { getUplnkDir } from '@uplnk/db';
 import { McpManager } from '../../lib/mcp/McpManager.js';
 import { createDefaultPolicy } from '../../lib/mcp/security.js';
 import type { AuditEntry } from '../../lib/mcp/McpManager.js';
 
-const mockGetPylonDir = vi.mocked(getPylonDir);
 const mockGetUplnkDir = vi.mocked(getUplnkDir);
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -62,11 +60,10 @@ function removeTempDir(dir: string): void {
   rmSync(dir, { recursive: true, force: true });
 }
 
-function makeManager(pylonDir: string): McpManager {
-  mockGetPylonDir.mockReturnValue(pylonDir);
-  mockGetUplnkDir.mockReturnValue(pylonDir);
+function makeManager(uplnkDir: string): McpManager {
+  mockGetUplnkDir.mockReturnValue(uplnkDir);
   return new McpManager({
-    filePolicy: createDefaultPolicy([pylonDir]),
+    filePolicy: createDefaultPolicy([uplnkDir]),
     commandExecEnabled: false,
     gitEnabled: false,
     ragEnabled: false,
@@ -118,10 +115,8 @@ describe('McpManager audit log rotation', () => {
     tmpDir = makeTempDir();
     auditLog = join(tmpDir, 'mcp-audit.log');
     backupLog = `${auditLog}.1`;
-    mockGetPylonDir.mockReturnValue(tmpDir);
     mockGetUplnkDir.mockReturnValue(tmpDir);
     vi.clearAllMocks();
-    mockGetPylonDir.mockReturnValue(tmpDir);
     mockGetUplnkDir.mockReturnValue(tmpDir);
   });
 

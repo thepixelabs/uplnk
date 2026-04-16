@@ -77,9 +77,8 @@ vi.mock('@uplnk/db', () => ({
   eq: vi.fn((_col: unknown, _val: unknown) => ({ op: 'eq', _col, _val })),
   desc: vi.fn((col: unknown) => ({ op: 'desc', col })),
   // Other DB helpers used by flowRepo at module load time
-  getPylonDir: vi.fn(() => '/tmp/uplnk-test-home/.uplnk'),
-  getPylonDbPath: vi.fn(() => '/tmp/uplnk-test-home/.uplnk/db.sqlite'),
   getUplnkDir: vi.fn(() => '/tmp/uplnk-test-home/.uplnk'),
+  getUplnkDbPath: vi.fn(() => '/tmp/uplnk-test-home/.uplnk/db.sqlite'),
 }));
 
 // ─── Imports under test ────────────────────────────────────────────────────────
