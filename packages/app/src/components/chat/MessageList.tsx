@@ -10,6 +10,7 @@ interface MessageListProps {
   endIdx: number;
   onPromote?: (artifact: Artifact) => void;
   displayName?: string;
+  cursorIndex?: number;
 }
 
 export const MessageList = memo(function MessageList({
@@ -18,6 +19,7 @@ export const MessageList = memo(function MessageList({
   endIdx,
   onPromote,
   displayName,
+  cursorIndex,
 }: MessageListProps) {
   const slice = messages.slice(startIdx, endIdx);
 
@@ -27,16 +29,21 @@ export const MessageList = memo(function MessageList({
 
   return (
     <Box flexDirection="column">
-      {slice.map((message) => (
-        <MessageComponent
-          key={message.id}
-          message={message}
-          {...(onPromote !== undefined ? { onPromote } : {})}
-          isUser={message.role === 'user'}
-          isSystem={message.role === 'system'}
-          {...(displayName !== undefined ? { displayName } : {})}
-        />
-      ))}
+      {slice.map((message, sliceOffset) => {
+        const absoluteIdx = startIdx + sliceOffset;
+        return (
+          <MessageComponent
+            key={message.id}
+            message={message}
+            isUser={message.role === 'user'}
+            isSystem={message.role === 'system'}
+            isCursorTarget={cursorIndex === absoluteIdx}
+            index={absoluteIdx + 1}
+            {...(onPromote !== undefined ? { onPromote } : {})}
+            {...(displayName !== undefined ? { displayName } : {})}
+          />
+        );
+      })}
     </Box>
   );
 });
