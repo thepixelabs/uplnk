@@ -103,7 +103,9 @@ jobs:
             --compile \
             --target=${{ matrix.target }} \
             --outfile=dist/${{ matrix.output }} \
-            --tsconfig-override tsconfig.bun.json
+            --tsconfig-override tsconfig.bun.json \
+            --external=react-devtools-core \
+            --external=@aws-sdk/client-s3
 
       - name: Verify binary was created
         run: |
