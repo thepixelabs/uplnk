@@ -1,3 +1,9 @@
+## [1.4.4](https://github.com/thepixelabs/uplnk/compare/v1.4.3...v1.4.4) (2026-04-16)
+
+### Bug Fixes
+
+* **app:** remove dead uplnk backward-compat aliases and rename stale references ([bd64cd4](https://github.com/thepixelabs/uplnk/commit/bd64cd479197e4d1d072d133ae179164c4f6daf9))
+
 ## [1.4.3](https://github.com/thepixelabs/uplnk/compare/v1.4.2...v1.4.3) (2026-04-16)
 
 ### Bug Fixes
