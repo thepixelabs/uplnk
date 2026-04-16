@@ -1,3 +1,9 @@
+## [1.4.1](https://github.com/thepixelabs/uplnk/compare/v1.4.0...v1.4.1) (2026-04-16)
+
+### Bug Fixes
+
+* **ci:** mark react-devtools-core and @aws-sdk/client-s3 as external in bun build ([aabecb7](https://github.com/thepixelabs/uplnk/commit/aabecb791a1b47221538d4ffe73cd1c19ff11308))
+
 ## [1.4.0](https://github.com/thepixelabs/uplnk/compare/v1.3.2...v1.4.0) (2026-04-16)
 
 ### Features
