@@ -1,3 +1,9 @@
+## [1.4.0](https://github.com/thepixelabs/uplnk/compare/v1.3.2...v1.4.0) (2026-04-16)
+
+### Features
+
+* **ci:** standalone binary distribution via bun compile + Homebrew + install script ([2907220](https://github.com/thepixelabs/uplnk/commit/2907220cf792381bad149645318da9ac385c31b5))
+
 ## [1.3.2](https://github.com/thepixelabs/uplnk/compare/v1.3.1...v1.3.2) (2026-04-15)
 
 ### Bug Fixes
