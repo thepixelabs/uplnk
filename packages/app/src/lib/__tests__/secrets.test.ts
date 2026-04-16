@@ -16,16 +16,15 @@ import { mkdtempSync, rmSync, writeFileSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 
-// ─── Mock uplnk-db so tests control the pylonDir ─────────────────────────────
+// ─── Mock uplnk-db so tests control the uplnkDir ─────────────────────────────
 // Per-file vi.mock takes precedence over the global setup.ts stub.
 
 vi.mock('@uplnk/db', () => ({
   db: {},
-  getPylonDir: vi.fn(() => '/tmp/uplnk-secrets-test-default/.uplnk'),
   getUplnkDir: vi.fn(() => '/tmp/uplnk-secrets-test-default/.uplnk'),
 }));
 
-import { getPylonDir } from '@uplnk/db';
+import { getUplnkDir } from '@uplnk/db';
 import {
   SECRET_REF_PREFIX,
   isSecretRef,
@@ -38,12 +37,12 @@ import {
   __PlaintextBackendForTests,
 } from '../secrets.js';
 
-const mockGetPylonDir = vi.mocked(getPylonDir);
+const mockGetUplnkDir = vi.mocked(getUplnkDir);
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 function makeTempDir(): string {
-  return mkdtempSync(join(tmpdir(), 'pylon-secrets-'));
+  return mkdtempSync(join(tmpdir(), 'uplnk-secrets-'));
 }
 
 function removeTempDir(dir: string): void {
@@ -85,7 +84,7 @@ describe('resolveSecret', () => {
 
   beforeEach(() => {
     tmpDir = makeTempDir();
-    mockGetPylonDir.mockReturnValue(tmpDir);
+    mockGetUplnkDir.mockReturnValue(tmpDir);
     __resetSecretsBackendForTests();
     const backend = new __EncryptedFileBackendForTests(tmpDir);
     __setSecretsBackendForTests(backend);
@@ -132,7 +131,7 @@ describe('migratePlaintext', () => {
 
   beforeEach(() => {
     tmpDir = makeTempDir();
-    mockGetPylonDir.mockReturnValue(tmpDir);
+    mockGetUplnkDir.mockReturnValue(tmpDir);
     __resetSecretsBackendForTests();
     __setSecretsBackendForTests(new __EncryptedFileBackendForTests(tmpDir));
   });
@@ -310,7 +309,7 @@ describe('initSecretsBackend', () => {
 
   beforeEach(() => {
     tmpDir = makeTempDir();
-    mockGetPylonDir.mockReturnValue(tmpDir);
+    mockGetUplnkDir.mockReturnValue(tmpDir);
     __resetSecretsBackendForTests();
     // Silence any stderr from the backend.
     stderrSpy = vi.spyOn(process.stderr, 'write').mockImplementation(() => true) as unknown as typeof stderrSpy;
@@ -337,7 +336,7 @@ describe('initSecretsBackend', () => {
     expect(first).toBe(second);
   });
 
-  it('creates the pylon dir so secrets.enc can be written', async () => {
+  it('creates the uplnk dir so secrets.enc can be written', async () => {
     await initSecretsBackend();
 
     expect(existsSync(tmpDir)).toBe(true);

@@ -55,8 +55,8 @@ vi.mock('@uplnk/db', () => ({
   deleteMessage: mockDeleteMessage,
   upsertProviderConfig: vi.fn(),
   runMigrations: vi.fn(),
-  getPylonDir: vi.fn(() => '/tmp/uplnk-test-home/.uplnk'),
-  getPylonDbPath: vi.fn(() => '/tmp/uplnk-test-home/.uplnk/db.sqlite'),
+  getUplnkDir: vi.fn(() => '/tmp/uplnk-test-home/.uplnk'),
+  getUplnkDbPath: vi.fn(() => '/tmp/uplnk-test-home/.uplnk/db.sqlite'),
   ragChunks: {},
 }));
 

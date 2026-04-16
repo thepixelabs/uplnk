@@ -107,9 +107,9 @@ export function ChatScreen({
 }: Props) {
   const { exit } = useApp();
 
-  // Use config passed from bin/pylon.ts. Falls back to getOrCreateConfig() for
+  // Use config passed from bin/uplnk.ts. Falls back to getOrCreateConfig() for
   // non-CLI entry points (tests, Storybook). In production the config is always
-  // provided — bin/pylon.ts exits early if it's invalid.
+  // provided — bin/uplnk.ts exits early if it's invalid.
   const configRef = useRef<Config | null>(null);
   if (configRef.current === null) {
     if (configProp !== undefined) {

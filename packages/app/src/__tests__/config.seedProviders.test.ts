@@ -21,8 +21,7 @@ vi.mock('node:fs', () => ({
 
 vi.mock('@uplnk/db', () => ({
   db: {},
-  getPylonDir: vi.fn(() => '/home/testuser/.pylon'),
-  getUplnkDir: vi.fn(() => '/home/testuser/.pylon'),
+  getUplnkDir: vi.fn(() => '/home/testuser/.uplnk'),
   upsertProviderConfig: vi.fn(),
   getDefaultProvider: vi.fn(() => undefined),
   getProviderById: vi.fn(() => undefined),
@@ -33,7 +32,7 @@ vi.mock('@uplnk/db', () => ({
 
 import { readFileSync } from 'node:fs';
 import {
-  getPylonDir,
+  getUplnkDir,
   upsertProviderConfig,
   getDefaultProvider,
   getProviderById,
@@ -44,13 +43,13 @@ import { getOrCreateConfig } from '../lib/config.js';
 // ─── Typed helpers ────────────────────────────────────────────────────────────
 
 const mockReadFileSync = vi.mocked(readFileSync);
-const mockGetPylonDir = vi.mocked(getPylonDir);
+const mockGetUplnkDir = vi.mocked(getUplnkDir);
 const mockUpsertProviderConfig = vi.mocked(upsertProviderConfig);
 const mockGetDefaultProvider = vi.mocked(getDefaultProvider);
 const mockGetProviderById = vi.mocked(getProviderById);
 const mockSetDefaultProvider = vi.mocked(setDefaultProvider);
 
-const PYLON_DIR = '/home/testuser/.pylon';
+const UPLNK_DIR = '/home/testuser/.uplnk';
 
 /** A valid serialised config with zero extra providers. */
 function makeRawConfig(overrides: Record<string, unknown> = {}): string {
@@ -83,7 +82,7 @@ function fakeProviderRow(id: string) {
 
 beforeEach(() => {
   vi.clearAllMocks();
-  mockGetPylonDir.mockReturnValue(PYLON_DIR);
+  mockGetUplnkDir.mockReturnValue(UPLNK_DIR);
   // Default: no default provider, so seedDefaultProvider always upserts.
   mockGetDefaultProvider.mockReturnValue(undefined);
   // Default: getProviderById returns undefined (not found).

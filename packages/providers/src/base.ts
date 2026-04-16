@@ -12,7 +12,7 @@ export const DEFAULT_DISCOVERY_TIMEOUT_MS = 15000;
  * plain hostnames.
  *
  * We only warn — we don't block — because the lookup adds latency and the
- * IPv4-first dispatcher in bin/pylon.ts already handles the connection level.
+ * IPv4-first dispatcher in bin/uplnk.ts already handles the connection level.
  */
 async function warnIfLinkLocalOnly(url: string, kind: ProviderKind): Promise<void> {
   let hostname: string;
@@ -30,7 +30,7 @@ async function warnIfLinkLocalOnly(url: string, kind: ProviderKind): Promise<voi
     const hasRoutable  = addresses.some(a => a.family === 4 || !/^fe80:/i.test(a.address));
     if (hasLinkLocal && !hasRoutable) {
       process.stderr.write(
-        `\npylon [${kind}]: WARNING — "${hostname}" resolves only to a link-local IPv6 address ` +
+        `\nuplnk [${kind}]: WARNING — "${hostname}" resolves only to a link-local IPv6 address ` +
         `(${addresses.find(a => /^fe80:/i.test(a.address))?.address ?? 'fe80::…'}). ` +
         `Connection will likely time out. ` +
         `Try using the IPv4 address directly in the provider base URL.\n\n`,
@@ -71,7 +71,7 @@ interface RequestOptions {
  */
 export async function fetchJson<T>(opts: RequestOptions): Promise<T> {
   // Fire-and-forget: warn if the hostname resolves only to link-local IPv6.
-  // This does not block the request — the IPv4-first dispatcher in pylon.ts
+  // This does not block the request — the IPv4-first dispatcher in uplnk.ts
   // already handles the connection ordering at the undici level.
   void warnIfLinkLocalOnly(opts.url, opts.kind);
 

@@ -30,7 +30,7 @@ describe('exportConversation — Markdown', () => {
   let tmpDir: string;
 
   beforeEach(() => {
-    tmpDir = mkdtempSync(join(tmpdir(), 'pylon-export-test-'));
+    tmpDir = mkdtempSync(join(tmpdir(), 'uplnk-export-test-'));
   });
 
   afterEach(() => {
@@ -89,7 +89,7 @@ describe('exportConversation — JSON', () => {
   let tmpDir: string;
 
   beforeEach(() => {
-    tmpDir = mkdtempSync(join(tmpdir(), 'pylon-export-json-test-'));
+    tmpDir = mkdtempSync(join(tmpdir(), 'uplnk-export-json-test-'));
   });
 
   afterEach(() => {
@@ -127,7 +127,7 @@ describe('exportConversation — auto filename', () => {
   let tmpDir: string;
 
   beforeEach(() => {
-    tmpDir = mkdtempSync(join(tmpdir(), 'pylon-export-auto-'));
+    tmpDir = mkdtempSync(join(tmpdir(), 'uplnk-export-auto-'));
   });
 
   afterEach(() => {
@@ -141,7 +141,7 @@ describe('exportConversation — auto filename', () => {
     try {
       const result = exportConversation(messages, { format: 'markdown' });
       expect(result.path).toMatch(/\.md$/);
-      expect(result.path).toContain('pylon-');
+      expect(result.path).toContain('uplnk-');
     } finally {
       process.chdir(origCwd);
     }

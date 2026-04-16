@@ -9,17 +9,11 @@ export function getUplnkDir(): string {
   return join(homedir(), '.uplnk');
 }
 
-/** @deprecated Use getUplnkDir */
-export const getPylonDir = getUplnkDir;
-
 export function getUplnkDbPath(): string {
   const uplnkDir = getUplnkDir();
   mkdirSync(uplnkDir, { recursive: true });
   return join(uplnkDir, 'db.sqlite');
 }
-
-/** @deprecated Use getUplnkDbPath */
-export const getPylonDbPath = getUplnkDbPath;
 
 function createDb(dbPath?: string) {
   const sqlite = new Database(dbPath ?? getUplnkDbPath());

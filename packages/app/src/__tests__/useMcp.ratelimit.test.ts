@@ -61,10 +61,10 @@ const mcpManagerMocks = vi.hoisted(() => {
 
 vi.mock('../lib/mcp/McpManager.js', () => ({
   McpManager: mcpManagerMocks.MockMcpManager,
-  BUILTIN_FILE_BROWSE_ID: '__pylon_builtin_file_browse__',
-  BUILTIN_COMMAND_EXEC_ID: '__pylon_builtin_command_exec__',
-  BUILTIN_GIT_ID: '__pylon_builtin_git__',
-  BUILTIN_RAG_ID: '__pylon_builtin_rag__',
+  BUILTIN_FILE_BROWSE_ID: '__uplnk_builtin_file_browse__',
+  BUILTIN_COMMAND_EXEC_ID: '__uplnk_builtin_command_exec__',
+  BUILTIN_GIT_ID: '__uplnk_builtin_git__',
+  BUILTIN_RAG_ID: '__uplnk_builtin_rag__',
 }));
 
 vi.mock('../lib/mcp/security.js', () => ({

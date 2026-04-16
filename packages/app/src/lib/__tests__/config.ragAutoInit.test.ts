@@ -16,8 +16,8 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
 vi.mock('@uplnk/db', () => ({
   db: {},
-  getPylonDir: vi.fn(() => '/tmp/pylon-test-home/.pylon'),
-  getPylonDbPath: vi.fn(() => '/tmp/pylon-test-home/.uplnk/db.sqlite'),
+  getUplnkDir: vi.fn(() => '/tmp/uplnk-test-home/.uplnk'),
+  getUplnkDbPath: vi.fn(() => '/tmp/uplnk-test-home/.uplnk/db.sqlite'),
   upsertProviderConfig: vi.fn(),
   getDefaultProvider: vi.fn(() => undefined),
   listProviders: vi.fn(() => []),

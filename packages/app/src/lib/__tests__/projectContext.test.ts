@@ -8,7 +8,7 @@ describe('buildProjectContext', () => {
   let tmpDir: string;
 
   beforeEach(() => {
-    tmpDir = mkdtempSync(join(tmpdir(), 'pylon-proj-test-'));
+    tmpDir = mkdtempSync(join(tmpdir(), 'uplnk-proj-test-'));
   });
 
   afterEach(() => {
