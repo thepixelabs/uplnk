@@ -116,89 +116,72 @@ jobs:
           token: ${{ steps.app-token.outputs.token }}
 
       - name: Write formula
+        # Avoid heredocs entirely — bash heredoc terminators in YAML run: | blocks
+        # are unreliable because YAML block-scalar indentation stripping and bash's
+        # <<~ tab-stripping interact in platform-specific ways. printf per-line is
+        # unambiguous: static strings are single-quoted (no expansion), dynamic
+        # values use double-quoted %s substitution.
         run: |
           VERSION="${{ steps.vars.outputs.version }}"
+          URL_DA_ARM64="${{ steps.sha.outputs.url_darwin_arm64 }}"
+          SHA_DA_ARM64="${{ steps.sha.outputs.sha_darwin_arm64 }}"
+          URL_DA_X64="${{ steps.sha.outputs.url_darwin_x64 }}"
+          SHA_DA_X64="${{ steps.sha.outputs.sha_darwin_x64 }}"
+          URL_LX_ARM64="${{ steps.sha.outputs.url_linux_arm64 }}"
+          SHA_LX_ARM64="${{ steps.sha.outputs.sha_linux_arm64 }}"
+          URL_LX_X64="${{ steps.sha.outputs.url_linux_x64 }}"
+          SHA_LX_X64="${{ steps.sha.outputs.sha_linux_x64 }}"
 
-          URL_DARWIN_ARM64="${{ steps.sha.outputs.url_darwin_arm64 }}"
-          URL_DARWIN_X64="${{ steps.sha.outputs.url_darwin_x64 }}"
-          URL_LINUX_X64="${{ steps.sha.outputs.url_linux_x64 }}"
-          URL_LINUX_ARM64="${{ steps.sha.outputs.url_linux_arm64 }}"
-
-          SHA_DARWIN_ARM64="${{ steps.sha.outputs.sha_darwin_arm64 }}"
-          SHA_DARWIN_X64="${{ steps.sha.outputs.sha_darwin_x64 }}"
-          SHA_LINUX_X64="${{ steps.sha.outputs.sha_linux_x64 }}"
-          SHA_LINUX_ARM64="${{ steps.sha.outputs.sha_linux_arm64 }}"
-
-          # <<~RUBY strips leading whitespace (longest common indent), so the
-          # resulting file is correctly formatted despite the shell indentation.
-          # Per-arch `def install` blocks avoid using OS.mac?/Hardware::CPU.arm?
-          # at install time — those predicates are unreliable inside def install.
-          # Instead, each on_*/on_arm/on_intel block downloads exactly one file
-          # and installs it by its known name.
-          cat > Formula/uplnk.rb <<~'RUBY'
-          class Uplnk < Formula
-            desc "Terminal-native AI chat client — local-first, privacy-first"
-            homepage "https://github.com/thepixelabs/uplnk"
-            version "PLACEHOLDER_VERSION"
-            license :cannot_represent
-
-            on_macos do
-              on_arm do
-                url "PLACEHOLDER_URL_DARWIN_ARM64"
-                sha256 "PLACEHOLDER_SHA_DARWIN_ARM64"
-
-                def install
-                  bin.install "uplnk-darwin-arm64" => "uplnk"
-                end
-              end
-              on_intel do
-                url "PLACEHOLDER_URL_DARWIN_X64"
-                sha256 "PLACEHOLDER_SHA_DARWIN_X64"
-
-                def install
-                  bin.install "uplnk-darwin-x64" => "uplnk"
-                end
-              end
-            end
-
-            on_linux do
-              on_arm do
-                url "PLACEHOLDER_URL_LINUX_ARM64"
-                sha256 "PLACEHOLDER_SHA_LINUX_ARM64"
-
-                def install
-                  bin.install "uplnk-linux-arm64" => "uplnk"
-                end
-              end
-              on_intel do
-                url "PLACEHOLDER_URL_LINUX_X64"
-                sha256 "PLACEHOLDER_SHA_LINUX_X64"
-
-                def install
-                  bin.install "uplnk-linux-x64" => "uplnk"
-                end
-              end
-            end
-
-            test do
-              assert_match version.to_s, shell_output("#{bin}/uplnk --version")
-            end
-          end
-          RUBY
-
-          # Substitute placeholders with actual values. Using | as the sed
-          # delimiter avoids conflicts with / in URLs.
-          sed -i \
-            -e "s|PLACEHOLDER_VERSION|${VERSION}|g" \
-            -e "s|PLACEHOLDER_URL_DARWIN_ARM64|${URL_DARWIN_ARM64}|g" \
-            -e "s|PLACEHOLDER_SHA_DARWIN_ARM64|${SHA_DARWIN_ARM64}|g" \
-            -e "s|PLACEHOLDER_URL_DARWIN_X64|${URL_DARWIN_X64}|g" \
-            -e "s|PLACEHOLDER_SHA_DARWIN_X64|${SHA_DARWIN_X64}|g" \
-            -e "s|PLACEHOLDER_URL_LINUX_ARM64|${URL_LINUX_ARM64}|g" \
-            -e "s|PLACEHOLDER_SHA_LINUX_ARM64|${SHA_LINUX_ARM64}|g" \
-            -e "s|PLACEHOLDER_URL_LINUX_X64|${URL_LINUX_X64}|g" \
-            -e "s|PLACEHOLDER_SHA_LINUX_X64|${SHA_LINUX_X64}|g" \
-            Formula/uplnk.rb
+          {
+            printf '%s\n' 'class Uplnk < Formula'
+            printf '%s\n' '  desc "Terminal-native AI chat client — local-first, privacy-first"'
+            printf '%s\n' '  homepage "https://github.com/thepixelabs/uplnk"'
+            printf "  version \"%s\"\n" "${VERSION}"
+            printf '%s\n' '  license :cannot_represent'
+            printf '\n'
+            printf '%s\n' '  on_macos do'
+            printf '%s\n' '    on_arm do'
+            printf "      url \"%s\"\n"    "${URL_DA_ARM64}"
+            printf "      sha256 \"%s\"\n" "${SHA_DA_ARM64}"
+            printf '\n'
+            printf '%s\n' '      def install'
+            printf '%s\n' '        bin.install "uplnk-darwin-arm64" => "uplnk"'
+            printf '%s\n' '      end'
+            printf '%s\n' '    end'
+            printf '%s\n' '    on_intel do'
+            printf "      url \"%s\"\n"    "${URL_DA_X64}"
+            printf "      sha256 \"%s\"\n" "${SHA_DA_X64}"
+            printf '\n'
+            printf '%s\n' '      def install'
+            printf '%s\n' '        bin.install "uplnk-darwin-x64" => "uplnk"'
+            printf '%s\n' '      end'
+            printf '%s\n' '    end'
+            printf '%s\n' '  end'
+            printf '\n'
+            printf '%s\n' '  on_linux do'
+            printf '%s\n' '    on_arm do'
+            printf "      url \"%s\"\n"    "${URL_LX_ARM64}"
+            printf "      sha256 \"%s\"\n" "${SHA_LX_ARM64}"
+            printf '\n'
+            printf '%s\n' '      def install'
+            printf '%s\n' '        bin.install "uplnk-linux-arm64" => "uplnk"'
+            printf '%s\n' '      end'
+            printf '%s\n' '    end'
+            printf '%s\n' '    on_intel do'
+            printf "      url \"%s\"\n"    "${URL_LX_X64}"
+            printf "      sha256 \"%s\"\n" "${SHA_LX_X64}"
+            printf '\n'
+            printf '%s\n' '      def install'
+            printf '%s\n' '        bin.install "uplnk-linux-x64" => "uplnk"'
+            printf '%s\n' '      end'
+            printf '%s\n' '    end'
+            printf '%s\n' '  end'
+            printf '\n'
+            printf '%s\n' '  test do'
+            printf '%s\n' '    assert_match version.to_s, shell_output("#{bin}/uplnk --version")'
+            printf '%s\n' '  end'
+            printf '%s\n' 'end'
+          } > Formula/uplnk.rb
 
       - name: Open PR
         uses: peter-evans/create-pull-request@v7
