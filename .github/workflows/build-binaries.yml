@@ -1,0 +1,130 @@
+name: Build Binaries
+
+# Triggered when a GitHub Release is published (same trigger as bump-homebrew.yml).
+# Bun supports cross-compilation from any host to any target, so all 5 binaries
+# are built on a single ubuntu-latest runner — cheapest option, no per-OS matrix.
+on:
+  release:
+    types: [published]
+
+# Prevent a second publish from racing with an in-flight one. cancel-in-progress
+# is false because a partial upload is worse than a delayed one.
+concurrency:
+  group: build-binaries-${{ github.event.release.tag_name }}
+  cancel-in-progress: false
+
+permissions:
+  contents: write  # required to upload assets to the GitHub Release
+
+jobs:
+  build:
+    name: Build ${{ matrix.output }}
+    runs-on: ubuntu-latest
+
+    # Only build for stable releases — skip pre-releases (tags containing '-').
+    if: "!contains(github.event.release.tag_name, '-')"
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: bun-darwin-arm64
+            output: uplnk-darwin-arm64
+          - target: bun-darwin-x64
+            output: uplnk-darwin-x64
+          - target: bun-linux-x64
+            output: uplnk-linux-x64
+          - target: bun-linux-arm64
+            output: uplnk-linux-arm64
+          - target: bun-windows-x64
+            output: uplnk-win-x64.exe
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      # pnpm must come first so its cache is available to setup-node, and so
+      # node_modules (including workspace symlinks) are populated before Bun
+      # tries to resolve @uplnk/* imports during compilation.
+      - name: Install pnpm
+        uses: pnpm/action-setup@v5
+        with:
+          version: 9.15.0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version-file: .node-version
+          cache: pnpm
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Get pnpm store path
+        id: pnpm-cache
+        shell: bash
+        run: echo "store=$(pnpm store path)" >> "$GITHUB_OUTPUT"
+
+      - name: Cache pnpm store
+        uses: actions/cache@v5
+        with:
+          path: ${{ steps.pnpm-cache.outputs.store }}
+          key: pnpm-store-ubuntu-latest-${{ hashFiles('**/pnpm-lock.yaml') }}
+          restore-keys: |
+            pnpm-store-ubuntu-latest-
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Create dist directory
+        run: mkdir -p dist
+
+      # Regenerate the bundled-migrations module so the compiled binary can run
+      # migrations without reading SQL files from disk (they aren't embedded in
+      # bun build --compile output by default).
+      - name: Bundle migration SQL
+        run: pnpm bundle-migrations
+
+      # Cross-compile a standalone executable for each target.
+      #
+      # Workspace resolution: pnpm install above populates node_modules with
+      # symlinks for all @uplnk/* workspace packages, so Bun's bundler resolves
+      # them at compile time without extra flags.
+      #
+      # --tsconfig-override tsconfig.bun.json overrides the @uplnk/db path alias
+      # to resolve packages/db/src/index.bun.ts (bun:sqlite) instead of
+      # index.ts (better-sqlite3). This makes the binary fully self-contained —
+      # no native .node addon required at runtime.
+      - name: Compile binary (${{ matrix.output }})
+        run: |
+          bun build packages/app/bin/uplnk.ts \
+            --compile \
+            --target=${{ matrix.target }} \
+            --outfile=dist/${{ matrix.output }} \
+            --tsconfig-override tsconfig.bun.json
+
+      - name: Verify binary was created
+        run: |
+          test -f "dist/${{ matrix.output }}" || \
+            (echo "ERROR: dist/${{ matrix.output }} not found" && exit 1)
+          ls -lh "dist/${{ matrix.output }}"
+
+      # Generate a sha256 sidecar so install.sh can verify the download.
+      - name: Generate sha256 checksum
+        run: |
+          cd dist
+          sha256sum "${{ matrix.output }}" > "${{ matrix.output }}.sha256"
+          cat "${{ matrix.output }}.sha256"
+
+      # Upload this matrix entry's binary + checksum to the triggering GitHub Release.
+      # softprops/action-gh-release with a tag_name matching the existing release
+      # will attach assets to it rather than creating a new release.
+      - name: Upload binary to release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.event.release.tag_name }}
+          files: |
+            dist/${{ matrix.output }}
+            dist/${{ matrix.output }}.sha256
