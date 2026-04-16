@@ -1,7 +1,7 @@
 // Bun-specific barrel used by `bun build --compile`.
 // Overrides the db/createTestDb/Db exports with bun:sqlite implementations
 // while re-exporting everything else from the standard index.
-export { db, createTestDb, getUplnkDir, getUplnkDbPath, getUplnkDir, getUplnkDbPath } from './client.bun.js';
+export { db, createTestDb, getUplnkDir, getUplnkDbPath } from './client.bun.js';
 export type { Db } from './client.bun.js';
 export { runMigrations } from './migrate.bun.js';
 export * from './schema.js';

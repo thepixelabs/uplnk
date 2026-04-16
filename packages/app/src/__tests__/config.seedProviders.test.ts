@@ -22,7 +22,6 @@ vi.mock('node:fs', () => ({
 vi.mock('@uplnk/db', () => ({
   db: {},
   getUplnkDir: vi.fn(() => '/home/testuser/.uplnk'),
-  getUplnkDir: vi.fn(() => '/home/testuser/.uplnk'),
   upsertProviderConfig: vi.fn(),
   getDefaultProvider: vi.fn(() => undefined),
   getProviderById: vi.fn(() => undefined),

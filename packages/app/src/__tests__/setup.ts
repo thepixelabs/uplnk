@@ -53,7 +53,6 @@ vi.mock('@uplnk/db', () => ({
   // Path helpers
   getUplnkDir: vi.fn(() => '/tmp/uplnk-test-home/.uplnk'),
   getUplnkDbPath: vi.fn(() => '/tmp/uplnk-test-home/.uplnk/db.sqlite'),
-  getUplnkDir: vi.fn(() => '/tmp/uplnk-test-home/.uplnk'),
   // Provider config queries
   upsertProviderConfig: vi.fn(),
   getDefaultProvider: vi.fn(() => undefined),

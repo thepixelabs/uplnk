@@ -79,7 +79,6 @@ vi.mock('@uplnk/db', () => ({
   // Other DB helpers used by flowRepo at module load time
   getUplnkDir: vi.fn(() => '/tmp/uplnk-test-home/.uplnk'),
   getUplnkDbPath: vi.fn(() => '/tmp/uplnk-test-home/.uplnk/db.sqlite'),
-  getUplnkDir: vi.fn(() => '/tmp/uplnk-test-home/.uplnk'),
 }));
 
 // ─── Imports under test ────────────────────────────────────────────────────────

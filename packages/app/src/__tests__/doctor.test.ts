@@ -32,8 +32,6 @@ vi.mock('node:child_process', () => ({
 vi.mock('@uplnk/db', () => ({
   getUplnkDir: vi.fn(() => '/home/testuser/.uplnk'),
   getUplnkDbPath: vi.fn(() => '/home/testuser/.uplnk/db.sqlite'),
-  getUplnkDir: vi.fn(() => '/home/testuser/.uplnk'), // Keep for compat if needed in doctor.ts
-  getUplnkDbPath: vi.fn(() => '/home/testuser/.uplnk/db.sqlite'),
   db: {
     get: vi.fn(),
   },
