@@ -47,7 +47,10 @@ const journal: Journal = JSON.parse(
 const migrations = journal.entries.map((entry) => {
   const sql = readFileSync(join(migrationsDir, `${entry.tag}.sql`), 'utf8');
   return {
-    sql: sql.split('--> statement-breakpoint'),
+    // Trim each statement fragment: the breakpoint marker sits on its own line,
+    // so the split produces fragments with leading/trailing whitespace. Filtering
+    // out empty strings also guards against a trailing breakpoint.
+    sql: sql.split('--> statement-breakpoint').map((s) => s.trim()).filter(Boolean),
     bps: entry.breakpoints,
     folderMillis: entry.when,
     hash: createHash('sha256').update(sql).digest('hex'),

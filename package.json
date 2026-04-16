@@ -7,6 +7,7 @@
     "dev": "pnpm --filter uplnk dev",
     "build": "pnpm --filter uplnk build",
     "bundle-migrations": "tsx scripts/bundle-migrations.ts",
+    "prebuild": "tsx scripts/bundle-migrations.ts",
     "typecheck": "pnpm -r typecheck",
     "lint": "pnpm -r lint",
     "test": "pnpm -r test",

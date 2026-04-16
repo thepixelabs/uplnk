@@ -11,6 +11,14 @@
 
 set -u
 
+# ---------------------------------------------------------------------------
+# Global temp-dir cleanup — defined here so the trap can find it at signal
+# time regardless of which function is on the call stack. The empty-string
+# guard makes it a no-op if mktemp hasn't run yet.
+# ---------------------------------------------------------------------------
+_tmpdir=""
+_cleanup() { [ -n "${_tmpdir}" ] && rm -rf "${_tmpdir}"; }
+
 GITHUB_REPO="thepixelabs/uplnk"
 RELEASES_URL="https://github.com/${GITHUB_REPO}/releases"
 GITHUB_API="https://api.github.com/repos/${GITHUB_REPO}/releases/latest"
@@ -131,8 +139,8 @@ download_file() {
         _part="${_dest}.part"
         if wget -q --show-progress -O "${_part}" "${_url}" 2>/dev/null; then
             mv "${_part}" "${_dest}"
-        elif wget -q -O "${_dest}" "${_url}"; then
-            : # plain wget succeeded
+        elif wget -q -O "${_part}" "${_url}"; then
+            mv "${_part}" "${_dest}"
         else
             rm -f "${_part}"
             return 1
@@ -285,14 +293,14 @@ install_binary() {
     _src="$1"
     _install_dir="$2"
 
-    # Create directory if it doesn't exist
+    # Create directory if it doesn't exist. Try without sudo first — a
+    # non-existent user-owned path (e.g. ~/.local/bin) is not writable, so
+    # needs_sudo() would return true and trigger an unnecessary sudo prompt.
     if [ ! -d "${_install_dir}" ]; then
         info "Creating install directory: ${_install_dir}"
-        if needs_sudo "${_install_dir}"; then
-            sudo mkdir -p "${_install_dir}" || die "Could not create ${_install_dir}"
-        else
-            mkdir -p "${_install_dir}" || die "Could not create ${_install_dir}"
-        fi
+        mkdir -p "${_install_dir}" 2>/dev/null || \
+            sudo mkdir -p "${_install_dir}" || \
+            die "Could not create ${_install_dir}"
     fi
 
     _dest="${_install_dir}/${BINARY_NAME}"
@@ -388,12 +396,12 @@ main() {
     _install_dir="$(choose_install_dir)"
     info "Install directory: ${_install_dir}"
 
-    # 5. Download to a temp directory
-    _tmpdir="$(mktemp -d 2>/dev/null || mktemp -d -t uplnk-install)"
-    # Use a function-based trap to avoid quoting issues with paths that contain
-    # single quotes or special characters.
-    _cleanup() { rm -rf "${_tmpdir}"; }
+    # 5. Download to a temp directory.
+    # Register the trap BEFORE mktemp so no window exists between allocation
+    # and cleanup registration. _cleanup and _tmpdir are defined at the top of
+    # the script so the handler is visible to the shell at signal-dispatch time.
     trap _cleanup EXIT INT TERM
+    _tmpdir="$(mktemp -d 2>/dev/null || mktemp -d -t uplnk-install)"
 
     # 6. Download + verify
     _binary="$(download_binary "${_os}" "${_arch}" "${_version}" "${_dl}" "${_tmpdir}")"

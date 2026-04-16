@@ -7,15 +7,15 @@ import type { MigrationMeta } from 'drizzle-orm/migrator';
 export const bundledMigrations: MigrationMeta[] = [
   {
     "sql": [
-      "CREATE TABLE `artifacts` (\n\t`id` text PRIMARY KEY NOT NULL,\n\t`message_id` text NOT NULL,\n\t`conversation_id` text NOT NULL,\n\t`type` text NOT NULL,\n\t`title` text DEFAULT 'Untitled' NOT NULL,\n\t`content` text NOT NULL,\n\t`language` text,\n\t`created_at` text DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')) NOT NULL,\n\tFOREIGN KEY (`message_id`) REFERENCES `messages`(`id`) ON UPDATE no action ON DELETE cascade,\n\tFOREIGN KEY (`conversation_id`) REFERENCES `conversations`(`id`) ON UPDATE no action ON DELETE cascade,\n\tCONSTRAINT \"artifact_type_check\" CHECK(\"artifacts\".\"type\" IN ('code', 'diagram', 'doc'))\n);\n",
-      "\nCREATE INDEX `artifacts_message_id_idx` ON `artifacts` (`message_id`);",
-      "\nCREATE INDEX `artifacts_conversation_id_idx` ON `artifacts` (`conversation_id`);",
-      "\nCREATE TABLE `conversations` (\n\t`id` text PRIMARY KEY NOT NULL,\n\t`title` text DEFAULT 'New conversation' NOT NULL,\n\t`provider_id` text,\n\t`model_id` text,\n\t`total_input_tokens` integer DEFAULT 0 NOT NULL,\n\t`total_output_tokens` integer DEFAULT 0 NOT NULL,\n\t`created_at` text DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')) NOT NULL,\n\t`updated_at` text DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')) NOT NULL,\n\t`deleted_at` text\n);\n",
-      "\nCREATE INDEX `conversations_updated_at_idx` ON `conversations` (`updated_at`);",
-      "\nCREATE INDEX `conversations_deleted_at_idx` ON `conversations` (`deleted_at`);",
-      "\nCREATE TABLE `messages` (\n\t`id` text PRIMARY KEY NOT NULL,\n\t`conversation_id` text NOT NULL,\n\t`role` text NOT NULL,\n\t`content` text,\n\t`tool_calls` text,\n\t`tool_call_id` text,\n\t`input_tokens` integer,\n\t`output_tokens` integer,\n\t`time_to_first_token_ms` integer,\n\t`created_at` text DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')) NOT NULL,\n\tFOREIGN KEY (`conversation_id`) REFERENCES `conversations`(`id`) ON UPDATE no action ON DELETE cascade,\n\tCONSTRAINT \"message_role_check\" CHECK(\"messages\".\"role\" IN ('user', 'assistant', 'system', 'tool'))\n);\n",
-      "\nCREATE INDEX `messages_conversation_id_created_at_idx` ON `messages` (`conversation_id`,`created_at`);",
-      "\nCREATE TABLE `provider_configs` (\n\t`id` text PRIMARY KEY NOT NULL,\n\t`name` text NOT NULL,\n\t`provider_type` text NOT NULL,\n\t`base_url` text NOT NULL,\n\t`api_key` text,\n\t`default_model` text,\n\t`is_default` integer DEFAULT false NOT NULL,\n\t`created_at` text DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')) NOT NULL,\n\t`updated_at` text DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')) NOT NULL,\n\tCONSTRAINT \"provider_type_check\" CHECK(\"provider_configs\".\"provider_type\" IN ('ollama', 'vllm', 'lmstudio', 'localai', 'llama-cpp', 'custom'))\n);\n"
+      "CREATE TABLE `artifacts` (\n\t`id` text PRIMARY KEY NOT NULL,\n\t`message_id` text NOT NULL,\n\t`conversation_id` text NOT NULL,\n\t`type` text NOT NULL,\n\t`title` text DEFAULT 'Untitled' NOT NULL,\n\t`content` text NOT NULL,\n\t`language` text,\n\t`created_at` text DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')) NOT NULL,\n\tFOREIGN KEY (`message_id`) REFERENCES `messages`(`id`) ON UPDATE no action ON DELETE cascade,\n\tFOREIGN KEY (`conversation_id`) REFERENCES `conversations`(`id`) ON UPDATE no action ON DELETE cascade,\n\tCONSTRAINT \"artifact_type_check\" CHECK(\"artifacts\".\"type\" IN ('code', 'diagram', 'doc'))\n);",
+      "CREATE INDEX `artifacts_message_id_idx` ON `artifacts` (`message_id`);",
+      "CREATE INDEX `artifacts_conversation_id_idx` ON `artifacts` (`conversation_id`);",
+      "CREATE TABLE `conversations` (\n\t`id` text PRIMARY KEY NOT NULL,\n\t`title` text DEFAULT 'New conversation' NOT NULL,\n\t`provider_id` text,\n\t`model_id` text,\n\t`total_input_tokens` integer DEFAULT 0 NOT NULL,\n\t`total_output_tokens` integer DEFAULT 0 NOT NULL,\n\t`created_at` text DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')) NOT NULL,\n\t`updated_at` text DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')) NOT NULL,\n\t`deleted_at` text\n);",
+      "CREATE INDEX `conversations_updated_at_idx` ON `conversations` (`updated_at`);",
+      "CREATE INDEX `conversations_deleted_at_idx` ON `conversations` (`deleted_at`);",
+      "CREATE TABLE `messages` (\n\t`id` text PRIMARY KEY NOT NULL,\n\t`conversation_id` text NOT NULL,\n\t`role` text NOT NULL,\n\t`content` text,\n\t`tool_calls` text,\n\t`tool_call_id` text,\n\t`input_tokens` integer,\n\t`output_tokens` integer,\n\t`time_to_first_token_ms` integer,\n\t`created_at` text DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')) NOT NULL,\n\tFOREIGN KEY (`conversation_id`) REFERENCES `conversations`(`id`) ON UPDATE no action ON DELETE cascade,\n\tCONSTRAINT \"message_role_check\" CHECK(\"messages\".\"role\" IN ('user', 'assistant', 'system', 'tool'))\n);",
+      "CREATE INDEX `messages_conversation_id_created_at_idx` ON `messages` (`conversation_id`,`created_at`);",
+      "CREATE TABLE `provider_configs` (\n\t`id` text PRIMARY KEY NOT NULL,\n\t`name` text NOT NULL,\n\t`provider_type` text NOT NULL,\n\t`base_url` text NOT NULL,\n\t`api_key` text,\n\t`default_model` text,\n\t`is_default` integer DEFAULT false NOT NULL,\n\t`created_at` text DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')) NOT NULL,\n\t`updated_at` text DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')) NOT NULL,\n\tCONSTRAINT \"provider_type_check\" CHECK(\"provider_configs\".\"provider_type\" IN ('ollama', 'vllm', 'lmstudio', 'localai', 'llama-cpp', 'custom'))\n);"
     ],
     "bps": true,
     "folderMillis": 1775963647129,
@@ -23,12 +23,12 @@ export const bundledMigrations: MigrationMeta[] = [
   },
   {
     "sql": [
-      "-- Migration 0001: v0.5 additions (branching + system prompt templates)\nALTER TABLE `conversations` ADD COLUMN `branched_from_conversation_id` text REFERENCES `conversations`(`id`) ON DELETE SET NULL;\n",
-      "\nALTER TABLE `conversations` ADD COLUMN `branched_from_message_id` text REFERENCES `messages`(`id`) ON DELETE SET NULL;\n",
-      "\nCREATE INDEX IF NOT EXISTS `conversations_branched_from_idx` ON `conversations` (`branched_from_conversation_id`);\n",
-      "\nALTER TABLE `messages` ADD COLUMN `branch_count` integer DEFAULT 0 NOT NULL;\n",
-      "\nCREATE TABLE IF NOT EXISTS `system_prompt_templates` (\n  `id` text PRIMARY KEY NOT NULL,\n  `name` text NOT NULL,\n  `content` text NOT NULL,\n  `description` text,\n  `is_builtin` integer DEFAULT false NOT NULL,\n  `created_at` text DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')) NOT NULL,\n  `updated_at` text DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')) NOT NULL\n);\n",
-      "\nCREATE INDEX IF NOT EXISTS `system_prompt_templates_builtin_name_idx` ON `system_prompt_templates` (`is_builtin`, `name`);\n"
+      "-- Migration 0001: v0.5 additions (branching + system prompt templates)\nALTER TABLE `conversations` ADD COLUMN `branched_from_conversation_id` text REFERENCES `conversations`(`id`) ON DELETE SET NULL;",
+      "ALTER TABLE `conversations` ADD COLUMN `branched_from_message_id` text REFERENCES `messages`(`id`) ON DELETE SET NULL;",
+      "CREATE INDEX IF NOT EXISTS `conversations_branched_from_idx` ON `conversations` (`branched_from_conversation_id`);",
+      "ALTER TABLE `messages` ADD COLUMN `branch_count` integer DEFAULT 0 NOT NULL;",
+      "CREATE TABLE IF NOT EXISTS `system_prompt_templates` (\n  `id` text PRIMARY KEY NOT NULL,\n  `name` text NOT NULL,\n  `content` text NOT NULL,\n  `description` text,\n  `is_builtin` integer DEFAULT false NOT NULL,\n  `created_at` text DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')) NOT NULL,\n  `updated_at` text DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')) NOT NULL\n);",
+      "CREATE INDEX IF NOT EXISTS `system_prompt_templates_builtin_name_idx` ON `system_prompt_templates` (`is_builtin`, `name`);"
     ],
     "bps": true,
     "folderMillis": 1775963700000,
@@ -36,9 +36,9 @@ export const bundledMigrations: MigrationMeta[] = [
   },
   {
     "sql": [
-      "-- Migration 0002: RAG chunks (embeddings for semantic codebase search)\nCREATE TABLE IF NOT EXISTS `rag_chunks` (\n  `id` text PRIMARY KEY NOT NULL,\n  `file_path` text NOT NULL,\n  `chunk_index` integer NOT NULL,\n  `content` text NOT NULL,\n  `embedding` blob,\n  `indexed_at` text NOT NULL\n);\n",
-      "\nCREATE INDEX IF NOT EXISTS `rag_chunks_file_path_idx` ON `rag_chunks` (`file_path`);\n",
-      "\nCREATE INDEX IF NOT EXISTS `rag_chunks_file_chunk_idx` ON `rag_chunks` (`file_path`, `chunk_index`);\n"
+      "-- Migration 0002: RAG chunks (embeddings for semantic codebase search)\nCREATE TABLE IF NOT EXISTS `rag_chunks` (\n  `id` text PRIMARY KEY NOT NULL,\n  `file_path` text NOT NULL,\n  `chunk_index` integer NOT NULL,\n  `content` text NOT NULL,\n  `embedding` blob,\n  `indexed_at` text NOT NULL\n);",
+      "CREATE INDEX IF NOT EXISTS `rag_chunks_file_path_idx` ON `rag_chunks` (`file_path`);",
+      "CREATE INDEX IF NOT EXISTS `rag_chunks_file_chunk_idx` ON `rag_chunks` (`file_path`, `chunk_index`);"
     ],
     "bps": true,
     "folderMillis": 1744502400000,
@@ -46,11 +46,11 @@ export const bundledMigrations: MigrationMeta[] = [
   },
   {
     "sql": [
-      "ALTER TABLE `provider_configs` ADD `auth_mode` text NOT NULL DEFAULT 'none';\n",
-      "\nALTER TABLE `provider_configs` ADD `last_tested_at` text;\n",
-      "\nALTER TABLE `provider_configs` ADD `last_test_status` text;\n",
-      "\nALTER TABLE `provider_configs` ADD `last_test_detail` text;\n",
-      "\nUPDATE `provider_configs` SET `auth_mode` = 'bearer' WHERE `api_key` IS NOT NULL AND `api_key` != '' AND `api_key` != 'ollama';\n"
+      "ALTER TABLE `provider_configs` ADD `auth_mode` text NOT NULL DEFAULT 'none';",
+      "ALTER TABLE `provider_configs` ADD `last_tested_at` text;",
+      "ALTER TABLE `provider_configs` ADD `last_test_status` text;",
+      "ALTER TABLE `provider_configs` ADD `last_test_detail` text;",
+      "UPDATE `provider_configs` SET `auth_mode` = 'bearer' WHERE `api_key` IS NOT NULL AND `api_key` != '' AND `api_key` != 'ollama';"
     ],
     "bps": true,
     "folderMillis": 1776000000000,
@@ -58,10 +58,10 @@ export const bundledMigrations: MigrationMeta[] = [
   },
   {
     "sql": [
-      "ALTER TABLE `conversations` ADD `relay_id` text;\n",
-      "\nCREATE TABLE `relay_runs` (\n  `id` text PRIMARY KEY NOT NULL,\n  `relay_id` text NOT NULL,\n  `relay_name` text NOT NULL,\n  `conversation_id` text REFERENCES `conversations`(`id`) ON DELETE SET NULL,\n  `input` text NOT NULL,\n  `scout_output` text,\n  `anchor_output` text,\n  `scout_provider_id` text NOT NULL,\n  `scout_model` text NOT NULL,\n  `anchor_provider_id` text NOT NULL,\n  `anchor_model` text NOT NULL,\n  `status` text NOT NULL,\n  `scout_input_tokens` integer,\n  `scout_output_tokens` integer,\n  `anchor_input_tokens` integer,\n  `anchor_output_tokens` integer,\n  `error_message` text,\n  `started_at` text NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),\n  `completed_at` text\n);\n",
-      "\nCREATE INDEX `relay_runs_relay_id_idx` ON `relay_runs` (`relay_id`);\n",
-      "\nCREATE INDEX `relay_runs_started_at_idx` ON `relay_runs` (`started_at`);\n"
+      "ALTER TABLE `conversations` ADD `relay_id` text;",
+      "CREATE TABLE `relay_runs` (\n  `id` text PRIMARY KEY NOT NULL,\n  `relay_id` text NOT NULL,\n  `relay_name` text NOT NULL,\n  `conversation_id` text REFERENCES `conversations`(`id`) ON DELETE SET NULL,\n  `input` text NOT NULL,\n  `scout_output` text,\n  `anchor_output` text,\n  `scout_provider_id` text NOT NULL,\n  `scout_model` text NOT NULL,\n  `anchor_provider_id` text NOT NULL,\n  `anchor_model` text NOT NULL,\n  `status` text NOT NULL,\n  `scout_input_tokens` integer,\n  `scout_output_tokens` integer,\n  `anchor_input_tokens` integer,\n  `anchor_output_tokens` integer,\n  `error_message` text,\n  `started_at` text NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),\n  `completed_at` text\n);",
+      "CREATE INDEX `relay_runs_relay_id_idx` ON `relay_runs` (`relay_id`);",
+      "CREATE INDEX `relay_runs_started_at_idx` ON `relay_runs` (`started_at`);"
     ],
     "bps": true,
     "folderMillis": 1776030000000,
@@ -69,14 +69,14 @@ export const bundledMigrations: MigrationMeta[] = [
   },
   {
     "sql": [
-      "-- uplnk v2 flows engine\nALTER TABLE conversations ADD COLUMN source TEXT NOT NULL DEFAULT 'tui';\n",
-      "\nALTER TABLE conversations ADD COLUMN imported_from TEXT;\n",
-      "\nCREATE TABLE flows (\n  id TEXT PRIMARY KEY,\n  name TEXT NOT NULL UNIQUE,\n  version INTEGER NOT NULL DEFAULT 1,\n  source_path TEXT NOT NULL,\n  source_hash TEXT NOT NULL,\n  definition_json TEXT NOT NULL,\n  created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),\n  updated_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))\n);\n",
-      "\nCREATE TABLE flow_runs (\n  id TEXT PRIMARY KEY,\n  flow_id TEXT NOT NULL REFERENCES flows(id),\n  flow_version INTEGER NOT NULL,\n  trigger TEXT NOT NULL,\n  status TEXT NOT NULL CHECK(status IN ('pending', 'running', 'succeeded', 'failed', 'cancelled')),\n  started_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),\n  ended_at TEXT,\n  input_json TEXT,\n  output_json TEXT,\n  error_json TEXT,\n  parent_run_id TEXT REFERENCES flow_runs(id)\n);\n",
-      "\nCREATE INDEX flow_runs_flow_id_idx ON flow_runs(flow_id);\n",
-      "\nCREATE INDEX flow_runs_status_idx ON flow_runs(status);\n",
-      "\nCREATE TABLE flow_step_results (\n  id TEXT PRIMARY KEY,\n  run_id TEXT NOT NULL REFERENCES flow_runs(id) ON DELETE CASCADE,\n  step_id TEXT NOT NULL,\n  step_index INTEGER NOT NULL,\n  iteration INTEGER NOT NULL DEFAULT 0,\n  status TEXT NOT NULL,\n  started_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),\n  ended_at TEXT,\n  input_json TEXT,\n  output_json TEXT,\n  error_json TEXT,\n  message_id TEXT REFERENCES messages(id),\n  robotic_session_id TEXT\n);\n",
-      "\nCREATE INDEX flow_step_results_run_idx ON flow_step_results(run_id, step_index, iteration);\n"
+      "-- uplnk v2 flows engine\nALTER TABLE conversations ADD COLUMN source TEXT NOT NULL DEFAULT 'tui';",
+      "ALTER TABLE conversations ADD COLUMN imported_from TEXT;",
+      "CREATE TABLE flows (\n  id TEXT PRIMARY KEY,\n  name TEXT NOT NULL UNIQUE,\n  version INTEGER NOT NULL DEFAULT 1,\n  source_path TEXT NOT NULL,\n  source_hash TEXT NOT NULL,\n  definition_json TEXT NOT NULL,\n  created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),\n  updated_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))\n);",
+      "CREATE TABLE flow_runs (\n  id TEXT PRIMARY KEY,\n  flow_id TEXT NOT NULL REFERENCES flows(id),\n  flow_version INTEGER NOT NULL,\n  trigger TEXT NOT NULL,\n  status TEXT NOT NULL CHECK(status IN ('pending', 'running', 'succeeded', 'failed', 'cancelled')),\n  started_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),\n  ended_at TEXT,\n  input_json TEXT,\n  output_json TEXT,\n  error_json TEXT,\n  parent_run_id TEXT REFERENCES flow_runs(id)\n);",
+      "CREATE INDEX flow_runs_flow_id_idx ON flow_runs(flow_id);",
+      "CREATE INDEX flow_runs_status_idx ON flow_runs(status);",
+      "CREATE TABLE flow_step_results (\n  id TEXT PRIMARY KEY,\n  run_id TEXT NOT NULL REFERENCES flow_runs(id) ON DELETE CASCADE,\n  step_id TEXT NOT NULL,\n  step_index INTEGER NOT NULL,\n  iteration INTEGER NOT NULL DEFAULT 0,\n  status TEXT NOT NULL,\n  started_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),\n  ended_at TEXT,\n  input_json TEXT,\n  output_json TEXT,\n  error_json TEXT,\n  message_id TEXT REFERENCES messages(id),\n  robotic_session_id TEXT\n);",
+      "CREATE INDEX flow_step_results_run_idx ON flow_step_results(run_id, step_index, iteration);"
     ],
     "bps": true,
     "folderMillis": 1776031200000,
@@ -84,13 +84,13 @@ export const bundledMigrations: MigrationMeta[] = [
   },
   {
     "sql": [
-      "-- uplnk v2 robotic mode + altergo integration\nCREATE TABLE robotic_sessions (\n  id TEXT PRIMARY KEY,\n  created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),\n  ended_at TEXT,\n  target TEXT NOT NULL,\n  altergo_account TEXT,\n  transport TEXT NOT NULL,\n  goal TEXT NOT NULL,\n  status TEXT NOT NULL CHECK(status IN ('running', 'succeeded', 'failed', 'aborted')),\n  conversation_id TEXT REFERENCES conversations(id),\n  flow_run_id TEXT REFERENCES flow_runs(id)\n);\n",
-      "\nCREATE INDEX robotic_sessions_status_idx ON robotic_sessions(status);\n",
-      "\nCREATE TABLE robotic_turns (\n  id TEXT PRIMARY KEY,\n  session_id TEXT NOT NULL REFERENCES robotic_sessions(id) ON DELETE CASCADE,\n  idx INTEGER NOT NULL,\n  direction TEXT NOT NULL,\n  content TEXT NOT NULL,\n  tokens_in INTEGER,\n  tokens_out INTEGER,\n  created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),\n  meta_json TEXT\n);\n",
-      "\nCREATE INDEX robotic_turns_session_idx ON robotic_turns(session_id, idx);\n",
-      "\nCREATE TABLE altergo_accounts (\n  id TEXT PRIMARY KEY,\n  providers_json TEXT NOT NULL,\n  last_seen_at TEXT NOT NULL,\n  meta_json TEXT\n);\n",
-      "\nCREATE TABLE altergo_imports (\n  id TEXT PRIMARY KEY,\n  account TEXT NOT NULL,\n  provider TEXT NOT NULL,\n  source_path TEXT NOT NULL UNIQUE,\n  source_hash TEXT NOT NULL,\n  conversation_id TEXT NOT NULL REFERENCES conversations(id),\n  imported_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),\n  message_count INTEGER NOT NULL\n);\n",
-      "\nCREATE INDEX altergo_imports_account_idx ON altergo_imports(account, provider);\n"
+      "-- uplnk v2 robotic mode + altergo integration\nCREATE TABLE robotic_sessions (\n  id TEXT PRIMARY KEY,\n  created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),\n  ended_at TEXT,\n  target TEXT NOT NULL,\n  altergo_account TEXT,\n  transport TEXT NOT NULL,\n  goal TEXT NOT NULL,\n  status TEXT NOT NULL CHECK(status IN ('running', 'succeeded', 'failed', 'aborted')),\n  conversation_id TEXT REFERENCES conversations(id),\n  flow_run_id TEXT REFERENCES flow_runs(id)\n);",
+      "CREATE INDEX robotic_sessions_status_idx ON robotic_sessions(status);",
+      "CREATE TABLE robotic_turns (\n  id TEXT PRIMARY KEY,\n  session_id TEXT NOT NULL REFERENCES robotic_sessions(id) ON DELETE CASCADE,\n  idx INTEGER NOT NULL,\n  direction TEXT NOT NULL,\n  content TEXT NOT NULL,\n  tokens_in INTEGER,\n  tokens_out INTEGER,\n  created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),\n  meta_json TEXT\n);",
+      "CREATE INDEX robotic_turns_session_idx ON robotic_turns(session_id, idx);",
+      "CREATE TABLE altergo_accounts (\n  id TEXT PRIMARY KEY,\n  providers_json TEXT NOT NULL,\n  last_seen_at TEXT NOT NULL,\n  meta_json TEXT\n);",
+      "CREATE TABLE altergo_imports (\n  id TEXT PRIMARY KEY,\n  account TEXT NOT NULL,\n  provider TEXT NOT NULL,\n  source_path TEXT NOT NULL UNIQUE,\n  source_hash TEXT NOT NULL,\n  conversation_id TEXT NOT NULL REFERENCES conversations(id),\n  imported_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),\n  message_count INTEGER NOT NULL\n);",
+      "CREATE INDEX altergo_imports_account_idx ON altergo_imports(account, provider);"
     ],
     "bps": true,
     "folderMillis": 1776032400000,

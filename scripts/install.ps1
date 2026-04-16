@@ -147,7 +147,10 @@ function Add-ToUserPath {
     param([string]$Dir)
 
     $currentPath = [Environment]::GetEnvironmentVariable("PATH", "User")
-    $pathParts   = $currentPath -split ";"
+    # Filter empty segments: GetEnvironmentVariable returns "" (not $null) when
+    # the User PATH key exists but is empty. Splitting "" yields @(""), and
+    # joining back with ";" would produce a leading semicolon in the new PATH.
+    $pathParts = @($currentPath -split ";" | Where-Object { $_ -ne "" })
 
     if ($pathParts -contains $Dir) {
         Write-Info "$Dir is already in your PATH."
@@ -246,6 +249,7 @@ function Main {
     Write-Info "Verifying installation..."
     try {
         $ver = & $destPath --version 2>$null | Select-Object -First 1
+        if (-not $ver) { $ver = "(installed)" }
         Write-Ok "uplnk $ver is ready."
     }
     catch {
