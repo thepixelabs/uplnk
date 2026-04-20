@@ -4,6 +4,8 @@ import { writeFile } from 'node:fs/promises';
 import clipboard from 'clipboardy';
 import type { CoreMessage, LanguageModel } from 'ai';
 import type { AuthMode } from '@uplnk/providers';
+import { resolveCapabilities } from '@uplnk/catalog';
+import type { CatalogProviderKind } from '@uplnk/catalog';
 import { createLanguageModel } from '../lib/languageModelFactory.js';
 import { db, getConversation, getDefaultProvider, insertMessage, updateMessageContent, forkConversation, updateConversationTitle } from '@uplnk/db';
 import { resolveSecret } from '../lib/secrets.js';
@@ -25,11 +27,17 @@ import {
   COMPACT_MIN_MESSAGES,
 } from '../lib/compactConversation.js';
 import { getRole } from '../lib/roles.js';
-import { parseAgentMention } from '../lib/agents/parseUserInput.js';
+import {
+  extractMentions,
+  formatAttachmentsForContext,
+  parseAgentMention,
+} from '../lib/agents/parseUserInput.js';
 import { getAgentRegistry } from '../lib/agents/registry.js';
 import { AgentOrchestrator } from '../lib/agents/orchestrator.js';
 import { getGlobalAgentEventBus } from '../lib/agents/eventBus.js';
 import { useAgentRun } from '../hooks/useAgentRun.js';
+import { useRoomRun } from '../hooks/useRoomRun.js';
+import { EphemeralRegistry } from '../lib/agents/ephemeralRegistry.js';
 import { AgentEventView } from '../components/chat/AgentEventView.js';
 import { MessageList } from '../components/chat/MessageList.js';
 import {
@@ -234,6 +242,29 @@ export function ChatScreen({
   );
   const agentRun = useAgentRun({ orchestrator: agentOrchestrator, eventBus: agentEventBus });
 
+  // Ephemeral registry: layers spawn_agent-created agents on top of the base
+  // disk registry for the current conversation. Re-instantiated whenever the
+  // conversation id changes (i.e. user starts/resumes a different chat).
+  const roomRegistry = useMemo(
+    () => new EphemeralRegistry({ base: agentRegistry, conversationId }),
+    [agentRegistry, conversationId],
+  );
+
+  // Effective tool names in the chat — cached stably so the room hook's
+  // callback identity doesn't churn per render.
+  const effectiveToolNames = useMemo(
+    () => new Set(Object.keys(mcpTools)),
+    [mcpTools],
+  );
+
+  const roomRun = useRoomRun({
+    orchestrator: agentOrchestrator,
+    eventBus: agentEventBus,
+    registry: roomRegistry,
+    conversationId,
+    effectiveToolNames,
+  });
+
   // Build project context once at mount — used as a system message prefix
   const projectContextRef = useRef<string | null>(null);
   if (projectContextRef.current === null && projectDir !== undefined) {
@@ -418,9 +449,58 @@ export function ChatScreen({
 
   const handleSubmit = useCallback(
     async (input: string) => {
-      if (!input.trim() || status === 'streaming' || agentRun.status === 'running') return;
+      if (!input.trim() || status === 'streaming' || agentRun.status === 'running' || roomRun.status === 'running') return;
 
-      // ─── Agent @mention routing ─────────────────────────────────────────────
+      // ─── Parse @mentions into a structured payload ─────────────────────────
+      // Runs before legacy agent-match so we can harvest file attachments even
+      // when routing falls through to the default assistant.
+      const payload = projectDir !== undefined
+        ? extractMentions(input, agentRegistry, projectDir)
+        : { text: input, addressees: [] as string[], attachments: [] as ReturnType<typeof extractMentions>['attachments'] };
+      const attachmentsBlock = formatAttachmentsForContext(payload.attachments);
+
+      // ─── Multi-agent room routing (≥1 @agent) ───────────────────────────────
+      // When the user addresses one or more registered agents, route through
+      // RoomConductor so handoff_to_agent / return_to_user / spawn_agent tools
+      // are available and every agent's turn is written to the visible
+      // transcript with proper sender attribution.
+      if (payload.addressees.length > 0) {
+        if (messages.length === 0) {
+          const firstLine = input.trim().split(/\r?\n/)[0] ?? input.trim();
+          const title = firstLine.slice(0, 60).trim();
+          if (title !== '') {
+            try {
+              updateConversationTitle(db, conversationId, title);
+              setConversationTitle(title);
+            } catch { /* non-fatal */ }
+          }
+        }
+        addMessage({ role: 'user', content: input });
+        const history: CoreMessage[] = [
+          ...messages
+            .filter((m) => m.role === 'user' || m.role === 'assistant' || m.role === 'system')
+            .map((m): CoreMessage => ({
+              role: m.role as 'user' | 'assistant' | 'system',
+              content: m.content ?? '',
+            })),
+          ...(attachmentsBlock !== ''
+            ? [{ role: 'system', content: attachmentsBlock } as const]
+            : []),
+        ];
+        try {
+          await roomRun.start({
+            addressees: payload.addressees,
+            cc: payload.addressees.slice(1),
+            userText: input,
+            history,
+          });
+        } catch {
+          // Error already captured on the event bus + useRoomRun state.
+        }
+        return;
+      }
+
+      // ─── Legacy single-addressee fallback ───────────────────────────────────
       const agentMatch = parseAgentMention(input, agentRegistry);
       if (agentMatch !== null) {
         if (messages.length === 0) {
@@ -494,22 +574,33 @@ export function ChatScreen({
             role: m.role as 'user' | 'assistant' | 'system',
             content: m.content ?? '',
           })),
+        ...(attachmentsBlock !== ''
+          ? [{ role: 'system', content: attachmentsBlock } as const]
+          : []),
         { role: 'user', content: input },
       ];
 
       let modelOverride: LanguageModel | undefined;
+      let effectiveModelId = resolvedModel;
       if (modelRouter !== null) {
         const turnCount = messages.filter((m) => m.role === 'user').length;
         const { modelId } = modelRouter.route(input, turnCount);
         modelOverride = createLanguageModel({ providerType, baseURL, apiKey, modelId });
+        effectiveModelId = modelId;
       }
+
+      const caps = resolveCapabilities(
+        providerType as CatalogProviderKind,
+        effectiveModelId,
+      );
 
       await send(coreMessages, mcpTools, {
         onPersist: (text) => updateMessageContent(db, assistantMsgId, text),
+        supportsTools: caps.tools,
         ...(modelOverride !== undefined ? { modelOverride } : {}),
       });
     },
-    [conversationId, messages, status, send, addMessage, mcpTools, activeRole, projectContextRef, modelRouter, providerType, baseURL, apiKey]
+    [conversationId, messages, status, send, addMessage, mcpTools, activeRole, projectContextRef, modelRouter, providerType, baseURL, apiKey, agentRegistry, projectDir, resolvedModel, roomRun, agentRun]
   );
 
   const handleFork = useCallback((messageIndex?: number) => {
@@ -743,6 +834,13 @@ export function ChatScreen({
               registry={agentRegistry}
             />
           )}
+          {(roomRun.status === 'running' || roomRun.events.length > 0) && (
+            <AgentEventView
+              rootInvocationId={roomRun.currentTurnRoot}
+              events={roomRun.events}
+              registry={roomRegistry}
+            />
+          )}
           {/* StreamingTextOverlay subscribes to token updates internally.
               Only the overlay re-renders per 33ms flush — ChatScreen stays stable. */}
           <StreamingTextOverlay
@@ -850,7 +948,7 @@ export function ChatScreen({
         <ChatInput
           onSubmit={handleSubmit}
           onCommand={handleCommand}
-          disabled={status === 'streaming' || agentRun.status === 'running' || focusedPanel === 'artifact' || isCompacting}
+          disabled={status === 'streaming' || agentRun.status === 'running' || roomRun.status === 'running' || focusedPanel === 'artifact' || isCompacting}
           projectDir={currentDirectory}
         />
       </Box>

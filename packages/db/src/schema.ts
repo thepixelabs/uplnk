@@ -63,6 +63,8 @@ export const conversations = sqliteTable(
     relayId: text('relay_id'),
     source: text('source').notNull().default('tui'),
     importedFrom: text('imported_from'),
+    mode: text('mode').notNull().default('single'),
+    floorAgentName: text('floor_agent_name'),
     createdAt: text('created_at').notNull().default(isoTimestamp()),
     updatedAt: text('updated_at').notNull().default(isoTimestamp()),
     deletedAt: text('deleted_at'),
@@ -70,6 +72,7 @@ export const conversations = sqliteTable(
   (table) => [
     index('conversations_updated_at_idx').on(table.updatedAt),
     index('conversations_deleted_at_idx').on(table.deletedAt),
+    check('conversation_mode_check', sql`${table.mode} IN ('single', 'multi')`),
   ],
 );
 
@@ -89,6 +92,12 @@ export const messages = sqliteTable(
     inputTokens: integer('input_tokens'),
     outputTokens: integer('output_tokens'),
     timeToFirstToken: integer('time_to_first_token_ms'),
+    senderAgentName: text('sender_agent_name'),
+    addresseeAgentName: text('addressee_agent_name'),
+    agentRunId: text('agent_run_id').references((): AnySQLiteColumn => agentRuns.id, {
+      onDelete: 'set null',
+    }),
+    turnId: text('turn_id'),
     createdAt: text('created_at').notNull().default(isoTimestamp()),
   },
   (table) => [
@@ -96,6 +105,9 @@ export const messages = sqliteTable(
       table.conversationId,
       table.createdAt,
     ),
+    index('messages_conv_sender_idx').on(table.conversationId, table.senderAgentName),
+    index('messages_agent_run_idx').on(table.agentRunId),
+    index('messages_turn_idx').on(table.conversationId, table.turnId),
     check(
       'message_role_check',
       sql`${table.role} IN ('user', 'assistant', 'system', 'tool')`,
@@ -193,6 +205,105 @@ export const relayRuns = sqliteTable(
       'relay_run_status_check',
       sql`${table.status} IN ('running', 'completed', 'failed', 'cancelled')`,
     ),
+  ],
+);
+
+// ─── Agent Runs ───────────────────────────────────────────────────────────────
+
+/**
+ * One row per agent invocation (a single pass of an agent's run() loop).
+ * Persists the in-memory event-bus data so multi-agent turns can be inspected
+ * after the fact and so that ephemeral-agent ancestry survives process restart.
+ *
+ * id = invocationId (ULID). parent_invocation_id is intentionally NOT a FK to
+ * avoid self-referential cascade surprises; walk the tree in app code.
+ */
+export const agentRuns = sqliteTable(
+  'agent_runs',
+  {
+    id: text('id').primaryKey(),
+    conversationId: text('conversation_id')
+      .notNull()
+      .references(() => conversations.id, { onDelete: 'cascade' }),
+    rootInvocationId: text('root_invocation_id').notNull(),
+    parentInvocationId: text('parent_invocation_id'),
+    agentName: text('agent_name').notNull(),
+    depth: integer('depth').notNull().default(0),
+    ancestryJson: text('ancestry_json').notNull().default('[]'),
+    triggerMessageId: text('trigger_message_id').references(
+      (): AnySQLiteColumn => messages.id,
+      { onDelete: 'set null' },
+    ),
+    model: text('model'),
+    providerId: text('provider_id'),
+    status: text('status').notNull().default('running'),
+    inputTokens: integer('input_tokens').notNull().default(0),
+    outputTokens: integer('output_tokens').notNull().default(0),
+    errorMessage: text('error_message'),
+    startedAt: text('started_at').notNull().default(isoTimestamp()),
+    endedAt: text('ended_at'),
+  },
+  (table) => [
+    index('agent_runs_conv_started_idx').on(table.conversationId, table.startedAt),
+    index('agent_runs_root_idx').on(table.rootInvocationId),
+    index('agent_runs_parent_idx').on(table.parentInvocationId),
+    check(
+      'agent_run_status_check',
+      sql`${table.status} IN ('running', 'completed', 'errored', 'aborted')`,
+    ),
+    check('agent_run_depth_check', sql`${table.depth} >= 0`),
+  ],
+);
+
+// ─── Conversation Agents (participants) ───────────────────────────────────────
+
+/**
+ * Which named agents participate in which conversations. The `agent_name` is
+ * an opaque string that resolves at runtime against (project > user > builtin)
+ * .md files plus the ephemeral_agents table — deliberately NOT a foreign key.
+ *
+ * PK includes joined_at so a single agent can leave and rejoin the same
+ * conversation and each stint is preserved.
+ */
+export const conversationAgents = sqliteTable(
+  'conversation_agents',
+  {
+    conversationId: text('conversation_id')
+      .notNull()
+      .references(() => conversations.id, { onDelete: 'cascade' }),
+    agentName: text('agent_name').notNull(),
+    isEphemeral: integer('is_ephemeral', { mode: 'boolean' }).notNull().default(false),
+    providerOverride: text('provider_override'),
+    modelOverride: text('model_override'),
+    joinedAt: text('joined_at').notNull().default(isoTimestamp()),
+    leftAt: text('left_at'),
+  },
+  (table) => [
+    index('conversation_agents_conv_idx').on(table.conversationId),
+    index('conversation_agents_active_idx').on(table.conversationId, table.leftAt),
+  ],
+);
+
+// ─── Ephemeral Agents ─────────────────────────────────────────────────────────
+
+/**
+ * Conversation-scoped agents created at runtime via `spawn_agent`. Never
+ * written to disk; lives only in this table and disappears with the
+ * conversation. Unique (conversation_id, name).
+ */
+export const ephemeralAgents = sqliteTable(
+  'ephemeral_agents',
+  {
+    id: text('id').primaryKey(),
+    conversationId: text('conversation_id')
+      .notNull()
+      .references(() => conversations.id, { onDelete: 'cascade' }),
+    name: text('name').notNull(),
+    definitionJson: text('definition_json').notNull(),
+    createdAt: text('created_at').notNull().default(isoTimestamp()),
+  },
+  (table) => [
+    index('ephemeral_agents_conv_name_idx').on(table.conversationId, table.name),
   ],
 );
 
@@ -352,6 +463,15 @@ export type NewRagChunk = typeof ragChunks.$inferInsert;
 
 export type RelayRun = typeof relayRuns.$inferSelect;
 export type NewRelayRun = typeof relayRuns.$inferInsert;
+
+export type AgentRun = typeof agentRuns.$inferSelect;
+export type NewAgentRun = typeof agentRuns.$inferInsert;
+
+export type ConversationAgent = typeof conversationAgents.$inferSelect;
+export type NewConversationAgent = typeof conversationAgents.$inferInsert;
+
+export type EphemeralAgent = typeof ephemeralAgents.$inferSelect;
+export type NewEphemeralAgent = typeof ephemeralAgents.$inferInsert;
 
 export type Flow = typeof flows.$inferSelect;
 export type NewFlow = typeof flows.$inferInsert;
