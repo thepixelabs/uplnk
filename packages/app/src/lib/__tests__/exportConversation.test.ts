@@ -16,6 +16,10 @@ const makeMessage = (id: string, role: Message['role'], content: string): Messag
   inputTokens: null,
   outputTokens: null,
   timeToFirstToken: null,
+  senderAgentName: null,
+  addresseeAgentName: null,
+  agentRunId: null,
+  turnId: null,
   createdAt: '2026-04-12T10:00:00Z',
 });
 

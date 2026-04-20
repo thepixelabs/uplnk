@@ -155,7 +155,62 @@ export type AgentEvent =
     })
   // Shared state (for UI inspector)
   | (AgentEventBase & { type: 'state:set'; key: string; value: unknown })
-  | (AgentEventBase & { type: 'state:get'; key: string });
+  | (AgentEventBase & { type: 'state:get'; key: string })
+  // Room (multi-agent visible transcript) events — emitted by RoomConductor
+  | (AgentEventBase & {
+      type: 'room:turn-start';
+      turnId: string;
+      addressees: AgentName[];
+      cc: AgentName[];
+    })
+  | (AgentEventBase & {
+      type: 'room:handoff';
+      turnId: string;
+      from: AgentName;
+      to: AgentName;
+      message: string;
+    })
+  | (AgentEventBase & {
+      type: 'room:spawn';
+      turnId: string;
+      spawnedName: AgentName;
+      spawnedBy: AgentName;
+    })
+  | (AgentEventBase & {
+      type: 'room:budget-warn';
+      turnId: string;
+      reason: string;
+      usage: { handoffs: number; tokens: number; wallMs: number };
+    })
+  | (AgentEventBase & {
+      type: 'room:ping-pong';
+      turnId: string;
+      between: [AgentName, AgentName];
+    })
+  | (AgentEventBase & {
+      type: 'room:turn-end';
+      turnId: string;
+      reason: 'done' | 'budget' | 'ping-pong' | 'error' | 'aborted';
+      handoffs: number;
+    });
+
+// ─────────────────────────────────────────────────────────────────────────────
+// EphemeralAgentSpec — input to the `spawn_agent` tool
+// ─────────────────────────────────────────────────────────────────────────────
+
+export interface EphemeralAgentSpec {
+  name: string;
+  systemPrompt: string;
+  /** Must be ⊆ caller's effective tools. */
+  tools?: string[];
+  model?: AgentModelSpec;
+  maxTurns?: number;
+  maxDepth?: number;
+  /** First user-visible message the spawned agent receives. */
+  firstMessage: string;
+  color?: AgentColor;
+  icon?: string;
+}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // MentionCandidate — unified @ popover type
@@ -236,6 +291,13 @@ export interface RunAgentOptions {
     inheritedTools: Record<string, Tool>;
   };
   signal: AbortSignal;
+  /**
+   * Extra tools merged into effective tools AFTER the agent's allow/deny lists
+   * are applied. Used by RoomConductor to inject visible-handoff tools for a
+   * single in-room invocation without polluting the agent's .md definition.
+   */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  extraTools?: Record<string, Tool<any, any>>;
 }
 
 export interface RunAgentResult {
