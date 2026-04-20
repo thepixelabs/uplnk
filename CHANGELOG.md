@@ -1,3 +1,9 @@
+## [1.6.0](https://github.com/thepixelabs/uplnk/compare/v1.5.0...v1.6.0) (2026-04-20)
+
+### Features
+
+* **app:** multi-agent chat rooms with visible handoff, spawn, and @../ path autocomplete ([#6](https://github.com/thepixelabs/uplnk/issues/6)) ([d7b40df](https://github.com/thepixelabs/uplnk/commit/d7b40df74d6f3952e13a4a8a3273053a5e6961ea))
+
 ## [1.5.0](https://github.com/thepixelabs/uplnk/compare/v1.4.4...v1.5.0) (2026-04-16)
 
 ### Features
