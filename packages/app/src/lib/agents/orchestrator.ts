@@ -48,7 +48,7 @@ export class AgentOrchestrator implements IAgentOrchestrator {
   }
 
   async run(opts: RunAgentOptions): Promise<RunAgentResult> {
-    const { agent, userPrompt, history = [], parent, signal } = opts;
+    const { agent, userPrompt, history = [], parent, signal, extraTools } = opts;
     const { registry, modelFactory, rootTools, eventBus } = this.deps;
 
     // ── Step 1: Mint invocation id ───────────────────────────────────────────
@@ -132,6 +132,11 @@ export class AgentOrchestrator implements IAgentOrchestrator {
     // Add delegation + state tools unconditionally (buildDelegationTools handles empty allowlist)
     const delegationTools = buildDelegationTools(ctx, emit);
     Object.assign(effectiveTools, delegationTools);
+
+    // Merge any caller-injected room / tooling additions on top. These bypass
+    // the agent.tools allow-list deliberately — the conductor is trusted to
+    // decide what's in scope for each invocation of the turn.
+    if (extraTools) Object.assign(effectiveTools, extraTools);
 
     // ── Step 7: Emit start event ─────────────────────────────────────────────
     emit({
