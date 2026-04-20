@@ -5,6 +5,14 @@ import clipboardy from 'clipboardy';
 import { MentionResolver } from '../../lib/agents/mentionResolver.js';
 import { getAgentRegistry } from '../../lib/agents/registry.js';
 import type { MentionCandidate } from '../../lib/agents/types.js';
+import {
+  commonPrefix,
+  detectPathContext,
+  formatPathContextHeader,
+  listPathEntries,
+  type PathContext,
+  type PathEntry,
+} from '../../lib/pathMention.js';
 import { useVoiceAssistant } from '../voice/VoiceAssistantProvider.js';
 
 // Brand accent — cyan that matches the header gradient start
@@ -186,10 +194,25 @@ export const ChatInput = memo(function ChatInput({
     () => new MentionResolver(getAgentRegistry(projectDir !== undefined ? { projectDir } : undefined)),
     [projectDir],
   );
-  const filtered = useMemo<MentionCandidate[]>(
-    () => (mention.active ? mentionResolver.resolve(mention.query, projectDir) : []),
-    [mentionResolver, mention.active, mention.query, projectDir],
+
+  // When the in-progress @token looks like a path (./, ../, ~/, /abs, or has
+  // an embedded /), switch from the mixed fuzzy popover to hierarchical
+  // segment-wise directory traversal. Recomputed on every query keystroke.
+  const pathCtx: PathContext | null = useMemo(() => {
+    if (!mention.active || projectDir === undefined) return null;
+    return detectPathContext(mention.query, projectDir);
+  }, [mention.active, mention.query, projectDir]);
+
+  const pathEntries: PathEntry[] = useMemo(
+    () => (pathCtx !== null ? listPathEntries(pathCtx) : []),
+    [pathCtx],
   );
+
+  const filtered = useMemo<MentionCandidate[]>(() => {
+    if (!mention.active) return [];
+    if (pathCtx !== null) return [];
+    return mentionResolver.resolve(mention.query, projectDir);
+  }, [mentionResolver, mention.active, mention.query, projectDir, pathCtx]);
 
   /** Reset all paste-tracking counters. Called on submit. */
   const resetPasteState = useCallback(() => {
@@ -334,6 +357,9 @@ export const ChatInput = memo(function ChatInput({
 
       // ─── Mention-mode routing (takes priority over all other keys) ───────
       if (mention.active) {
+        // Unified list length across mixed + path modes, for cursor clamping.
+        const activeLen = pathCtx !== null ? pathEntries.length : filtered.length;
+
         if (key.escape) {
           // Strip the abandoned `@query` substring so a subsequent `@`
           // trigger at end-of-buffer still fires the popover. Without this,
@@ -345,7 +371,55 @@ export const ChatInput = memo(function ChatInput({
           setMention(EMPTY_MENTION);
           return;
         }
+        // Tab — path-mode only: extend the in-progress segment to the longest
+        // shared prefix of the currently listed entries. If there is only a
+        // single matching dir and the segment already equals its full name,
+        // descend into it.
+        if (key.tab && pathCtx !== null) {
+          if (pathEntries.length === 0) return;
+          const cp = commonPrefix(pathEntries);
+          if (cp.length > pathCtx.currentSegment.length) {
+            const delta = cp.slice(pathCtx.currentSegment.length);
+            setMention((m) => ({ ...m, query: m.query + delta, cursor: 0 }));
+            setValue((prev) => prev + delta);
+            setCursorPos((prev) => prev + delta.length);
+            return;
+          }
+          // Single unambiguous directory match — descend.
+          if (
+            pathEntries.length === 1 &&
+            pathEntries[0]!.isDir &&
+            pathEntries[0]!.name === pathCtx.currentSegment
+          ) {
+            const slash = '/';
+            setMention((m) => ({ ...m, query: m.query + slash, cursor: 0 }));
+            setValue((prev) => prev + slash);
+            setCursorPos((prev) => prev + 1);
+            return;
+          }
+          return;
+        }
         if (key.return) {
+          if (pathCtx !== null) {
+            const entry = pathEntries[mention.cursor];
+            if (entry === undefined) return;
+            if (entry.isDir) {
+              // Descend: append '<name>/' (completing any partial segment).
+              const completion =
+                entry.name.slice(pathCtx.currentSegment.length) + '/';
+              setMention((m) => ({ ...m, query: m.query + completion, cursor: 0 }));
+              setValue((prev) => prev + completion);
+              setCursorPos((prev) => prev + completion.length);
+              return;
+            }
+            // File — complete the segment and close the popover.
+            const completion = entry.name.slice(pathCtx.currentSegment.length);
+            const finalTrailingSpace = ' ';
+            setValue((prev) => prev + completion + finalTrailingSpace);
+            setCursorPos((prev) => prev + completion.length + 1);
+            setMention(EMPTY_MENTION);
+            return;
+          }
           const choice = filtered[mention.cursor];
           if (choice !== undefined) insertMentionChoice(choice);
           return;
@@ -357,7 +431,7 @@ export const ChatInput = memo(function ChatInput({
         if (key.downArrow) {
           setMention((m) => ({
             ...m,
-            cursor: Math.min(Math.max(0, filtered.length - 1), m.cursor + 1),
+            cursor: Math.min(Math.max(0, activeLen - 1), m.cursor + 1),
           }));
           return;
         }
@@ -571,7 +645,11 @@ export const ChatInput = memo(function ChatInput({
   const lines = value.split('\n');
   const displayLines = lines.length > 5 ? lines.slice(-5) : lines;
   const visibleFiltered = filtered.slice(0, MENTION_VISIBLE);
-  const overflowCount = filtered.length - visibleFiltered.length;
+  const visiblePathEntries = pathEntries.slice(0, MENTION_VISIBLE);
+  const overflowCount =
+    pathCtx !== null
+      ? pathEntries.length - visiblePathEntries.length
+      : filtered.length - visibleFiltered.length;
 
   const promptColor = disabled ? '#475569' : '#00D9FF';
   const borderColor = disabled ? '#374151' : '#7B6FFF';
@@ -603,9 +681,29 @@ export const ChatInput = memo(function ChatInput({
           <Box>
             <Text color="#7B6FFF">@ </Text>
             <Text color="#00D9FF" bold>{mention.query || '…'}</Text>
-            {filtered.length === 0 ? <Text color="#FBBF24">  no matches</Text> : null}
+            {pathCtx !== null && pathEntries.length === 0 ? (
+              <Text color="#FBBF24">  (empty)</Text>
+            ) : null}
+            {pathCtx === null && filtered.length === 0 ? (
+              <Text color="#FBBF24">  no matches</Text>
+            ) : null}
           </Box>
-          {visibleFiltered.map((candidate, i) => {
+          {pathCtx !== null && (
+            <Text dimColor>  {formatPathContextHeader(pathCtx)}</Text>
+          )}
+          {pathCtx !== null && visiblePathEntries.map((entry, i) => {
+            const isSelected = i === mention.cursor;
+            const prefix = isSelected ? '▶ ' : '  ';
+            const icon = entry.isDir ? '📁 ' : '   ';
+            return (
+              <Box key={entry.name}>
+                <Text color={isSelected ? '#00D9FF' : '#64748B'}>
+                  {prefix}{icon}{entry.name}{entry.isDir ? '/' : ''}
+                </Text>
+              </Box>
+            );
+          })}
+          {pathCtx === null && visibleFiltered.map((candidate, i) => {
             const isSelected = i === mention.cursor;
             const prefix = isSelected ? '▶ ' : '  ';
             if (candidate.kind === 'agent') {
@@ -640,7 +738,11 @@ export const ChatInput = memo(function ChatInput({
           {overflowCount > 0 && (
             <Text dimColor>  …{String(overflowCount)} more (keep typing to narrow)</Text>
           )}
-          <Text dimColor>  ↑↓ select · Enter insert · Esc cancel</Text>
+          <Text dimColor>
+            {pathCtx !== null
+              ? '  ↑↓ select · Enter → open/pick · Tab complete · Esc cancel'
+              : '  ↑↓ select · Enter insert · Esc cancel'}
+          </Text>
         </Box>
       )}
 

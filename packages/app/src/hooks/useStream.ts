@@ -32,6 +32,18 @@ export interface SendOptions {
    * before passing it here.
    */
   modelOverride?: LanguageModel;
+  /**
+   * Whether the active model can actually execute tool calls. When false,
+   * the `tools` argument is silently dropped before calling streamText — this
+   * prevents providers without native tool-call support (most default Ollama
+   * models) from hallucinating raw JSON like `{"name":"mcp_git_commit",...}`
+   * directly into the text channel.
+   *
+   * Defaults to `true` for backward compatibility with callers that don't
+   * know about the flag. ChatScreen resolves this from the catalog before
+   * every send() and passes it explicitly.
+   */
+  supportsTools?: boolean;
 }
 
 interface UseStreamResult {
@@ -141,17 +153,24 @@ export function useStream(model: LanguageModel): UseStreamResult {
       setStatus('connecting');
       setError(null);
 
-      const { onPersist, modelOverride } = opts ?? {};
+      const { onPersist, modelOverride, supportsTools } = opts ?? {};
       // When the ModelRouter has selected a specific model for this request,
       // use it instead of the hook-level default.  Falls back to the hook's
       // model when routing is disabled or no override was provided.
       const effectiveModel = modelOverride ?? model;
 
+      // Only forward tools to the provider when the active model is known to
+      // support native tool calling. Models that don't (most default Ollama
+      // configs) echo the tool schema as text when given tools, which lands
+      // in the chat as `{"name":"mcp_git_commit",...}` JSON blobs.
+      const effectiveTools =
+        tools !== undefined && supportsTools !== false ? tools : undefined;
+
       try {
         const { fullStream } = streamText({
           model: effectiveModel,
           messages,
-          ...(tools !== undefined ? { tools } : {}),
+          ...(effectiveTools !== undefined ? { tools: effectiveTools } : {}),
           abortSignal: controller.signal,
           maxSteps: 5,
         });

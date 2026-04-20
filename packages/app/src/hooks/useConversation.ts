@@ -130,6 +130,10 @@ export function useConversation(resumeId?: string): UseConversationResult {
           inputTokens: null,
           outputTokens: null,
           timeToFirstToken: null,
+          senderAgentName: null,
+          addresseeAgentName: null,
+          agentRunId: null,
+          turnId: null,
           createdAt: now,
         };
         return [...prev, msg];
