@@ -44,7 +44,7 @@ All business logic lives in React hooks in `packages/app/src/hooks/`. No Redux o
 - `useAgentRun` — agent delegation, event bus integration
 
 ### Database
-SQLite at `~/.uplnk/db.sqlite` via better-sqlite3 (synchronous). Drizzle ORM for type-safe queries.
+SQLite at `~/.uplnk/db.sqlite` via `bun:sqlite` (synchronous). Drizzle ORM for type-safe queries. The runtime is Bun (≥ 1.1.30) for both dev and shipped binaries — `bun:sqlite` is the single driver across `pnpm dev`, `pnpm test`, and `bun build --compile` output. There is no Node-side better-sqlite3 path.
 
 Key tables: `conversations`, `messages`, `provider_configs`, `artifacts`, `rag_chunks`, `relay_runs`, `agent_runs`, `secrets`.
 

@@ -1,0 +1,15 @@
+{
+  "name": "@aws-sdk/client-s3",
+  "version": "0.0.0-stub",
+  "description": "Empty stub. unzipper/lib/Open/index.js conditionally requires @aws-sdk/client-s3 only when decompressing an S3 stream, which uplnk never does. Without this stub Bun's --compile bundler fails to resolve the require() at compile time. Wired via pnpm.overrides in the root package.json.",
+  "main": "./index.cjs",
+  "module": "./index.js",
+  "type": "module",
+  "exports": {
+    ".": {
+      "import": "./index.js",
+      "require": "./index.cjs",
+      "default": "./index.js"
+    }
+  }
+}

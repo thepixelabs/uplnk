@@ -95,5 +95,37 @@ export const bundledMigrations: MigrationMeta[] = [
     "bps": true,
     "folderMillis": 1776032400000,
     "hash": "096ba382ef6c1b7ce9e9be1bb3dece21a90a9b1dc0cdf10026be093c4e0f551b"
+  },
+  {
+    "sql": [
+      "-- uplnk multi-agent core: agent_runs + conversation_agents + ephemeral_agents\n-- plus conversations.mode / conversations.floor_agent_name.\nCREATE TABLE agent_runs (\n  id TEXT PRIMARY KEY,\n  conversation_id TEXT NOT NULL REFERENCES conversations(id) ON DELETE CASCADE,\n  root_invocation_id TEXT NOT NULL,\n  parent_invocation_id TEXT,\n  agent_name TEXT NOT NULL,\n  depth INTEGER NOT NULL DEFAULT 0,\n  ancestry_json TEXT NOT NULL DEFAULT '[]',\n  trigger_message_id TEXT REFERENCES messages(id) ON DELETE SET NULL,\n  model TEXT,\n  provider_id TEXT,\n  status TEXT NOT NULL DEFAULT 'running' CHECK(status IN ('running', 'completed', 'errored', 'aborted')),\n  input_tokens INTEGER NOT NULL DEFAULT 0,\n  output_tokens INTEGER NOT NULL DEFAULT 0,\n  error_message TEXT,\n  started_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),\n  ended_at TEXT,\n  CHECK(depth >= 0)\n);",
+      "CREATE INDEX agent_runs_conv_started_idx ON agent_runs(conversation_id, started_at);",
+      "CREATE INDEX agent_runs_root_idx ON agent_runs(root_invocation_id);",
+      "CREATE INDEX agent_runs_parent_idx ON agent_runs(parent_invocation_id);",
+      "CREATE TABLE conversation_agents (\n  conversation_id TEXT NOT NULL REFERENCES conversations(id) ON DELETE CASCADE,\n  agent_name TEXT NOT NULL,\n  is_ephemeral INTEGER NOT NULL DEFAULT 0,\n  provider_override TEXT,\n  model_override TEXT,\n  joined_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),\n  left_at TEXT,\n  PRIMARY KEY(conversation_id, agent_name, joined_at)\n);",
+      "CREATE INDEX conversation_agents_conv_idx ON conversation_agents(conversation_id);",
+      "CREATE INDEX conversation_agents_active_idx ON conversation_agents(conversation_id, left_at);",
+      "CREATE TABLE ephemeral_agents (\n  id TEXT PRIMARY KEY,\n  conversation_id TEXT NOT NULL REFERENCES conversations(id) ON DELETE CASCADE,\n  name TEXT NOT NULL,\n  definition_json TEXT NOT NULL,\n  created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),\n  UNIQUE(conversation_id, name)\n);",
+      "CREATE INDEX ephemeral_agents_conv_name_idx ON ephemeral_agents(conversation_id, name);",
+      "ALTER TABLE conversations ADD COLUMN mode TEXT NOT NULL DEFAULT 'single';",
+      "ALTER TABLE conversations ADD COLUMN floor_agent_name TEXT;"
+    ],
+    "bps": true,
+    "folderMillis": 1776040000000,
+    "hash": "2f55be660b604e97610254375af173320b0e5f3a29d78103739772803b0e9cf5"
+  },
+  {
+    "sql": [
+      "-- Attribute messages to specific agents / invocations / turns.\n-- All new columns are nullable (or default-null-safe) so existing rows stay valid.\nALTER TABLE messages ADD COLUMN sender_agent_name TEXT;",
+      "ALTER TABLE messages ADD COLUMN addressee_agent_name TEXT;",
+      "ALTER TABLE messages ADD COLUMN agent_run_id TEXT REFERENCES agent_runs(id) ON DELETE SET NULL;",
+      "ALTER TABLE messages ADD COLUMN turn_id TEXT;",
+      "CREATE INDEX messages_conv_sender_idx ON messages(conversation_id, sender_agent_name);",
+      "CREATE INDEX messages_agent_run_idx ON messages(agent_run_id);",
+      "CREATE INDEX messages_turn_idx ON messages(conversation_id, turn_id);"
+    ],
+    "bps": true,
+    "folderMillis": 1776041200000,
+    "hash": "4269f0e060824814ca2e02bc33278ed3ebc2e3d7ab05dcd55b9183adf7033e97"
   }
 ];

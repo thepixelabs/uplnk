@@ -93,25 +93,38 @@ jobs:
       # symlinks for all @uplnk/* workspace packages, so Bun's bundler resolves
       # them at compile time without extra flags.
       #
-      # --tsconfig-override tsconfig.bun.json overrides the @uplnk/db path alias
-      # to resolve packages/db/src/index.bun.ts (bun:sqlite) instead of
-      # index.ts (better-sqlite3). This makes the binary fully self-contained —
-      # no native .node addon required at runtime.
+      # The repo is single-runtime (Bun) with bun:sqlite as the only SQLite
+      # driver, so no tsconfig override is needed — packages/db/src/index.ts
+      # IS the bun:sqlite implementation.
+      # Both `react-devtools-core` (Ink dev-tools websocket) and
+      # `@aws-sdk/client-s3` (unzipper's optional S3 decompression path) are
+      # replaced by empty stubs at the workspace root via pnpm.overrides
+      # (see ../../stubs/ and root package.json). Without the stubs, Bun's
+      # --compile bundler tries to resolve them and fails — they are not
+      # installed as deps. With the stubs they bundle to a few bytes.
       - name: Compile binary (${{ matrix.output }})
         run: |
           bun build packages/app/bin/uplnk.ts \
             --compile \
             --target=${{ matrix.target }} \
-            --outfile=dist/${{ matrix.output }} \
-            --tsconfig-override tsconfig.bun.json \
-            --external=react-devtools-core \
-            --external=@aws-sdk/client-s3
+            --outfile=dist/${{ matrix.output }}
 
       - name: Verify binary was created
         run: |
           test -f "dist/${{ matrix.output }}" || \
             (echo "ERROR: dist/${{ matrix.output }} not found" && exit 1)
           ls -lh "dist/${{ matrix.output }}"
+
+      # Smoke test: only the linux-x64 binary can run natively on this
+      # ubuntu-latest runner. The other targets cross-compile cleanly but
+      # require their own OS to verify; running --version on linux-x64 is
+      # enough to catch the entire class of "$bunfs cannot resolve X" bugs
+      # since all targets share the same bundle pipeline.
+      - name: Smoke test binary (--version) — linux-x64 only
+        if: matrix.target == 'bun-linux-x64'
+        run: |
+          chmod +x "dist/${{ matrix.output }}"
+          ./dist/${{ matrix.output }} --version
 
       # Generate a sha256 sidecar so install.sh can verify the download.
       - name: Generate sha256 checksum

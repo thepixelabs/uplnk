@@ -1,5 +1,5 @@
 // uplnk database schema — SQLite via Drizzle ORM
-// Driver: better-sqlite3 (synchronous)
+// Driver: bun:sqlite (synchronous)
 // Location: ~/.uplnk/db.sqlite
 
 import {
