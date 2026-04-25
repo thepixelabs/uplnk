@@ -14,10 +14,10 @@ export default defineConfig([
     splitting: false,
     dts: false,
     clean: false,
-    // better-sqlite3 is a native addon — cannot be bundled.
     // ink and react must remain external so their singleton state (hooks, context)
     // is shared correctly across the render tree.
-    external: ['better-sqlite3', 'ink', 'react'],
+    // bun:sqlite is a Bun built-in and is not bundled by tsup.
+    external: ['ink', 'react'],
     // Shebang is in bin/uplnk.ts source — tsup preserves it at line 1.
     // Do NOT add a shebang banner here — it would be duplicated.
     // This createRequire shim lets bundled CJS code (e.g. undici) call
@@ -37,6 +37,6 @@ export default defineConfig([
     splitting: false,
     dts: true,
     clean: true,
-    external: ['better-sqlite3', 'ink', 'react'],
+    external: ['ink', 'react'],
   },
 ]);

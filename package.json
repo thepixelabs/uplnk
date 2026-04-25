@@ -6,24 +6,28 @@
   "scripts": {
     "dev": "pnpm --filter uplnk dev",
     "build": "pnpm --filter uplnk build",
-    "bundle-migrations": "tsx scripts/bundle-migrations.ts",
-    "prebuild": "tsx scripts/bundle-migrations.ts",
+    "bundle-migrations": "bun scripts/bundle-migrations.ts",
+    "prebuild": "bun scripts/bundle-migrations.ts",
     "typecheck": "pnpm -r typecheck",
     "lint": "pnpm -r lint",
     "test": "pnpm -r test",
     "test:integration": "pnpm -r test:integration",
-    "docker:build": "docker build -t uplnk-dev .",
-    "docker:run": "docker run -it -v ~/.uplnk:/home/uplnk/.uplnk uplnk-dev"
+    "docker:build": "docker build -t uplnk .",
+    "docker:run": "docker run -it -v ~/.uplnk:/home/uplnk/.uplnk uplnk"
   },
   "engines": {
-    "node": ">=20.0.0",
+    "bun": ">=1.1.30",
     "pnpm": ">=9.0.0"
   },
-  "volta": {
-    "node": "22.22.2"
+  "pnpm": {
+    "overrides": {
+      "react-devtools-core": "file:./stubs/react-devtools-core",
+      "@aws-sdk/client-s3": "file:./stubs/aws-sdk-client-s3"
+    }
   },
   "devDependencies": {
-    "tsx": "^4.21.0",
+    "@aws-sdk/client-s3": "*",
+    "react-devtools-core": "*",
     "eslint-plugin-react-hooks": "^7.0.1",
     "typescript-eslint": "^8.58.1",
     "semantic-release": "^24.2.3",

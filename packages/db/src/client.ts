@@ -1,5 +1,5 @@
-import Database from 'better-sqlite3';
-import { drizzle } from 'drizzle-orm/better-sqlite3';
+import { Database } from 'bun:sqlite';
+import { drizzle } from 'drizzle-orm/bun-sqlite';
 import { mkdirSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
@@ -18,9 +18,19 @@ export function getUplnkDbPath(): string {
 function createDb(dbPath?: string) {
   const sqlite = new Database(dbPath ?? getUplnkDbPath());
 
-  sqlite.pragma('journal_mode = WAL');
-  sqlite.pragma('foreign_keys = ON');
-  sqlite.pragma('cache_size = -65536');
+  // bun:sqlite exec() is fire-and-forget. Use query().get() for WAL so we can
+  // validate the mode was actually accepted — on network filesystems or
+  // read-only mounts the pragma silently falls back to 'delete'.
+  const row = sqlite.query<{ journal_mode: string }, []>('PRAGMA journal_mode = WAL').get();
+  if (row?.journal_mode !== 'wal') {
+    process.stderr.write(
+      `[uplnk] SQLite WAL mode could not be set (got: ${row?.journal_mode ?? 'unknown'}). ` +
+      `Performance may be degraded on network or read-only filesystems.\n`
+    );
+  }
+
+  sqlite.exec('PRAGMA foreign_keys = ON');
+  sqlite.exec('PRAGMA cache_size = -65536');
 
   return drizzle(sqlite, { schema });
 }

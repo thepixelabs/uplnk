@@ -8,7 +8,7 @@ and a running LLM provider (Ollama, vLLM, LM Studio, or any OpenAI-compatible en
 ## Option 1: npx (no install, always latest)
 
 ```sh
-npx uplnk-dev
+npx uplnk
 ```
 
 This downloads and runs the latest stable release without permanently installing anything.
@@ -19,28 +19,28 @@ Useful for one-off use or before committing to a global install.
 ## Option 2: Global npm install (recommended for daily use)
 
 ```sh
-npm install -g uplnk-dev
+npm install -g uplnk
 uplnk
 ```
 
 Or with pnpm:
 
 ```sh
-pnpm add -g uplnk-dev
+pnpm add -g uplnk
 uplnk
 ```
 
 ### Stable channel (default)
 
 ```sh
-npm install -g uplnk-dev          # latest stable
+npm install -g uplnk          # latest stable
 ```
 
 ### Pre-release channels
 
 ```sh
-npm install -g uplnk-dev@beta     # feature-complete, in testing
-npm install -g uplnk-dev@canary   # bleeding edge, every main-branch build
+npm install -g uplnk@beta     # feature-complete, in testing
+npm install -g uplnk@canary   # bleeding edge, every main-branch build
 ```
 
 ### Verify the install
@@ -121,7 +121,7 @@ uplnk --model llama3.2 --provider http://localhost:11434
 ## Upgrading
 
 ```sh
-npm update -g uplnk-dev
+npm update -g uplnk
 ```
 
 uplnk will also print a notice at startup when a newer version is available on npm.
@@ -132,6 +132,6 @@ Set `UPLNK_UPDATE_CHECK=false` in your environment to suppress the notice.
 ## Uninstalling
 
 ```sh
-npm uninstall -g uplnk-dev
+npm uninstall -g uplnk
 rm -rf ~/.config/uplnk      # removes config and conversation database
 ```

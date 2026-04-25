@@ -9,24 +9,16 @@
  * We don't spin up a real AI SDK model — that's orchestrator.test.ts's job.
  * Here we verify conductor behaviour: floor-passing, budgets, ping-pong,
  * exactly-one room:turn-end, DB persistence of messages and agent_runs rows.
+ *
+ * Runs under `bun test` (NOT vitest) because it imports the real @uplnk/db
+ * which loads bun:sqlite. Vitest's Node-based worker pool cannot resolve the
+ * bun: scheme, so this file is excluded from vitest config and run by Bun's
+ * native test runner via the `test:bun` package script.
  */
 
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import Database from 'better-sqlite3';
-import { drizzle } from 'drizzle-orm/better-sqlite3';
-import { migrate } from 'drizzle-orm/better-sqlite3/migrator';
-import { join } from 'node:path';
-import { fileURLToPath } from 'node:url';
-import { dirname } from 'node:path';
+import { describe, it, expect, beforeEach, afterEach } from 'bun:test';
 import { ulid } from 'ulid';
 import { eq } from 'drizzle-orm';
-
-// Use the real @uplnk/db module — the global setup.ts mocks it with empty
-// stubs to keep unrelated tests from touching disk, but the conductor has
-// genuine DB semantics we need to exercise.
-vi.mock('@uplnk/db', async () => {
-  return await vi.importActual<typeof import('@uplnk/db')>('@uplnk/db');
-});
 
 import {
   conversations,
@@ -35,6 +27,7 @@ import {
   ephemeralAgents,
   type Db,
 } from '@uplnk/db';
+import { createMigratedTestDb } from '@uplnk/db/test-helpers';
 import { AgentEventBus } from '../eventBus.js';
 import type {
   AgentDef,
@@ -46,11 +39,6 @@ import type {
 import { RoomConductor } from '../roomConductor.js';
 import { EphemeralRegistry } from '../ephemeralRegistry.js';
 import type { RoomSignal } from '../roomTools.js';
-
-const MIGRATIONS_DIR = join(
-  dirname(fileURLToPath(import.meta.url)),
-  '../../../../../db/migrations',
-);
 
 function makeAgent(name: string, overrides: Partial<AgentDef> = {}): AgentDef {
   return {
@@ -201,16 +189,16 @@ function signalSpawn(name: string, systemPrompt: string, firstMessage: string) {
 }
 
 describe('RoomConductor', () => {
-  let sqlite: Database.Database;
   let db: Db;
+  let closeDb: () => void;
   let bus: AgentEventBus;
   let conversationId: string;
   const events: AgentEvent[] = [];
 
   beforeEach(() => {
-    sqlite = new Database(':memory:');
-    db = drizzle(sqlite) as unknown as Db;
-    migrate(db as never, { migrationsFolder: MIGRATIONS_DIR });
+    const handle = createMigratedTestDb();
+    db = handle.db;
+    closeDb = handle.close;
 
     conversationId = 'conv-1';
     db
@@ -225,8 +213,7 @@ describe('RoomConductor', () => {
   });
 
   afterEach(() => {
-    sqlite.close();
-    vi.clearAllMocks();
+    closeDb();
   });
 
   function makeRegistry(agents: AgentDef[]): EphemeralRegistry {

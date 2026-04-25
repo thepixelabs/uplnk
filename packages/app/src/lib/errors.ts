@@ -28,6 +28,8 @@ const HINTS: Record<UplnkErrorCode, string> = {
     'Config file is invalid. Run `uplnk config` to edit it or delete ~/.uplnk/config.json to reset.',
   CONFIG_NOT_FOUND:
     'No config found. Run `uplnk` and follow the setup prompts.',
+  VOICE_UNSUPPORTED_ON_BUN:
+    'Voice input is not yet supported under the Bun runtime. Disable voice in ~/.uplnk/config.json (`voice.enabled = false`).',
 };
 
 // Minimal structural view of @ai-sdk/provider's APICallError. We duck-type

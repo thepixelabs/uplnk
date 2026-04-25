@@ -12,8 +12,8 @@
  *   Branching:     forkConversation
  */
 
-import { describe, it, expect, beforeEach } from 'vitest';
-import { createMigratedDb } from './setup.js';
+import { describe, it, expect, beforeEach } from 'bun:test';
+import { createMigratedDb } from '../test-helpers/createMigratedDb.js';
 import type { Db } from '../client.js';
 import {
   createConversation,

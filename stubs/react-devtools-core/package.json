@@ -1,0 +1,15 @@
+{
+  "name": "react-devtools-core",
+  "version": "0.0.0-stub",
+  "description": "Empty stub. Ink imports react-devtools-core inside a `if (process.env.DEV === 'true')` guard. Bun's --compile bundler eagerly resolves the static import inside the guarded `./devtools.js`, so without this stub the compiled binary fails at startup with `Cannot find package 'react-devtools-core'`. Wired via pnpm.overrides in the root package.json.",
+  "main": "./index.cjs",
+  "module": "./index.js",
+  "type": "module",
+  "exports": {
+    ".": {
+      "import": "./index.js",
+      "require": "./index.cjs",
+      "default": "./index.js"
+    }
+  }
+}

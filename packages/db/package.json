@@ -4,10 +4,13 @@
   "license": "SEE LICENSE IN LICENSE",
   "type": "module",
   "exports": {
-    ".": "./src/index.ts"
+    ".": "./src/index.ts",
+    "./test-helpers": "./src/test-helpers/createMigratedDb.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit",
+    "test": "bun test",
+    "test:watch": "bun test --watch",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
     "db:studio": "drizzle-kit studio"
@@ -15,13 +18,9 @@
   "dependencies": {
     "drizzle-orm": "^0.45.0"
   },
-  "optionalDependencies": {
-    "better-sqlite3": "^11.7.0"
-  },
   "devDependencies": {
     "typescript": "^5.7.0",
     "drizzle-kit": "^0.30.0",
-    "@types/better-sqlite3": "^7.6.12",
     "@types/bun": "^1.0.0"
   }
 }
