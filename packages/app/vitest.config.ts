@@ -28,8 +28,14 @@ export default defineConfig({
 
     // Unit + component tests co-located with source under src/
     include: ['src/**/*.test.{ts,tsx}'],
-    // Integration tests have their own config (vitest.integration.config.ts)
-    exclude: ['src/**/*.integration.test.{ts,tsx}'],
+    // Integration tests have their own config (vitest.integration.config.ts).
+    // *.bun.test.ts files import bun:sqlite directly (via real @uplnk/db) and
+    // cannot run under vitest's Node-based worker pool — they are run separately
+    // via `bun test` through the test:bun npm script.
+    exclude: [
+      'src/**/*.integration.test.{ts,tsx}',
+      'src/**/*.bun.test.{ts,tsx}',
+    ],
 
     // Global setup: mock node:os homedir and configure in-memory DB before
     // any test module is imported. Keeps individual test files free of

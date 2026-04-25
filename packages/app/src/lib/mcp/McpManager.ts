@@ -35,10 +35,12 @@ import { getUplnkDir } from '@uplnk/db';
 // ─── Built-in server resolution ──────────────────────────────────────────────
 
 const __mcpDir = dirname(fileURLToPath(import.meta.url));
-// Detect dev mode (tsx running .ts files) vs. compiled mode (.js files).
-const _isTsSource = import.meta.url.endsWith('.ts');
-const _serverExt = _isTsSource ? 'ts' : 'js';
-const _serverCmd = _isTsSource ? 'tsx' : process.execPath;
+// Runtime is Bun (≥ 1.1.30) for both dev (.ts source) and compiled binary (.js).
+// process.execPath is the Bun binary in dev and the compiled uplnk binary in prod;
+// both run .ts/.js MCP server scripts natively.
+const isTsSource = import.meta.url.endsWith('.ts');
+const serverExt = isTsSource ? 'ts' : 'js';
+const serverCmd = process.execPath;
 
 /** Sentinel IDs for the built-in child-process servers. */
 export const BUILTIN_FILE_BROWSE_ID = '__uplnk_builtin_file_browse__';
@@ -388,36 +390,36 @@ export class McpManager {
    * isolated child processes instead of in the parent's process space.
    */
   async connectBuiltins(): Promise<void> {
-    const fileBrowseScript = join(__mcpDir, 'servers', `file-browse.${_serverExt}`);
+    const fileBrowseScript = join(__mcpDir, 'servers', `file-browse.${serverExt}`);
     await this.connect({
       id: BUILTIN_FILE_BROWSE_ID,
       name: 'uplnk-file-browse',
-      command: _serverCmd,
+      command: serverCmd,
       args: [fileBrowseScript],
     });
 
     if (this.config.commandExecEnabled) {
-      const cmdExecScript = join(__mcpDir, 'servers', `command-exec.${_serverExt}`);
+      const cmdExecScript = join(__mcpDir, 'servers', `command-exec.${serverExt}`);
       await this.connect({
         id: BUILTIN_COMMAND_EXEC_ID,
         name: 'uplnk-command-exec',
-        command: _serverCmd,
+        command: serverCmd,
         args: [cmdExecScript],
       });
     }
 
     if (this.config.gitEnabled) {
-      const gitScript = join(__mcpDir, 'servers', `git.${_serverExt}`);
+      const gitScript = join(__mcpDir, 'servers', `git.${serverExt}`);
       await this.connect({
         id: BUILTIN_GIT_ID,
         name: 'uplnk-git',
-        command: _serverCmd,
+        command: serverCmd,
         args: [gitScript],
       });
     }
 
     if (this.config.ragEnabled) {
-      const ragScript = join(__mcpDir, 'servers', `rag.${_serverExt}`);
+      const ragScript = join(__mcpDir, 'servers', `rag.${serverExt}`);
       const ragEnv: Record<string, string> = {
         PATH: process.env['PATH'] ?? '/usr/bin:/bin',
         HOME: process.env['HOME'] ?? '/tmp',
@@ -430,7 +432,7 @@ export class McpManager {
       await this.connect({
         id: BUILTIN_RAG_ID,
         name: 'uplnk-rag',
-        command: _serverCmd,
+        command: serverCmd,
         args: [ragScript],
         env: ragEnv,
       });

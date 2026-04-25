@@ -1,26 +1,18 @@
 /**
  * EphemeralRegistry — precedence + per-conversation isolation.
+ *
+ * Runs under `bun test` (NOT vitest) because it imports the real @uplnk/db
+ * which loads bun:sqlite. Vitest's Node-based worker pool cannot resolve the
+ * bun: scheme, so this file is excluded from vitest config and run by Bun's
+ * native test runner via the `test:bun` package script.
  */
 
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import Database from 'better-sqlite3';
-import { drizzle } from 'drizzle-orm/better-sqlite3';
-import { migrate } from 'drizzle-orm/better-sqlite3/migrator';
-import { join, dirname } from 'node:path';
-import { fileURLToPath } from 'node:url';
-
-vi.mock('@uplnk/db', async () => {
-  return await vi.importActual<typeof import('@uplnk/db')>('@uplnk/db');
-});
+import { describe, it, expect, beforeEach, afterEach } from 'bun:test';
 
 import { conversations, type Db } from '@uplnk/db';
+import { createMigratedTestDb } from '@uplnk/db/test-helpers';
 import type { AgentDef, IAgentRegistry } from '../types.js';
 import { EphemeralRegistry } from '../ephemeralRegistry.js';
-
-const MIGRATIONS_DIR = join(
-  dirname(fileURLToPath(import.meta.url)),
-  '../../../../../db/migrations',
-);
 
 function makeAgent(name: string, overrides: Partial<AgentDef> = {}): AgentDef {
   return {
@@ -50,18 +42,18 @@ function makeBase(agents: AgentDef[]): IAgentRegistry {
 }
 
 describe('EphemeralRegistry', () => {
-  let sqlite: Database.Database;
   let db: Db;
+  let closeDb: () => void;
 
   beforeEach(() => {
-    sqlite = new Database(':memory:');
-    db = drizzle(sqlite) as unknown as Db;
-    migrate(db as never, { migrationsFolder: MIGRATIONS_DIR });
+    const handle = createMigratedTestDb();
+    db = handle.db;
+    closeDb = handle.close;
     db.insert(conversations).values({ id: 'c1', title: 't' }).run();
     db.insert(conversations).values({ id: 'c2', title: 't' }).run();
   });
 
-  afterEach(() => sqlite.close());
+  afterEach(() => closeDb());
 
   it('list() returns base agents when no ephemerals exist', () => {
     const reg = new EphemeralRegistry({

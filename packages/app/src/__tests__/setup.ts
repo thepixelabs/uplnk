@@ -37,7 +37,7 @@ vi.mock('node:os', async () => {
 
 // ─── 2. In-memory uplnk-db stub ───────────────────────────────────────────────
 //
-// Real uplnk-db opens a SQLite file via better-sqlite3. In tests we replace the
+// Real uplnk-db opens a SQLite file via bun:sqlite. In tests we replace the
 // whole module with vi.fn() stubs so no file I/O occurs. The stub surface covers
 // every export that application code currently imports from uplnk-db.
 //

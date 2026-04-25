@@ -8,11 +8,11 @@ uplnk is Apache 2.0 licensed and uses a [Developer Certificate of Origin (DCO)](
 
 | Tool | Minimum version | Notes |
 |---|---|---|
-| Node.js | 20 | Check with `node --version` |
-| pnpm | 9 | `npm install -g pnpm` |
+| Bun | 1.1.30 | Install with `curl -fsSL https://bun.sh/install \| bash`, check with `bun --version` |
+| pnpm | 9 | `bun install -g pnpm` (or `npm install -g pnpm`) |
 | Ollama | any | [ollama.com](https://ollama.com) — needed to run the app locally |
 
-The repo uses pnpm workspaces. Do not use `npm` or `yarn` — lockfile conflicts will block CI.
+The repo uses pnpm workspaces for install + dependency resolution. Do not use `npm` or `yarn` — lockfile conflicts will block CI. Application runtime, dev server, and tests all run under Bun (`bun:sqlite` is the only SQLite driver). Node.js is not required for development.
 
 ---
 
@@ -34,12 +34,12 @@ ollama pull llama3.2
 pnpm dev
 ```
 
-`pnpm dev` runs `tsx bin/uplnk.ts` inside `packages/app` with TypeScript executed directly — no build step needed during development. Changes to source files take effect on the next invocation.
+`pnpm dev` runs `bun bin/uplnk.ts` inside `packages/app` — Bun executes TypeScript directly with no build step. Changes to source files take effect on the next invocation.
 
 To run with specific flags:
 
 ```bash
-pnpm --filter uplnk-dev dev -- --model qwen2.5-coder:7b --theme light
+pnpm --filter uplnk dev -- --model qwen2.5-coder:7b --theme light
 ```
 
 ---
@@ -49,7 +49,7 @@ pnpm --filter uplnk-dev dev -- --model qwen2.5-coder:7b --theme light
 ```
 uplnk/
 ├── packages/
-│   ├── app/          # uplnk-dev — the Ink TUI application and CLI entry point
+│   ├── app/          # uplnk — the Ink TUI application and CLI entry point
 │   │   ├── bin/
 │   │   │   └── uplnk.ts          # CLI arg parsing, migrations, Ink render()
 │   │   └── src/
@@ -76,7 +76,7 @@ uplnk/
 │   │   └── src/
 │   │       ├── schema.ts         # Drizzle table definitions
 │   │       ├── queries.ts        # Typed query helpers
-│   │       ├── client.ts         # better-sqlite3 singleton
+│   │       ├── client.ts         # bun:sqlite singleton
 │   │       └── migrate.ts        # runMigrations() called at startup
 │   └── shared/       # uplnk-shared — types shared across packages
 │       └── src/
@@ -100,7 +100,7 @@ pnpm test
 pnpm test:watch
 
 # Specific package
-pnpm --filter uplnk-dev test
+pnpm --filter uplnk test
 ```
 
 Tests use [Vitest](https://vitest.dev/). Unit tests live alongside source files in `__tests__/` subdirectories (e.g., `packages/app/src/lib/__tests__/`). Integration tests use a separate config (`vitest.integration.config.ts`) and are not run in CI by default — run them manually before submitting changes to streaming or MCP code.

@@ -1,14 +1,12 @@
-import { migrate } from 'drizzle-orm/better-sqlite3/migrator';
+// drizzle-orm does not expose a public API for running pre-bundled migrations.
+// dialect.migrate() is the stable internal path used by the migrator package itself.
+// The bundledMigrations array is generated at build time by scripts/bundle-migrations.ts
+// and committed to the repo so it survives `bun build --compile` (which cannot read
+// SQL files from disk at runtime because they are not embedded in the binary VFS).
 import { db } from './client.js';
-import { fileURLToPath } from 'node:url';
-import { join, dirname } from 'node:path';
+import { bundledMigrations } from './migrations.generated.js';
 
-const migrationsFolder = join(
-  dirname(fileURLToPath(import.meta.url)),
-  '../migrations',
-);
-
-/** Run pending migrations synchronously before the Ink render loop starts. */
 export function runMigrations(): void {
-  migrate(db, { migrationsFolder });
+  // @ts-expect-error — dialect and session are not in the public type surface
+  db.dialect.migrate(bundledMigrations, db.session, {});
 }
