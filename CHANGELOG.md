@@ -1,3 +1,9 @@
+## [1.6.1](https://github.com/thepixelabs/uplnk/compare/v1.6.0...v1.6.1) (2026-04-25)
+
+### Bug Fixes
+
+* **ci:** mark bun:sqlite as external in tsup config ([#8](https://github.com/thepixelabs/uplnk/issues/8)) ([78f5a76](https://github.com/thepixelabs/uplnk/commit/78f5a76a189f6a89c95316525a67127f16472c67)), closes [#7](https://github.com/thepixelabs/uplnk/issues/7)
+
 ## [1.6.0](https://github.com/thepixelabs/uplnk/compare/v1.5.0...v1.6.0) (2026-04-20)
 
 ### Features
