@@ -35,24 +35,19 @@ jobs:
         with:
           version: 9.15.0
 
-      - name: Check Node version consistency
-        run: |
-          NODE_VER=$(cat .node-version | tr -d '[:space:]')
-          NVMRC=$(cat .nvmrc | tr -d '[:space:]')
-          VOLTA=$(node -e "console.log(require('./package.json').volta?.node ?? '')" 2>/dev/null || echo "")
-          echo ".node-version: $NODE_VER  .nvmrc: $NVMRC  volta: $VOLTA"
-          MAJOR_NV=$(echo "$NODE_VER" | cut -d. -f1)
-          MAJOR_NVM=$(echo "$NVMRC" | cut -d. -f1)
-          if [ "$MAJOR_NV" != "$MAJOR_NVM" ]; then
-            echo "ERROR: .node-version ($NODE_VER) and .nvmrc ($NVMRC) disagree on major version"
-            exit 1
-          fi
-
+      # Node is still installed for the migration-journal integrity check below
+      # (the inline `node -e` script) and for pnpm bootstrap. Application
+      # runtime + tests run under Bun.
       - name: Setup Node.js
         uses: actions/setup-node@v6
         with:
           node-version-file: .node-version
           cache: pnpm
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.1.x
 
       - name: Get pnpm store path
         id: pnpm-cache
@@ -130,4 +125,23 @@ jobs:
       # stays fast and hermetic. The migration journal check above is the gate
       # for DB schema correctness; this gate is for module-graph correctness.
       - name: Startup smoke test (--version exits 0)
-        run: node --import tsx/esm packages/app/bin/uplnk.ts --version
+        run: bun packages/app/bin/uplnk.ts --version
+
+      # ── Compiled binary smoke test ──────────────────────────────────────────
+      # Catches regressions in the bun build --compile path on every PR rather
+      # than waiting for a release. Exercises module resolution against the
+      # $bunfs virtual filesystem (where react-devtools-core / @aws-sdk-client-s3
+      # stub overrides need to actually land) and confirms --version exits 0.
+      # Linux-x64 only — that is the host arch on the runner. The other targets
+      # share the same bundle pipeline; if linux-x64 is healthy they are too.
+      - name: Compile + smoke binary (linux-x64)
+        if: matrix.os == 'ubuntu-latest'
+        run: |
+          mkdir -p dist
+          pnpm bundle-migrations
+          bun build packages/app/bin/uplnk.ts \
+            --compile \
+            --target=bun-linux-x64 \
+            --outfile=dist/uplnk-ci-smoke
+          chmod +x dist/uplnk-ci-smoke
+          ./dist/uplnk-ci-smoke --version

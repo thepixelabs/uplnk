@@ -3,7 +3,7 @@
 ```
 **Local models. Smart routing. Studio-grade UX.**
 
-[![npm](https://img.shields.io/npm/v/uplnk-dev?color=60A5FA&label=npm)](https://www.npmjs.com/package/uplnk-dev)
+[![npm](https://img.shields.io/npm/v/uplnk?color=60A5FA&label=npm)](https://www.npmjs.com/package/uplnk)
 [![License](https://img.shields.io/badge/license-Apache%202.0-blue)](LICENSE)
 [![Node](https://img.shields.io/badge/node-%3E%3D20-green)](https://nodejs.org)
 
@@ -62,7 +62,7 @@ ollama pull llama3.2   # or any model you prefer
 **Step 2 — Run uplnk**
 
 ```bash
-npx uplnk-dev
+npx uplnk
 ```
 
 That's it. No global install required. On first run uplnk creates `~/.uplnk/config.json` and `~/.uplnk/db.sqlite` automatically.
@@ -70,7 +70,7 @@ That's it. No global install required. On first run uplnk creates `~/.uplnk/conf
 **Step 3 — Verify your setup (optional)**
 
 ```bash
-npx uplnk-dev doctor
+npx uplnk doctor
 ```
 
 ---

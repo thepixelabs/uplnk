@@ -20,6 +20,8 @@ export const UplnkErrorCodeSchema = z.enum([
   // Config errors
   'CONFIG_INVALID',
   'CONFIG_NOT_FOUND',
+  // Runtime feature gates
+  'VOICE_UNSUPPORTED_ON_BUN',
 ]);
 
 export type UplnkErrorCode = z.infer<typeof UplnkErrorCodeSchema>;
