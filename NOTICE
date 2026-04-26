@@ -4,15 +4,15 @@ Copyright 2026 Pixelabs
 This product is licensed under the PolyForm Shield License 1.0.0.
 You may obtain a copy of the License at:
 
-    http://www.polyformproject.org/licenses/shield/1.0.0
+    https://polyformproject.org/licenses/shield/1.0.0
 
 =========================================================================
 
 This product includes software developed by third parties. The following
-components are used under their respective open-source licenses.
+components are used under their respective source-available or open-source licenses.
 
 =========================================================================
-APACHE 2.0 LICENSED COMPONENTS
+APACHE 2.0 LICENSED THIRD-PARTY COMPONENTS
 =========================================================================
 
 Vercel AI SDK (ai, @ai-sdk/anthropic, @ai-sdk/openai-compatible)

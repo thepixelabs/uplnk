@@ -1,6 +1,6 @@
 # Contributing to uplnk
 
-uplnk is PolyForm Shield 1.0.0 licensed and uses a [Developer Certificate of Origin (DCO)](https://developercertificate.org/). By submitting a pull request you certify that you have the right to contribute the code under those terms. Sign off each commit with `git commit -s`.
+uplnk is fair-code distributed under the [PolyForm Shield 1.0.0 License](LICENSE) and uses a [Developer Certificate of Origin (DCO)](https://developercertificate.org/). By submitting a pull request you certify that you have the right to contribute the code under those terms. Sign off each commit with `git commit -s`.
 
 ---
 
