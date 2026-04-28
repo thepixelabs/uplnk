@@ -1118,8 +1118,8 @@
             <div class="flex-1 min-w-0">
               <p class="text-xs font-mono mb-2" style="color:var(--text-secondary);"># Install uplnk globally</p>
               <div class="flex items-center justify-between gap-3">
-                <p class="font-mono truncate"><span style="color:var(--text-secondary);">$</span> <span class="text-accent-green">npm</span> <span style="color:var(--text-primary);">install -g uplnk</span></p>
-                <button class="step-copy-btn flex-shrink-0 flex items-center gap-1.5 font-mono text-xs px-2.5 py-1.5 rounded transition-all duration-200" style="border:1px solid var(--border); color:var(--text-secondary); opacity:0.45;" onclick="copyStep(this,'npm install -g uplnk')" onmouseenter="hoverIn(this)" onmouseleave="hoverOut(this)" aria-label="Copy: npm install -g uplnk">
+                <p class="font-mono truncate"><span style="color:var(--text-secondary);">$</span> <span class="text-accent-green">brew</span> <span style="color:var(--text-primary);">install thepixelabs/tap/uplnk</span></p>
+                <button class="step-copy-btn flex-shrink-0 flex items-center gap-1.5 font-mono text-xs px-2.5 py-1.5 rounded transition-all duration-200" style="border:1px solid var(--border); color:var(--text-secondary); opacity:0.45;" onclick="copyStep(this,'brew install thepixelabs/tap/uplnk')" onmouseenter="hoverIn(this)" onmouseleave="hoverOut(this)" aria-label="Copy: brew install thepixelabs/tap/uplnk">
                   <svg class="step-copy-icon" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
                   <span class="step-copy-label">copy</span>
                 </button>
@@ -1333,11 +1333,11 @@
         <button
           class="install-cmd w-full text-left"
           onclick="copyMainInstall()"
-          aria-label="Click to copy: npm install -g uplnk"
+          aria-label="Click to copy: brew install thepixelabs/tap/uplnk"
         >
           <span>
             <span style="color:var(--text-secondary);">$</span>
-            <span class="ml-2">npm install -g uplnk</span>
+            <span class="ml-2">brew install thepixelabs/tap/uplnk</span>
           </span>
           <span class="flex items-center gap-2 text-xs" style="color:var(--text-secondary);" aria-hidden="true">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
@@ -1487,7 +1487,7 @@
     }
 
     function copyMainInstall() {
-      navigator.clipboard.writeText('npm install -g uplnk').then(() => {
+      navigator.clipboard.writeText('brew install thepixelabs/tap/uplnk').then(() => {
         const txt = document.getElementById('main-copy-text');
         txt.textContent = 'copied!';
         setTimeout(() => { txt.textContent = 'copy'; }, 2000);

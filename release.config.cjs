@@ -11,12 +11,12 @@
  *     creates a GitHub Release tagged vX.Y.Z.
  *   - The GitHub Release "published" event then triggers bump-homebrew.yml.
  *
- * npm publishing (OIDC / provenance):
- *   @semantic-release/npm v12 does not forward arbitrary extra args to `npm publish`,
- *   so we cannot pass --provenance through it. Instead we set npmPublish: false and
- *   run a separate `pnpm publish --provenance --access public` step in release.yml
- *   that executes only when semantic-release actually cut a new release (detected via
- *   the SR_RELEASED output). This keeps OIDC provenance intact without NODE_AUTH_TOKEN.
+ * npm publishing — RETIRED:
+ *   The npm channel is permanently retired in favour of binary distribution
+ *   (build-binaries.yml + Homebrew via bump-homebrew.yml). The @semantic-release/npm
+ *   plugin is kept in the chain because it bumps the version field in
+ *   packages/app/package.json, which @semantic-release/git then commits back to main
+ *   and which the binary build embeds. npmPublish stays false; we never push to npm.
  *
  * pkgRoot:
  *   Points @semantic-release/npm at packages/app so it reads and writes the correct

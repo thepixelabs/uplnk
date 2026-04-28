@@ -1,47 +1,41 @@
 # Installing uplnk
 
-uplnk is a terminal-native LLM developer assistant. It requires Node.js 20 or later
-and a running LLM provider (Ollama, vLLM, LM Studio, or any OpenAI-compatible endpoint).
+uplnk is a terminal-native LLM developer assistant. Self-contained binaries, no Node.js or runtime required.
 
----
-
-## Option 1: npx (no install, always latest)
+## Option 1: Homebrew (macOS / Linux)
 
 ```sh
-npx uplnk
-```
-
-This downloads and runs the latest stable release without permanently installing anything.
-Useful for one-off use or before committing to a global install.
-
----
-
-## Option 2: Global npm install (recommended for daily use)
-
-```sh
-npm install -g uplnk
+brew install thepixelabs/tap/uplnk
 uplnk
 ```
 
-Or with pnpm:
+This is the recommended path. Works on macOS (Apple Silicon and Intel) and Linux (arm64 and x86_64) via Linuxbrew.
+
+To upgrade:
 
 ```sh
-pnpm add -g uplnk
+brew upgrade uplnk
+```
+
+## Option 2: Direct binary download (Linux / macOS)
+
+If you don't have Homebrew, download the prebuilt binary for your platform from the [latest release](https://github.com/thepixelabs/uplnk/releases/latest). Each release ships:
+
+- `uplnk-darwin-arm64`, `uplnk-darwin-x64`
+- `uplnk-linux-arm64`, `uplnk-linux-x64`
+- `uplnk-win-x64.exe`
+
+Each binary has an accompanying `.sha256` for checksum verification.
+
+```sh
+# Linux x64 example — adjust the asset name for your platform
+curl -L https://github.com/thepixelabs/uplnk/releases/latest/download/uplnk-linux-x64 \
+  -o /usr/local/bin/uplnk
+chmod +x /usr/local/bin/uplnk
 uplnk
 ```
 
-### Stable channel (default)
-
-```sh
-npm install -g uplnk          # latest stable
-```
-
-### Pre-release channels
-
-```sh
-npm install -g uplnk@beta     # feature-complete, in testing
-npm install -g uplnk@canary   # bleeding edge, every main-branch build
-```
+For Apple Silicon: `uplnk-darwin-arm64`. For Intel macOS: `uplnk-darwin-x64`. For Windows: download `uplnk-win-x64.exe` and place it on your `PATH`.
 
 ### Verify the install
 
@@ -50,51 +44,16 @@ uplnk --version
 uplnk doctor
 ```
 
-`uplnk doctor` checks Node.js version, config directory writability, SQLite
-database health, and Ollama reachability in one pass.
-
----
-
-## Option 3: Homebrew (macOS / Linux)
-
-Homebrew support is coming in v0.2.0. Once the tap is published:
-
-```sh
-brew tap pixelicous/tap
-brew install uplnk
-```
-
-For now, use the npm install above.
-
----
-
-## Option 4: Docker
-
-Docker support is planned post-MVP for users who prefer not to install Node.js
-globally or who want to run uplnk alongside Ollama in a compose stack.
-
-Once published:
-
-```sh
-docker run --rm -it \
-  -v ~/.config/uplnk:/root/.config/uplnk \
-  ghcr.io/pixelicous/uplnk:latest
-```
-
----
+`uplnk doctor` checks the config directory, SQLite database health, and reachability of your configured LLM provider in one pass.
 
 ## Requirements
 
 | Requirement | Minimum |
 |-------------|---------|
-| Node.js | 20.0.0 |
-| npm | 9.0.0 |
-| OS | macOS, Linux |
+| OS | macOS, Linux, Windows (x64) |
 | LLM provider | Ollama, vLLM, LM Studio, or any OpenAI-compatible endpoint |
 
-uplnk does not currently support Windows natively. WSL2 on Windows works.
-
----
+The standalone binary bundles its runtime — no Node.js, Bun, or other interpreter is required on the host.
 
 ## Quick start after install
 
@@ -116,22 +75,32 @@ uplnk --conversation <id>
 uplnk --model llama3.2 --provider http://localhost:11434
 ```
 
----
-
 ## Upgrading
 
+Homebrew:
+
 ```sh
-npm update -g uplnk
+brew upgrade uplnk
 ```
 
-uplnk will also print a notice at startup when a newer version is available on npm.
-Set `UPLNK_UPDATE_CHECK=false` in your environment to suppress the notice.
-
----
+Direct binary: re-download the latest from the [releases page](https://github.com/thepixelabs/uplnk/releases/latest) and overwrite the binary at the path above.
 
 ## Uninstalling
 
+Homebrew:
+
 ```sh
-npm uninstall -g uplnk
+brew uninstall uplnk
 rm -rf ~/.config/uplnk      # removes config and conversation database
 ```
+
+Direct binary:
+
+```sh
+rm /usr/local/bin/uplnk
+rm -rf ~/.config/uplnk
+```
+
+## A note on npm
+
+uplnk was previously distributed via npm (`npm install -g uplnk`). The npm package has been retired in favour of self-contained binaries — those required a Bun runtime on the host, while the current binary distribution does not. Old npm versions are deprecated; please install via Homebrew or direct binary download.
