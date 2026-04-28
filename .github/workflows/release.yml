@@ -124,14 +124,8 @@ jobs:
             echo "released=false" >> "$GITHUB_OUTPUT"
           fi
 
-      # NOTE: npm publish is being deprecated in favour of binary distribution.
-      # Standalone executables are now built and attached to GitHub Releases by
-      # .github/workflows/build-binaries.yml (triggered by on: release: published).
-      # The step below is commented out rather than deleted so it can be restored
-      # if needed. Confirm permanent removal separately before deleting.
-      #
-      # - name: Publish to npm
-      #   if: steps.sr.outputs.released == 'true'
-      #   env:
-      #     NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-      #   run: pnpm --filter uplnk publish --access public --no-git-checks
+      # npm publish is permanently retired. Distribution is binary-only via
+      # .github/workflows/build-binaries.yml (triggered by on: release: published)
+      # and Homebrew via .github/workflows/bump-homebrew.yml.
+      # The previous npm package on the registry is deprecated; new versions are
+      # published only as self-contained binaries (no Bun runtime required).

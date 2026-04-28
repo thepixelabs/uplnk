@@ -3,9 +3,9 @@
 ```
 **Local models. Smart routing. Studio-grade UX.**
 
-[![npm](https://img.shields.io/npm/v/uplnk?color=60A5FA&label=npm)](https://www.npmjs.com/package/uplnk)
+[![Release](https://img.shields.io/github/v/release/thepixelabs/uplnk?color=60A5FA&label=release)](https://github.com/thepixelabs/uplnk/releases/latest)
 [![License](https://img.shields.io/badge/license-PolyForm%20Shield%201.0.0-blue)](LICENSE)
-[![Node](https://img.shields.io/badge/node-%3E%3D20-green)](https://nodejs.org)
+[![Homebrew](https://img.shields.io/badge/brew-thepixelabs%2Ftap%2Fuplnk-orange)](https://github.com/thepixelabs/homebrew-tap)
 
 ---
 
@@ -59,18 +59,26 @@ ollama serve           # if not already running as a service
 ollama pull llama3.2   # or any model you prefer
 ```
 
-**Step 2 — Run uplnk**
+**Step 2 — Install uplnk**
 
 ```bash
-npx uplnk
+brew install thepixelabs/tap/uplnk
 ```
 
-That's it. No global install required. On first run uplnk creates `~/.uplnk/config.json` and `~/.uplnk/db.sqlite` automatically.
+Or grab a self-contained binary for your platform from the [latest release](https://github.com/thepixelabs/uplnk/releases/latest). No Node.js, no Bun, no runtime — the binary bundles everything.
 
-**Step 3 — Verify your setup (optional)**
+**Step 3 — Run it**
 
 ```bash
-npx uplnk doctor
+uplnk
+```
+
+On first run uplnk creates `~/.uplnk/config.json` and `~/.uplnk/db.sqlite` automatically.
+
+**Step 4 — Verify your setup (optional)**
+
+```bash
+uplnk doctor
 ```
 
 ---
@@ -336,7 +344,7 @@ CLI flags take precedence over `config.json`. `UPLNK_THEME` environment variable
 
 ## uplnk doctor
 
-Run `uplnk doctor` (or `npx uplnk doctor`) to diagnose your environment before filing a bug report.
+Run `uplnk doctor` to diagnose your environment before filing a bug report.
 
 ```
 uplnk Doctor
