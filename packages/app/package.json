@@ -1,6 +1,6 @@
 {
   "name": "uplnk",
-  "version": "1.6.1",
+  "version": "1.6.2",
   "description": "A terminal-native AI chat client — local-first, privacy-first",
   "license": "SEE LICENSE IN LICENSE",
   "type": "module",
