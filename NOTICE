@@ -17,12 +17,12 @@ APACHE 2.0 LICENSED THIRD-PARTY COMPONENTS
 
 Vercel AI SDK (ai, @ai-sdk/anthropic, @ai-sdk/openai-compatible)
   Copyright 2023 Vercel, Inc.
-  Licensed under the PolyForm Shield License 1.0.0
+  Licensed under the Apache License, Version 2.0
   https://github.com/vercel/ai
 
 drizzle-orm
   Copyright Drizzle Team
-  Licensed under the PolyForm Shield License 1.0.0
+  Licensed under the Apache License, Version 2.0
   https://github.com/drizzle-team/drizzle-orm
 
 =========================================================================
