@@ -16,6 +16,7 @@ packages/app/bin/*.js
 .tasks/
 .mcp.json
 packages/app/src/lib/mcp/security-fixes.md
+plans/
 
 # IDE & OS
 .vscode/
