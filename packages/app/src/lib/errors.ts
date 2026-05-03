@@ -131,7 +131,3 @@ export function toUplnkError(err: unknown): UplnkError {
     cause: err,
   };
 }
-
-// Backward-compat alias — remove in v0.4
-/** @deprecated Use toUplnkError */
-export const toUplnkError = toUplnkError;

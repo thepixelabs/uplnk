@@ -43,13 +43,3 @@ export function isUplnkError(value: unknown): value is UplnkError {
     'hint' in value
   );
 }
-
-// Backward-compat aliases — remove in v0.4
-/** @deprecated Use UplnkErrorCodeSchema */
-export const UplnkErrorCodeSchema = UplnkErrorCodeSchema;
-/** @deprecated Use UplnkErrorCode */
-export type UplnkErrorCode = UplnkErrorCode;
-/** @deprecated Use UplnkError */
-export type UplnkError = UplnkError;
-/** @deprecated Use isUplnkError */
-export const isUplnkError = isUplnkError;
