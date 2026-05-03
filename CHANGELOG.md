@@ -1,3 +1,9 @@
+## [0.2.0](https://github.com/thepixelabs/uplnk/compare/v0.1.0...v0.2.0) (2026-05-03)
+
+### Features
+
+* republish v0.1.x release pipeline after repo recreate ([4ab4963](https://github.com/thepixelabs/uplnk/commit/4ab4963820b540961c1c4b4aff917b7307da5ab8))
+
 ## [0.1.0](https://github.com/thepixelabs/uplnk/compare/v0.0.0...v0.1.0) (2026-05-03)
 
 ### Features
