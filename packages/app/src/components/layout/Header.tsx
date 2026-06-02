@@ -1,6 +1,6 @@
 import { memo } from 'react';
 import { Box, Text } from 'ink';
-import type { StreamStatus } from '../../hooks/useStream.js';
+import type { StreamStatus, LastTurnStats, LiveTurnTokens } from '../../hooks/useStream.js';
 import { formatTokens } from '../../lib/tokenCounter.js';
 
 interface Props {
@@ -18,6 +18,12 @@ interface Props {
   statusOverride?: string | null;
   /** Terminal column count, passed from ChatScreen to avoid double resize subscription */
   columns?: number;
+  /** Per-turn stats from the most recently completed stream. Rendered only when `showStats` is true. */
+  lastTurnStats?: LastTurnStats | null;
+  /** Live in/out tokens for the currently streaming turn. Rendered during stream/tool-running. */
+  liveTurnTokens?: LiveTurnTokens | null;
+  /** Toggles the bottom stats row in the right-hand connection box. */
+  showStats?: boolean;
 }
 
 const STATUS_DOTS: Record<StreamStatus, string> = {
@@ -57,6 +63,16 @@ function compactPath(value: string): string {
   return truncateMiddle(withHome, 24);
 }
 
+function formatTokensPerSecond(value: number): string {
+  if (!Number.isFinite(value) || value <= 0) return '—';
+  return value >= 100 ? `${Math.round(value)}` : value.toFixed(1);
+}
+
+function formatTtft(ms: number): string {
+  if (!Number.isFinite(ms) || ms < 0) return '—';
+  return ms < 1000 ? `${Math.round(ms)}ms` : `${(ms / 1000).toFixed(1)}s`;
+}
+
 export const Header = memo(function Header({
   modelName,
   conversationTitle,
@@ -70,6 +86,9 @@ export const Header = memo(function Header({
   sessionTokens,
   statusOverride,
   columns = 80,
+  lastTurnStats,
+  liveTurnTokens,
+  showStats = false,
 }: Props) {
 
   const statusDot = STATUS_DOTS[status];
@@ -80,6 +99,26 @@ export const Header = memo(function Header({
     ? `◆ ${formatTokens(sessionTokens)}`
     : '';
 
+  const haveStats = lastTurnStats !== undefined && lastTurnStats !== null;
+  const isStreaming = status === 'streaming' || status === 'tool-running' || status === 'connecting' || status === 'waiting';
+  const haveLive =
+    liveTurnTokens !== undefined &&
+    liveTurnTokens !== null &&
+    (liveTurnTokens.input > 0 || liveTurnTokens.output > 0);
+  // While streaming, prefer the live counter so the user sees tokens
+  // accrue in real time. After the turn ends, fall back to the per-turn
+  // summary with tok/s + TTFT.
+  const statsRow = (() => {
+    if (!showStats) return '';
+    if (isStreaming && haveLive) {
+      return `↑${formatTokens(liveTurnTokens.input)} ↓${formatTokens(liveTurnTokens.output)} · streaming…`;
+    }
+    if (haveStats) {
+      return `↑${formatTokens(lastTurnStats.promptTokens)} ↓${formatTokens(lastTurnStats.completionTokens)} · ${formatTokensPerSecond(lastTurnStats.tokensPerSecond)} tok/s · TTFT ${formatTtft(lastTurnStats.ttftMs)}`;
+    }
+    return '';
+  })();
+
   return (
     <Box
       borderStyle="single"
@@ -87,37 +126,45 @@ export const Header = memo(function Header({
       paddingX={1}
       width={columns > 0 ? columns : undefined}
       flexShrink={0}
-      flexDirection="row"
+      flexDirection="column"
     >
-      <Box borderStyle="single" borderColor="#374151" paddingX={1} marginRight={1} flexDirection="column" minWidth={30}>
-        <Text>
-          <Text color="#60A5FA">▐</Text>
-          <Text color="#60A5FA" bold>█</Text>
-          <Text color="#60A5FA">▌</Text>
-          <Text bold> UPLNK</Text>
-          <Text dimColor>{`  v${version}`}</Text>
-        </Text>
-        <Box justifyContent="space-between">
-          <Text color="#6B7280">{`cwd ${compactPath(currentDirectory)}`}</Text>
-          <Text dimColor>{`${String(messageCount)} msgs`}</Text>
+      <Box flexDirection="row">
+        <Box borderStyle="single" borderColor="#374151" paddingX={1} marginRight={1} flexDirection="column" minWidth={30}>
+          <Text>
+            <Text color="#60A5FA">▐</Text>
+            <Text color="#60A5FA" bold>█</Text>
+            <Text color="#60A5FA">▌</Text>
+            <Text bold> UPLNK</Text>
+            <Text dimColor>{`  v${version}`}</Text>
+          </Text>
+          <Box justifyContent="space-between">
+            <Text color="#6B7280">{`cwd ${compactPath(currentDirectory)}`}</Text>
+            <Text dimColor>{`${String(messageCount)} msgs`}</Text>
+          </Box>
+        </Box>
+
+        <Box flexGrow={1} flexDirection="column" justifyContent="center" minWidth={12}>
+          <Text bold>{truncateMiddle(conversationTitle, 24)}</Text>
+          <Box>
+            <Text color={statusDotColor}>{statusDisplay} </Text>
+            <Text color="#00D9FF">{truncateMiddle(modelName, 22)}</Text>
+          </Box>
+        </Box>
+
+        <Box borderStyle="single" borderColor={connectionColor} paddingX={1} marginLeft={1} flexDirection="column" minWidth={28}>
+          <Text color={connectionColor}>{truncateMiddle(connectionLabel, 26)}</Text>
+          <Box justifyContent="space-between">
+            <Text dimColor>{truncateMiddle(connectionDetail, 18)}</Text>
+            {tokenStr.length > 0 && <Text color="#475569">{tokenStr}</Text>}
+          </Box>
         </Box>
       </Box>
 
-      <Box flexGrow={1} flexDirection="column" justifyContent="center" minWidth={12}>
-        <Text bold>{truncateMiddle(conversationTitle, 24)}</Text>
-        <Box>
-          <Text color={statusDotColor}>{statusDisplay} </Text>
-          <Text color="#00D9FF">{truncateMiddle(modelName, 22)}</Text>
+      {showStats && statsRow.length > 0 && (
+        <Box paddingX={1}>
+          <Text color="#94A3B8">{statsRow}</Text>
         </Box>
-      </Box>
-
-      <Box borderStyle="single" borderColor={connectionColor} paddingX={1} marginLeft={1} flexDirection="column" minWidth={28}>
-        <Text color={connectionColor}>{truncateMiddle(connectionLabel, 26)}</Text>
-        <Box justifyContent="space-between">
-          <Text dimColor>{truncateMiddle(connectionDetail, 18)}</Text>
-          {tokenStr.length > 0 && <Text color="#475569">{tokenStr}</Text>}
-        </Box>
-      </Box>
+      )}
     </Box>
   );
 });

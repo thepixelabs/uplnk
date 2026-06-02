@@ -122,6 +122,8 @@ vi.mock('../../hooks/useMcp.js', () => ({
     tools: {},
     pendingApproval: null,
     resolveApproval: vi.fn(),
+    failedServers: [],
+    retryFailedServers: vi.fn(async () => {}),
   })),
   mergeMcpConfigs: vi.fn(() => ({ configs: [], warnings: [] })),
   MAX_TOOL_CALLS_PER_CONVERSATION: 100,
@@ -169,6 +171,7 @@ vi.mock('../../lib/config.js', () => ({
       updates: { enabled: false, packageName: 'uplnk' },
     },
   })),
+  getConfigPath: vi.fn(() => '/tmp/uplnk-test-home/.uplnk/config.json'),
 }));
 
 vi.mock('../../lib/projectContext.js', () => ({ buildProjectContext: vi.fn(() => null) }));
@@ -180,9 +183,6 @@ vi.mock('../../lib/roles.js', () => ({
 }));
 vi.mock('@ai-sdk/openai-compatible', () => ({
   createOpenAICompatible: vi.fn(() => vi.fn(() => ({ __stub: 'active-model' }))),
-}));
-vi.mock('@ai-sdk/anthropic', () => ({
-  createAnthropic: vi.fn(() => vi.fn(() => ({ __stub: 'active-model' }))),
 }));
 
 vi.mock('../../lib/fileMention.js', () => ({
@@ -239,8 +239,9 @@ const DEFAULT_CONFIG = {
   networkScanner: { timeoutMs: 2000, concurrency: 16 },
   headless: { persist: false },
   flows: { dir: '~/.uplnk/flows', autoReload: true, defaultTimeoutMs: 600000, allowShellStep: false, allowHttpStep: true, httpAllowlist: [] as string[], concurrency: 1 },
-  robotic: { enabled: false, transport: 'auto' as const, maxTurns: 40, turnTimeoutMs: 120000, minInterTurnMs: 750, judge: { provider: 'anthropic', model: 'claude-haiku-4-5-20251001', everyNTurns: 1 }, redact: { envPatterns: ['(?i)api[_-]?key', '(?i)token', '(?i)secret', '(?i)password'], customPatterns: [] as string[] }, targets: {} },
+  robotic: { enabled: false, transport: 'auto' as const, maxTurns: 40, turnTimeoutMs: 120000, minInterTurnMs: 750, judge: { provider: 'ollama', model: '', everyNTurns: 1 }, redact: { envPatterns: ['(?i)api[_-]?key', '(?i)token', '(?i)secret', '(?i)password'], customPatterns: [] as string[] }, targets: {} },
   altergo: { binary: 'altergo', home: '~/.altergo', autoImport: false, autoImportAccounts: [] as string[], watchSessions: false, launchDetach: true },
+  stats: { showInHeader: false },
 };
 
 function renderChatScreen(

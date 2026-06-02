@@ -478,11 +478,18 @@ function enterAltScreen(): void {
   // combos that would otherwise be indistinguishable (e.g. Shift+Enter → ESC[13;2u).
   // Silently ignored by terminals that don't support the protocol.
   process.stdout.write('\x1b[=1u');
+  // Mouse reporting: ?1000h = button events, ?1006h = SGR extended encoding
+  // (so coordinates aren't capped at 223). Terminals that don't support these
+  // ignore them; the wheel parser then simply never fires.
+  process.stdout.write('\x1b[?1000h');
+  process.stdout.write('\x1b[?1006h');
 }
 
 function exitAltScreen(): void {
   if (!altScreenActive) return;
   altScreenActive = false;
+  process.stdout.write('\x1b[?1006l'); // disable SGR mouse encoding
+  process.stdout.write('\x1b[?1000l'); // disable mouse reporting
   process.stdout.write('\x1b[<u');     // pop kitty keyboard protocol mode
   process.stdout.write('\x1b[?1049l'); // exit alternate screen — restores previous content
 }
@@ -507,6 +514,11 @@ process.on('exit', exitAltScreen);
 }
 
 enterAltScreen();
+
+{
+  const { installMouseListener } = await import('../src/lib/mouseEvents.js');
+  installMouseListener();
+}
 
 process.on('SIGTERM', () => process.exit(0));
 process.on('SIGHUP', () => process.exit(0));

@@ -40,7 +40,7 @@ export const providerConfigs = sqliteTable(
   (table) => [
     check(
       'provider_type_check',
-      sql`${table.providerType} IN ('ollama', 'openai-compatible', 'lmstudio', 'vllm', 'localai', 'llama-cpp', 'anthropic', 'openai', 'custom')`,
+      sql`${table.providerType} IN ('ollama', 'openai-compatible', 'lmstudio', 'vllm', 'localai', 'llama-cpp', 'openai', 'custom')`,
     ),
     check(
       'auth_mode_check',

@@ -14,6 +14,17 @@ export interface ProviderConnectivityState {
   latencyMs: number | null;
   disconnectedSince: number | null;
   errorDetail: string | null;
+  /**
+   * Lowercased ids of models the server is currently serving. Populated on the
+   * same probe as `connected` — the connectivity check fetches `/api/tags` (or
+   * the provider equivalent) and we cache the list so the chat screen can warn
+   * the user when the resolved model isn't actually installed there.
+   *
+   * `null` means "not yet probed". An empty Set means "probe succeeded but the
+   * server reported no models" — semantically different from null and treated
+   * as "model unavailable" by the chat-screen check.
+   */
+  installedModelIds: ReadonlySet<string> | null;
 }
 
 interface UseProviderConnectivityInput {
@@ -36,6 +47,7 @@ export function useProviderConnectivity({
     latencyMs: null,
     disconnectedSince: null,
     errorDetail: null,
+    installedModelIds: null,
   }));
 
   useEffect(() => {
@@ -67,20 +79,37 @@ export function useProviderConnectivity({
           ...(apiKey.trim() !== '' ? { apiKey } : {}),
           discoveryTimeoutMs: PROVIDER_CONNECTIVITY_TIMEOUT_MS,
         });
-        const health = await provider.testConnection(controller.signal);
+        // Probe via listModels rather than testConnection: on Ollama these are
+        // the same HTTP call, and we want the model list anyway so the chat
+        // screen can warn when the configured model isn't installed.
+        const started = Date.now();
+        const models = await provider.listModels(controller.signal);
+        const latencyMs = Date.now() - started;
         if (disposed) return;
+        const checkedAt = Date.now();
+        const modelIds: ReadonlySet<string> = new Set(
+          models.map((m) => m.id.toLowerCase()),
+        );
         setState((prev) => {
-          // Skip update if already connected and latency bucket unchanged (avoids re-render)
+          // Skip update if already connected, latency bucket unchanged, and the
+          // model set is unchanged — avoids re-renders on every 15 s tick.
           const prevBucket = prev.latencyMs !== null ? Math.floor(prev.latencyMs / 100) : -1;
-          const nextBucket = health.latencyMs !== null ? Math.floor(health.latencyMs / 100) : -1;
-          if (prev.connected && prev.host === host && prevBucket === nextBucket) return prev;
+          const nextBucket = Math.floor(latencyMs / 100);
+          const sameModels =
+            prev.installedModelIds !== null &&
+            prev.installedModelIds.size === modelIds.size &&
+            Array.from(modelIds).every((id) => prev.installedModelIds!.has(id));
+          if (prev.connected && prev.host === host && prevBucket === nextBucket && sameModels) {
+            return prev;
+          }
           return {
             host,
             connected: true,
-            checkedAt: health.checkedAt,
-            latencyMs: health.latencyMs,
+            checkedAt,
+            latencyMs,
             disconnectedSince: null,
             errorDetail: null,
+            installedModelIds: modelIds,
           };
         });
       } catch (err) {
@@ -93,6 +122,9 @@ export function useProviderConnectivity({
           latencyMs: null,
           disconnectedSince: prev.host === host ? (prev.disconnectedSince ?? checkedAt) : checkedAt,
           errorDetail: err instanceof Error ? err.message : String(err),
+          // Preserve the last-known model list across transient probe failures
+          // so the warning doesn't flicker on every network hiccup.
+          installedModelIds: prev.host === host ? prev.installedModelIds : null,
         }));
       } finally {
         scheduleNextCheck();
@@ -106,6 +138,7 @@ export function useProviderConnectivity({
       latencyMs: null,
       disconnectedSince: null,
       errorDetail: null,
+      installedModelIds: null,
     });
     void runCheck();
 

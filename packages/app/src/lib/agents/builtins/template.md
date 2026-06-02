@@ -24,8 +24,8 @@ description: |
 
 # ── Model ────────────────────────────────────────────────────────────────────
 # model: inherit        # 'inherit' uses the root conversation's model
-                        # other options: 'sonnet', 'opus', 'haiku', or any provider model id
-# provider: anthropic   # optional explicit provider override
+                        # or any provider model id (e.g. 'qwen2.5-coder:7b', 'llama3.1:8b')
+# provider: ollama      # optional explicit provider override
 # temperature: 0.7      # 0.0–2.0; omit to inherit
 # effort: medium        # low | medium | high | max
 

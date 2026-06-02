@@ -125,6 +125,8 @@ vi.mock('../../hooks/useMcp.js', () => ({
     tools: {},
     pendingApproval: null,
     resolveApproval: vi.fn(),
+    failedServers: [],
+    retryFailedServers: vi.fn(async () => {}),
   })),
   mergeMcpConfigs: vi.fn(() => ({ configs: [], warnings: [] })),
   MAX_TOOL_CALLS_PER_CONVERSATION: 100,
@@ -175,6 +177,7 @@ vi.mock('../../lib/config.js', () => ({
       updates: { enabled: false, packageName: 'uplnk' },
     },
   })),
+  getConfigPath: vi.fn(() => '/tmp/uplnk-test-home/.uplnk/config.json'),
 }));
 
 // Mock projectContext and exportConversation (side effects on fs)
@@ -213,8 +216,9 @@ const DEFAULT_CONFIG = {
   networkScanner: { timeoutMs: 2000, concurrency: 16 },
   headless: { persist: false },
   flows: { dir: '~/.uplnk/flows', autoReload: true, defaultTimeoutMs: 600000, allowShellStep: false, allowHttpStep: true, httpAllowlist: [] as string[], concurrency: 1 },
-  robotic: { enabled: false, transport: 'auto' as const, maxTurns: 40, turnTimeoutMs: 120000, minInterTurnMs: 750, judge: { provider: 'anthropic', model: 'claude-haiku-4-5-20251001', everyNTurns: 1 }, redact: { envPatterns: ['(?i)api[_-]?key', '(?i)token', '(?i)secret', '(?i)password'], customPatterns: [] as string[] }, targets: {} },
+  robotic: { enabled: false, transport: 'auto' as const, maxTurns: 40, turnTimeoutMs: 120000, minInterTurnMs: 750, judge: { provider: 'ollama', model: '', everyNTurns: 1 }, redact: { envPatterns: ['(?i)api[_-]?key', '(?i)token', '(?i)secret', '(?i)password'], customPatterns: [] as string[] }, targets: {} },
   altergo: { binary: 'altergo', home: '~/.altergo', autoImport: false, autoImportAccounts: [] as string[], watchSessions: false, launchDetach: true },
+  stats: { showInHeader: false },
 };
 
 function renderChatScreen(overrides: Partial<React.ComponentProps<typeof ChatScreen>> = {}) {
@@ -523,5 +527,64 @@ describe('fork cursor mode', () => {
     await tick();
     expect(mockForkConversation).not.toHaveBeenCalled();
     expect(lastFrame()).not.toContain('FORK CURSOR');
+  });
+});
+
+// ─── pendingCommand dispatch (Ctrl+K palette path) ───────────────────────────
+
+describe('ChatScreen pendingCommand prop', () => {
+  it('runs a chat-level command delivered via prop and calls onCommandConsumed', async () => {
+    const onCommandConsumed = vi.fn();
+    const { lastFrame, rerender } = renderChatScreen({
+      pendingCommand: { command: 'mcp', nonce: 1 },
+      onCommandConsumed,
+    });
+    await tick();
+    // /mcp toggles the McpStatusPanel overlay which renders the title "MCP servers".
+    expect(lastFrame()).toContain('MCP servers');
+    expect(onCommandConsumed).toHaveBeenCalledTimes(1);
+
+    // Re-rendering with the same nonce must NOT re-fire (idempotent).
+    rerender(
+      React.createElement(ChatScreen, {
+        onError: vi.fn(),
+        config: DEFAULT_CONFIG,
+        pendingCommand: { command: 'mcp', nonce: 1 },
+        onCommandConsumed,
+      }),
+    );
+    await tick();
+    expect(onCommandConsumed).toHaveBeenCalledTimes(1);
+  });
+
+  it('re-fires when nonce changes even with the same command string', async () => {
+    const onCommandConsumed = vi.fn();
+    const { rerender, lastFrame } = renderChatScreen({
+      pendingCommand: { command: 'mcp', nonce: 1 },
+      onCommandConsumed,
+    });
+    await tick();
+    expect(lastFrame()).toContain('MCP servers');
+
+    rerender(
+      React.createElement(ChatScreen, {
+        onError: vi.fn(),
+        config: DEFAULT_CONFIG,
+        pendingCommand: { command: 'mcp', nonce: 2 },
+        onCommandConsumed,
+      }),
+    );
+    await tick();
+    // /mcp toggles, so a second dispatch closes the overlay.
+    expect(lastFrame()).not.toContain('MCP servers');
+    expect(onCommandConsumed).toHaveBeenCalledTimes(2);
+  });
+
+  it('does nothing when pendingCommand is undefined', async () => {
+    const onCommandConsumed = vi.fn();
+    const { lastFrame } = renderChatScreen({ onCommandConsumed });
+    await tick();
+    expect(lastFrame()).not.toContain('MCP servers');
+    expect(onCommandConsumed).not.toHaveBeenCalled();
   });
 });

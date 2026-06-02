@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useRef } from 'react';
 import { Box, useApp, useInput } from 'ink';
 import { ChatScreen } from './screens/ChatScreen.js';
 import { ModelSelectorScreen } from './screens/ModelSelectorScreen.js';
@@ -25,25 +25,12 @@ import type { UplnkError } from '@uplnk/shared';
 import type { Config } from './lib/config.js';
 
 import { VoiceAssistantProvider, VoiceCommand } from './components/voice/VoiceAssistantProvider.js';
-import { db, listProviders } from '@uplnk/db';
+import { db, listProviders, getDefaultProvider, setProviderDefaultModel } from '@uplnk/db';
 import { resolveSecret } from './lib/secrets.js';
 
-export type Screen =
-  | 'chat'
-  | 'model-selector'
-  | 'conversations'
-  | 'provider-selector'
-  | 'settings'
-  | 'add-provider'
-  | 'edit-provider'
-  | 'relay-picker'
-  | 'relay-run'
-  | 'relay-editor'
-  | 'network-scan'
-  | 'flow-list'
-  | 'flow-run'
-  | 'altergo'
-  | 'robotic';
+export type { Screen } from './lib/navigation.js';
+import type { Screen } from './lib/navigation.js';
+import { isScreenTarget } from './lib/navigation.js';
 
 interface EditingProvider {
   id: string;
@@ -62,6 +49,17 @@ interface EditingProvider {
   defaultModel: string | null;
 }
 
+/**
+ * Persist the user's model pick to the default provider's row so the
+ * choice survives restart. Without this, /model only updates React state
+ * and the next ChatScreen mount falls back to the seeded defaultModel.
+ */
+function persistModelForDefaultProvider(model: string): void {
+  const row = getDefaultProvider(db);
+  if (row === undefined) return;
+  setProviderDefaultModel(db, row.id, model);
+}
+
 export interface AppProps {
   initialModel?: string;
   initialProvider?: string;
@@ -73,10 +71,13 @@ export interface AppProps {
   config?: Config;
 }
 
-export function App({ initialModel = 'qwen2.5:7b', resumeConversationId, projectDir, config }: AppProps) {
+export function App({ initialModel, resumeConversationId, projectDir, config }: AppProps) {
   const [currentScreen, setCurrentScreen] = useState<Screen>('chat');
   const [activeConfig, setActiveConfig] = useState<Config>(() => config!);
-  const [activeModel, setActiveModel] = useState(initialModel);
+  // Undefined means "let ChatScreen fall back to the provider's defaultModel
+  // from the DB". Hardcoding a default here masks the user's configured model
+  // and forces them to run /model on every startup just to make the chat work.
+  const [activeModel, setActiveModel] = useState<string | undefined>(initialModel);
   const [activeProvider, setActiveProvider] = useState<{
     baseUrl: string;
     apiKey: string;
@@ -132,6 +133,7 @@ export function App({ initialModel = 'qwen2.5:7b', resumeConversationId, project
         setCurrentScreen('chat');
       }
     } else if (cmd.type === 'SWITCH_MODEL') {
+      persistModelForDefaultProvider(cmd.modelName);
       setActiveModel(cmd.modelName);
       setCurrentScreen('chat');
     } else if (cmd.type === 'CLEAR_CHAT') {
@@ -150,7 +152,15 @@ export function App({ initialModel = 'qwen2.5:7b', resumeConversationId, project
       if (currentScreen !== 'chat') { exit(); return; }
     }
     if (key.ctrl && input === 'l') { setCurrentScreen('conversations'); return; }
-    if (key.escape && paletteOpen) { setPaletteOpen(false); return; }
+    // Ctrl+, opens Settings. Two forms: plain (key.ctrl + ',') and kitty
+    // keyboard protocol ('[44;5u' — Ink strips the leading ESC). Matching both
+    // means it works in iTerm2/kitty with the protocol on and in basic terminals.
+    if ((key.ctrl && input === ',') || input === '[44;5u') { setCurrentScreen('settings'); return; }
+    // Kitty keyboard protocol sends plain ESC as the sequence \x1b[27u.
+    // Ink strips the leading \x1b, so it arrives as input === '[27u' with
+    // key.escape === false. Accept either form for both palette and screen Esc.
+    const escPressed = key.escape || input === '[27u';
+    if (escPressed && paletteOpen) { setPaletteOpen(false); return; }
     // Screens with multi-step internal Esc handling own their own back nav.
     // The global "Esc → chat" shortcut would otherwise stomp on their state
     // (e.g. RelayEditorScreen's wizard step-back, RelayRunScreen's abort+
@@ -167,11 +177,33 @@ export function App({ initialModel = 'qwen2.5:7b', resumeConversationId, project
       // before the wizard's own handler runs, leaving the user stuck.
       currentScreen === 'add-provider' ||
       currentScreen === 'edit-provider';
-    if (key.escape && currentScreen !== 'chat' && !ownsEsc) { setCurrentScreen('chat'); return; }
+    if (escPressed && currentScreen !== 'chat' && !ownsEsc) { setCurrentScreen('chat'); return; }
   });
 
-  const handleNavigate = useCallback((screen: string) => {
-    setCurrentScreen(screen as Screen);
+  // Queue of chat-level commands dispatched from outside ChatScreen (the
+  // Ctrl+K command palette is the only such caller today). Each enqueue
+  // creates a new object so React's identity check re-fires ChatScreen's
+  // consumer effect even when the same command is dispatched twice — the
+  // counter is not strictly needed for that, but it makes the queue
+  // trivially debuggable in DevTools.
+  const [pendingChatCommand, setPendingChatCommand] = useState<{ command: string; nonce: number } | null>(null);
+  const chatCommandNonceRef = useRef(0);
+
+  const handleConsumedChatCommand = useCallback(() => {
+    setPendingChatCommand(null);
+  }, []);
+
+  const handleNavigate = useCallback((target: string) => {
+    if (isScreenTarget(target)) {
+      setCurrentScreen(target);
+      return;
+    }
+    // Anything that isn't a screen name is a chat-level command. Make sure
+    // chat is the visible screen (so the command's side-effects are seen
+    // immediately) and queue the command for ChatScreen's effect to run.
+    chatCommandNonceRef.current += 1;
+    setPendingChatCommand({ command: target, nonce: chatCommandNonceRef.current });
+    setCurrentScreen('chat');
   }, []);
 
   const handleError = useCallback((error: UplnkError) => {
@@ -256,6 +288,11 @@ export function App({ initialModel = 'qwen2.5:7b', resumeConversationId, project
       execute: () => handleNavigate('fork'),
     },
     {
+      id: 'mcp-status', name: 'MCP server status', shortcut: '/mcp',
+      description: 'View MCP server connections and retry failures', group: 'chat',
+      execute: () => handleNavigate('mcp'),
+    },
+    {
       id: 'export-md', name: 'Export as Markdown', shortcut: '/export',
       description: 'Save conversation to .md file', group: 'export',
       execute: () => handleNavigate('export:markdown'),
@@ -307,7 +344,7 @@ export function App({ initialModel = 'qwen2.5:7b', resumeConversationId, project
           // from props instead of its cached providerRef. activeConfig.displayName
           // is included so changing the profile also remounts the chat.
           key={`${activeConversationId ?? 'new'}-${providerKey}-${activeConfig.displayName ?? 'default'}`}
-          initialModel={activeModel}
+          {...(activeModel !== undefined ? { initialModel: activeModel } : {})}
           {...(activeConversationId !== undefined ? { resumeConversationId: activeConversationId } : {})}
           {...(projectDir !== undefined ? { projectDir } : {})}
           config={activeConfig}
@@ -321,12 +358,18 @@ export function App({ initialModel = 'qwen2.5:7b', resumeConversationId, project
           onError={handleError}
           onCommand={handleNavigate}
           onForkedTo={handleForkedTo}
+          {...(pendingChatCommand !== null ? { pendingCommand: pendingChatCommand } : {})}
+          onCommandConsumed={handleConsumedChatCommand}
         />
       )}
 
       {!paletteOpen && currentScreen === 'model-selector' && (
         <ModelSelectorScreen
-          onSelect={(model) => { setActiveModel(model); setCurrentScreen('chat'); }}
+          onSelect={(model) => {
+            persistModelForDefaultProvider(model);
+            setActiveModel(model);
+            setCurrentScreen('chat');
+          }}
           onBack={() => setCurrentScreen('chat')}
           {...(activeConfig.modelRouter?.enabled === true ? { routerEnabled: true } : {})}
         />

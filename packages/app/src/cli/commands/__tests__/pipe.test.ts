@@ -74,10 +74,10 @@ describe('runPipe — happy path', () => {
   it('forwards provider option to runAsk', async () => {
     mockReadStdin.mockResolvedValueOnce('query');
 
-    await runPipe({ provider: 'anthropic-prod' });
+    await runPipe({ provider: 'cloud-prod' });
 
     expect(mockRunAsk).toHaveBeenCalledWith(
-      expect.objectContaining({ provider: 'anthropic-prod' }),
+      expect.objectContaining({ provider: 'cloud-prod' }),
     );
   });
 

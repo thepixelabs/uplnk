@@ -28,6 +28,7 @@ import {
   getDefaultProvider,
   listProviders,
   forkConversation,
+  setProviderDefaultModel,
 } from '../queries.js';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -370,6 +371,82 @@ describe('listProviders', () => {
     seedProvider(db, { name: 'A' });
     seedProvider(db, { name: 'B' });
     expect(listProviders(db)).toHaveLength(2);
+  });
+});
+
+// ─── setProviderDefaultModel ──────────────────────────────────────────────────
+
+describe('setProviderDefaultModel', () => {
+  let db: Db;
+  beforeEach(() => { db = createMigratedDb(); });
+
+  it('updates the defaultModel column for an existing provider', () => {
+    const id = 'prov-model-test';
+    upsertProviderConfig(db, {
+      id,
+      name: 'Model Persistence Test',
+      providerType: 'ollama',
+      baseUrl: 'http://localhost:11434/v1',
+      apiKey: 'ollama',
+      defaultModel: 'qwen2.5:7b',
+      isDefault: true,
+    });
+
+    setProviderDefaultModel(db, id, 'llama3.2');
+
+    const providers = listProviders(db);
+    const row = providers.find((p) => p.id === id);
+    expect(row).toBeDefined();
+    expect(row!.defaultModel).toBe('llama3.2');
+  });
+
+  it('does not affect other columns (name, baseUrl, apiKey)', () => {
+    const id = 'prov-model-stable';
+    upsertProviderConfig(db, {
+      id,
+      name: 'Stable Provider',
+      providerType: 'ollama',
+      baseUrl: 'http://localhost:11434/v1',
+      apiKey: 'my-api-key',
+      defaultModel: 'old-model',
+      isDefault: false,
+    });
+
+    setProviderDefaultModel(db, id, 'new-model');
+
+    const providers = listProviders(db);
+    const row = providers.find((p) => p.id === id);
+    expect(row!.name).toBe('Stable Provider');
+    expect(row!.baseUrl).toBe('http://localhost:11434/v1');
+    expect(row!.apiKey).toBe('my-api-key');
+    expect(row!.isDefault).toBe(false);
+  });
+
+  it('is read back by getDefaultProvider after a pick via /model', () => {
+    // Simulates: user picks a model via /model → persistModelForDefaultProvider
+    // calls setProviderDefaultModel → next launch's ChatScreen mount reads it back.
+    const id = 'prov-default-pick';
+    upsertProviderConfig(db, {
+      id,
+      name: 'Default Provider',
+      providerType: 'ollama',
+      baseUrl: 'http://localhost:11434/v1',
+      apiKey: 'ollama',
+      defaultModel: 'qwen2.5:7b',
+      isDefault: true,
+    });
+
+    // Simulate the user picking a different model
+    setProviderDefaultModel(db, id, 'mistral:7b');
+
+    // ChatScreen reads defaultModel from getDefaultProvider() on mount
+    const def = getDefaultProvider(db);
+    expect(def).toBeDefined();
+    expect(def!.defaultModel).toBe('mistral:7b');
+  });
+
+  it('is a no-op for a non-existent provider id (no error thrown)', () => {
+    expect(() => setProviderDefaultModel(db, 'does-not-exist', 'any-model')).not.toThrow();
   });
 });
 

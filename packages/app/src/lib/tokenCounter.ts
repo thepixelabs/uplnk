@@ -2,7 +2,7 @@
  * Token counting utilities for session UX surfaces (StatusBar gauge, etc.).
  *
  * Strategy: approximate token count as `chars / 4`. This is fast, deterministic,
- * and matches how OpenAI/Anthropic rough-size prompts in public documentation.
+ * and matches the rough English heuristic used by most major LLM tokenizers.
  * It is *not* accurate to the byte — if we need exact accounting we should read
  * `usage.totalTokens` from the AI SDK `step-finish`/`finish` events (which is
  * what `useStream` already does). This helper exists for the pre-submission

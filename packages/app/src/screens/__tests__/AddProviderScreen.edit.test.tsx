@@ -159,7 +159,7 @@ describe('AddProviderScreen — edit mode', () => {
         React.createElement(AddProviderScreen, {
           onDone: vi.fn(),
           onCancel: vi.fn(),
-          editing: makeEditingProp({ kind: 'anthropic', authMode: 'api-key', apiKey: 'sk-test' }),
+          editing: makeEditingProp({ kind: 'openai', authMode: 'bearer', apiKey: 'sk-test' }),
         }),
       ),
     ).not.toThrow();

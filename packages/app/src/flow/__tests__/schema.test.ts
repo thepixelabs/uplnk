@@ -173,15 +173,15 @@ describe('ChatStep', () => {
     const result = ChatStep.parse({
       ...MINIMAL_CHAT_STEP,
       name: 'Greeting',
-      provider: 'anthropic',
-      model: 'claude-opus-4',
+      provider: 'ollama',
+      model: 'qwen2.5-coder:7b',
       system: 'Be helpful.',
       outputVar: 'greeting',
       when: 'inputs.enabled',
       retries: 2,
       timeoutMs: 30000,
     });
-    expect(result.provider).toBe('anthropic');
+    expect(result.provider).toBe('ollama');
     expect(result.outputVar).toBe('greeting');
     expect(result.retries).toBe(2);
     expect(result.timeoutMs).toBe(30000);

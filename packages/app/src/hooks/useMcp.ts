@@ -22,7 +22,7 @@ import { join } from 'node:path';
 import { McpManager } from '../lib/mcp/McpManager.js';
 import { createDefaultPolicy } from '../lib/mcp/security.js';
 import { loadPluginConfigs } from '../lib/plugins/loader.js';
-import type { McpServerConfig } from '../lib/mcp/McpManager.js';
+import type { McpServerConfig, FailedConnection } from '../lib/mcp/McpManager.js';
 import type { ApprovalRequest } from '../components/mcp/ApprovalDialog.js';
 import type { Tool } from 'ai';
 
@@ -164,6 +164,17 @@ export interface UseMcpResult {
   tools: Record<string, Tool>;
   pendingApproval: ApprovalRequest | null;
   resolveApproval: (id: string, approved: boolean) => void;
+  /**
+   * Servers from `config.mcp.servers` / `.mcp.json` / plugins that failed
+   * at startup. Built-ins (file-browse, command-exec, git, rag) are
+   * intentionally excluded — they're internal plumbing.
+   */
+  failedServers: FailedConnection[];
+  /**
+   * Re-attempts every failed connection. Refreshes the tool list on
+   * success. Resolves after all retries settle.
+   */
+  retryFailedServers: () => Promise<void>;
 }
 
 export function useMcp({
@@ -191,6 +202,9 @@ export function useMcp({
   // Gap 4: store tool map in state so useMemo can key off it; object identity
   // only changes when a new async tool enumeration completes.
   const [toolMap, setToolMap] = useState<Record<string, Tool>>({});
+  // Servers that failed at startup. Surfaced through the return value so
+  // ChatScreen can render a banner and the /mcp screen can list them.
+  const [failedServers, setFailedServers] = useState<FailedConnection[]>([]);
 
   //: per-conversation tool call counter. Starts at 0 on mount
   // and is reset whenever the conversationId prop changes (new conversation).
@@ -285,7 +299,10 @@ export function useMcp({
 
       // Enumerate tools from all connected servers with security wrappers applied
       const fullTools = await manager.getAiSdkToolsAsync();
-      if (!cancelled) setToolMap(fullTools);
+      if (!cancelled) {
+        setToolMap(fullTools);
+        setFailedServers(manager.getFailedConnections());
+      }
     }
 
     void connectAndLoadTools();
@@ -301,6 +318,19 @@ export function useMcp({
   useEffect(() => {
     toolCallCountRef.current = 0;
   }, [conversationId]);
+
+  const retryFailedServers = useCallback(async (): Promise<void> => {
+    const manager = managerRef.current;
+    if (manager === null) return;
+    const failed = manager.getFailedConnections();
+    if (failed.length === 0) return;
+    await Promise.allSettled(
+      failed.map((f) => manager.connect(f.config).catch(() => undefined)),
+    );
+    const refreshed = await manager.getAiSdkToolsAsync();
+    setToolMap(refreshed);
+    setFailedServers(manager.getFailedConnections());
+  }, []);
 
   // Gap 4: Stabilise the tools reference. useMemo returns the same object
   // identity until toolMap itself is replaced by setToolMap — callers like
@@ -340,5 +370,5 @@ export function useMcp({
     return limited;
   }, [toolMap]);
 
-  return { tools, pendingApproval, resolveApproval };
+  return { tools, pendingApproval, resolveApproval, failedServers, retryFailedServers };
 }

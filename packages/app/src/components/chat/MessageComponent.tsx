@@ -31,6 +31,18 @@ export const MessageComponent = memo(function MessageComponent({
     );
   }
 
+  const agentName =
+    !isUser && typeof message.senderAgentName === 'string' && message.senderAgentName !== ''
+      ? message.senderAgentName
+      : null;
+
+  const content = message.content ?? '';
+  const isHallucinatedToolCall =
+    !isUser &&
+    content.trim().startsWith('{') &&
+    /^\s*\{\s*"name"\s*:/.test(content) &&
+    /"arguments"\s*:/.test(content);
+
   return (
     <Box flexDirection="column" marginY={1}>
       <Box>
@@ -38,8 +50,8 @@ export const MessageComponent = memo(function MessageComponent({
           ? <Text color="#A78BFA" bold>{'▶ '}</Text>
           : <Text>{'  '}</Text>
         }
-        <Text bold color={isUser ? 'white' : '#60A5FA'}>
-          {isUser ? `  ${displayName ?? 'you'}  ` : 'uplnk'}
+        <Text bold color={isUser ? 'white' : agentName !== null ? '#A78BFA' : '#60A5FA'}>
+          {isUser ? `  ${displayName ?? 'you'}  ` : agentName !== null ? `@${agentName}` : 'uplnk'}
         </Text>
         {index !== undefined && (
           <Text dimColor>{` #${index}`}</Text>
@@ -49,10 +61,19 @@ export const MessageComponent = memo(function MessageComponent({
         {!isUser && <Text dimColor>{'│ '}</Text>}
         <Box flexDirection="column" flexShrink={1}>
           {isUser ? (
-            <Text wrap="wrap">{message.content ?? ''}</Text>
+            <Text wrap="wrap">{content}</Text>
+          ) : isHallucinatedToolCall ? (
+            <Box flexDirection="column">
+              <Text color="yellow">⚠ Model returned a raw tool-call JSON instead of invoking the tool.</Text>
+              <Text dimColor>  Your current model doesn't reliably support tool calling.</Text>
+              <Text dimColor>  Switch via /model to a tool-capable model (e.g. qwen2.5-coder, llama3-groq-tool-use, mistral-nemo, or any OpenAI-compatible model with native function calling).</Text>
+              <Box marginTop={1}>
+                <Text dimColor wrap="wrap">{content}</Text>
+              </Box>
+            </Box>
           ) : (
             <MarkdownMessage
-              text={message.content ?? ''}
+              text={content}
               messageId={message.id}
               {...(onPromote !== undefined ? { onPromote } : {})}
             />

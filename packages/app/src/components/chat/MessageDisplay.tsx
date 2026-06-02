@@ -87,10 +87,8 @@ const StreamingMessageInternal = memo(function StreamingMessageInternal({ stream
         <Text color="#1E40AF" dimColor>{'│ '}</Text>
         <Box flexDirection="column" flexShrink={1}>
           {isStreaming ? (
-            <Box>
-              <Text wrap="wrap">
-                {streamedText}
-              </Text>
+            <Box flexDirection="column">
+              <MarkdownMessage text={streamedText} />
               <Text color="cyan">{cursorOn ? '▋' : ' '}</Text>
             </Box>
           ) : isHallucinatedToolCall ? (

@@ -1,6 +1,9 @@
 import { memo, useState, useRef, useCallback, useMemo, useEffect } from 'react';
 import { Box, Text, useInput } from 'ink';
 import { execSync } from 'node:child_process';
+import fs from 'node:fs';
+import path from 'node:path';
+import os from 'node:os';
 import clipboardy from 'clipboardy';
 import { MentionResolver } from '../../lib/agents/mentionResolver.js';
 import { getAgentRegistry } from '../../lib/agents/registry.js';
@@ -15,9 +18,48 @@ import {
 } from '../../lib/pathMention.js';
 import { useVoiceAssistant } from '../voice/VoiceAssistantProvider.js';
 
+// ─── Paste debug logger ────────────────────────────────────────────────────────
+// Gated behind UPLNK_DEBUG_PASTE=1. Writes to ~/.uplnk/paste-debug.log using
+// synchronous I/O so entries are never lost on crash. Never writes to stdout/
+// stderr — that would corrupt Ink's renderer.
+
+const DEBUG_PASTE = process.env['UPLNK_DEBUG_PASTE'] === '1';
+let _debugLogPath: string | null = null;
+
+function debugPaste(
+  event: string,
+  inputLen: number,
+  hasNewline: boolean,
+  raw: string,
+): void {
+  if (!DEBUG_PASTE) return;
+  try {
+    if (_debugLogPath === null) {
+      const uplnkDir = path.join(os.homedir(), '.uplnk');
+      fs.mkdirSync(uplnkDir, { recursive: true });
+      _debugLogPath = path.join(uplnkDir, 'paste-debug.log');
+    }
+    const line =
+      `[${new Date().toISOString()}] event=${event} len=${inputLen} hasNewline=${String(hasNewline)} raw=${JSON.stringify(raw)}\n`;
+    fs.appendFileSync(_debugLogPath, line, 'utf8');
+  } catch {
+    // Never throw from a debug helper
+  }
+}
+// ──────────────────────────────────────────────────────────────────────────────
+
 // Brand accent — cyan that matches the header gradient start
 const CURSOR_COLOR = '#00D9FF';
 const MENTION_VISIBLE = 8;
+
+/**
+ * Fixed total height of the mention popover when open. Parent (ChatScreen)
+ * uses this to reduce the message viewport so the popover can render above
+ * the input without overflowing the terminal. Must match the popover JSX:
+ *   border(2) + marginBottom(1) + header(1) + mode(1) + items(MENTION_VISIBLE)
+ *   + overflow(1) + footer(1)
+ */
+export const MENTION_POPOVER_HEIGHT = 2 + 1 + 1 + 1 + MENTION_VISIBLE + 1 + 1;
 
 interface Props {
   onSubmit: (text: string) => void | Promise<void>;
@@ -25,6 +67,12 @@ interface Props {
   disabled?: boolean;
   /** Project root directory used to build `@file` completion candidates. */
   projectDir?: string;
+  /**
+   * Fires whenever the @mention popover opens/closes. Parent uses this to
+   * reserve `MENTION_POPOVER_HEIGHT` rows in its layout so the popover can
+   * grow upward without pushing the input row off the bottom of the terminal.
+   */
+  onMentionActiveChange?: (active: boolean) => void;
 }
 
 interface MentionState {
@@ -153,11 +201,44 @@ export const ChatInput = memo(function ChatInput({
   onCommand,
   disabled = false,
   projectDir,
+  onMentionActiveChange,
 }: Props) {
   const [value, setValue] = useState('');
   const [cursorPos, setCursorPos] = useState(0);
   const [mention, setMention] = useState<MentionState>(EMPTY_MENTION);
+
+  useEffect(() => {
+    onMentionActiveChange?.(mention.active);
+  }, [mention.active, onMentionActiveChange]);
   const { isDictating, toggleDictation, partialTranscription, statusMessage, registerTranscriptionHandler } = useVoiceAssistant();
+
+  // Bracketed paste mode: accumulate terminal-paste chunks between ESC[200~ and ESC[201~.
+  // While a paste is in flight, keystrokes are buffered here instead of processed individually.
+  const bracketedPasteBufferRef = useRef<string | null>(null);
+
+  // Enable bracketed paste mode on mount; disable on unmount.
+  // Guard with isTTY so piped usage (uplnk < file | cat) and vitest don't
+  // receive ANSI control sequences on stdout, which would leak into test logs
+  // and risk an unhandled exception on a closed pipe at unmount.
+  useEffect(() => {
+    // Prong 3: log whether the bracketed-paste-enable write actually fired.
+    // UPLNK_DEBUG_PASTE=1 will show this entry first in the log — if isTTY is
+    // false here, the bracketed-paste path will never work for this session.
+    debugPaste(
+      process.stdout.isTTY ? 'bracketed-paste-enable-write' : 'bracketed-paste-enable-SKIPPED-no-tty',
+      0,
+      false,
+      '',
+    );
+    if (process.stdout.isTTY) {
+      process.stdout.write('\x1b[?2004h');
+    }
+    return () => {
+      if (process.stdout.isTTY) {
+        process.stdout.write('\x1b[?2004l');
+      }
+    };
+  }, []);
 
   // Register the transcription callback with the provider
   useEffect(() => {
@@ -221,6 +302,34 @@ export const ChatInput = memo(function ChatInput({
     textBlockCountRef.current = 0;
   }, []);
 
+  /**
+   * Insert pasted text using the same rules as the Ctrl+V path:
+   * - Multi-line → tagged placeholder stored in pastedPayloadsRef
+   * - Single-line → inserted literally at the end of the current value
+   * Uses functional setState because this may be called from async or
+   * deferred contexts where the value closure could be stale.
+   */
+  const insertPastedText = useCallback((text: string) => {
+    if (!text) return;
+    // Normalize line endings: \r\n (Windows) first, then bare \r (old Mac /
+    // terminal CR) — order matters so \r\n collapses to one \n, not two.
+    const normalized = text.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+    const lineCount = normalized.split('\n').length;
+    if (lineCount > 1) {
+      textBlockCountRef.current += 1;
+      const count = textBlockCountRef.current;
+      const countSuffix = count === 1 ? '' : ` #${String(count)}`;
+      const tag = `{Text Block: ${String(lineCount)} lines${countSuffix}}`;
+      pastedPayloadsRef.current.push({ tag, content: normalized });
+      setValue((prev) => prev + tag);
+      setCursorPos((prev) => prev + tag.length);
+    } else {
+      setValue((prev) => prev + normalized);
+      setCursorPos((prev) => prev + normalized.length);
+    }
+    historyIndexRef.current = -1;
+  }, []);
+
   const handleSubmit = useCallback(
     (text: string) => {
       const trimmed = text.trim();
@@ -243,6 +352,9 @@ export const ChatInput = memo(function ChatInput({
             return;
           case 'add-provider':
             onCommand?.('add-provider');
+            return;
+          case 'settings':
+            onCommand?.('settings');
             return;
           case 'role':
             onCommand?.(`role:${cmdArgs.join(' ')}`);
@@ -269,6 +381,9 @@ export const ChatInput = memo(function ChatInput({
           case 'help':
             onCommand?.('help');
             return;
+          case 'mcp':
+            onCommand?.('mcp');
+            return;
           default:
             // Unknown command — fall through to normal submit so LLM can handle it
         }
@@ -281,9 +396,20 @@ export const ChatInput = memo(function ChatInput({
 
       setValue('');
       setCursorPos(0);
+
+      // Expand paste placeholder tags before submitting.
+      // Each {Text Block: N lines} tag in `text` is replaced with its stored
+      // content. Image tags ({Photo}) are skipped — their content sentinel
+      // '[image data]' must not be substituted into the text stream.
+      let expanded = text;
+      for (const payload of pastedPayloadsRef.current) {
+        if (payload.content === '[image data]') continue;
+        expanded = expanded.split(payload.tag).join(payload.content);
+      }
+
       resetPasteState();
 
-      const result = onSubmit(text);
+      const result = onSubmit(expanded);
       if (result instanceof Promise) result.catch(console.error);
     },
     [onSubmit, onCommand, resetPasteState],
@@ -305,6 +431,101 @@ export const ChatInput = memo(function ChatInput({
 
   useInput(
     (input, key) => {
+      // ─── Prong 1: Heuristic-based paste detection ─────────────────────────
+      // Fires BEFORE the bracketed-paste path and BEFORE the disabled guard.
+      //
+      // Condition: input has a newline AND length > 8, AND we are not already
+      // mid-bracketed-paste (buffer non-null), AND the chunk does not carry the
+      // bracketed-paste start marker (which the next block handles correctly).
+      //
+      // Rationale for length > 8:
+      //   - A single typed character is 1 byte. Ink never delivers a typed
+      //     Enter fused with other characters — Enter is its own data event.
+      //   - Known compound sequences that contain '\n' are short: Alt+Enter can
+      //     arrive as '\x1b\n' (2 bytes, stripped ESC = 1 byte '\n'). Shift+Enter
+      //     via kitty protocol uses '\r' not '\n'. So any chunk with a literal
+      //     '\n' AND length > 8 cannot plausibly be a single keystroke combo.
+      //   - 'a\nb' (length 3) is under the threshold and falls through — this is
+      //     intentional: a 3-byte chunk with a newline is ambiguous and rare;
+      //     accepting false-negatives here is safer than false-positives on typed
+      //     Alt+sequences. Documented trade-off; revisit with debounce if needed.
+      //   - A real paste arriving without bracketed mode is typically hundreds of
+      //     bytes. length > 8 is a conservative floor with generous headroom.
+      //
+      // Skip when bracketedPasteBufferRef.current !== null (mid-bracketed-paste
+      // accumulation, handled below) or when input starts with '[200~' (the
+      // bracketed-paste start marker, handled in the next block).
+      if (
+        input.length > 8 &&
+        (input.includes('\n') || input.includes('\r')) &&
+        bracketedPasteBufferRef.current === null &&
+        !input.startsWith('[200~')
+      ) {
+        debugPaste('heuristic-paste', input.length, true, input);
+        // Discard while streaming — same policy as the bracketed-paste path.
+        if (!disabled) {
+          insertPastedText(input);
+        }
+        return;
+      }
+
+      // ─── Bracketed paste mode interception ───────────────────────────────
+      // Ink strips the leading ESC from unrecognised sequences, so the terminal's
+      // ESC[200~ paste-start arrives as '[200~' and ESC[201~ as '[201~'.
+
+      if (bracketedPasteBufferRef.current !== null) {
+        // Currently accumulating a bracketed paste across multiple useInput callbacks.
+        // Ink strips the leading \x1b from every chunk it delivers, so a chunk that
+        // in the raw stream is '\x1b[201~' arrives here as '[201~'. Re-prefix the
+        // stripped ESC byte before searching, so we always match the canonical
+        // '\x1b[201~' marker and never accidentally trigger on '[201~' appearing
+        // literally in paste content (e.g. shell scripts with escape-sequence examples).
+        const prefixed = '\x1b' + input;
+        const endIdx = prefixed.indexOf('\x1b[201~');
+        if (endIdx !== -1) {
+          // End marker found. Content before the marker (accounting for the re-prefixed
+          // ESC at position 0) completes the paste. If endIdx === 0, the chunk is
+          // exactly the end marker with no payload — slice produces empty string.
+          const chunkContent = prefixed.slice(1, endIdx); // strip the re-prefixed ESC, keep payload
+          const final = bracketedPasteBufferRef.current + chunkContent;
+          bracketedPasteBufferRef.current = null;
+          debugPaste('bracketed-end', final.length, final.includes('\n'), final);
+          // Paste that arrives while streaming is dropped by design — silently
+          // discard rather than injecting content into a disabled input state.
+          if (!disabled) {
+            insertPastedText(final);
+          }
+        } else {
+          // Still accumulating — Ink may split a paste across multiple callbacks.
+          debugPaste('bracketed-accumulate', input.length, input.includes('\n'), input);
+          bracketedPasteBufferRef.current += input;
+        }
+        return;
+      }
+
+      if (input.startsWith('[200~')) {
+        // Paste-start: Ink stripped the leading ESC, so the raw ESC[200~ marker
+        // arrives as '[200~'. Content after the marker is the start of the paste
+        // payload. Apply the same re-prefix technique to find the end marker.
+        const afterMarker = input.slice('[200~'.length);
+        const prefixedAfter = '\x1b' + afterMarker;
+        const endIdx = prefixedAfter.indexOf('\x1b[201~');
+        if (endIdx !== -1) {
+          // Entire paste arrived in one chunk. endIdx 0 would mean the marker
+          // immediately followed '[200~' with no payload — slice handles it cleanly.
+          const content = prefixedAfter.slice(1, endIdx);
+          debugPaste('bracketed-single-chunk', content.length, content.includes('\n'), content);
+          if (!disabled) {
+            insertPastedText(content);
+          }
+        } else {
+          debugPaste('bracketed-start', afterMarker.length, afterMarker.includes('\n'), afterMarker);
+          bracketedPasteBufferRef.current = afterMarker;
+        }
+        return;
+      }
+      // ─────────────────────────────────────────────────────────────────────
+
       if (disabled) return;
 
       // ~ (backtick/tilde) toggles voice dictation
@@ -331,24 +552,7 @@ export const ChatInput = memo(function ChatInput({
         // Read text from clipboard asynchronously
         clipboardy.read().then((text) => {
           if (!text) return;
-          const lineCount = text.split('\n').length;
-
-          if (lineCount > 1) {
-            // Multiline — insert a tagged placeholder
-            textBlockCountRef.current += 1;
-            const count = textBlockCountRef.current;
-            const countSuffix = count === 1 ? '' : ` #${String(count)}`;
-            const tag = `{Text Block: ${String(lineCount)} lines${countSuffix}}`;
-            pastedPayloadsRef.current.push({ tag, content: text });
-            // Use functional form because this is async — value in closure may be stale
-            setValue((prev) => prev + tag);
-            setCursorPos((prev) => prev + tag.length);
-          } else {
-            // Single-line — insert literally
-            setValue((prev) => prev + text);
-            setCursorPos((prev) => prev + text.length);
-          }
-          historyIndexRef.current = -1;
+          insertPastedText(text);
         }).catch(() => {
           // Clipboard unreadable — silently ignore
         });
@@ -501,6 +705,12 @@ export const ChatInput = memo(function ChatInput({
         return;
       }
 
+      // SGR mouse sequences (ESC[<b;x;yM|m) arrive here as '[<b;x;yM|m' for the
+      // same reason — drop them so wheel/click events don't get echoed as text.
+      if (/^\[<\d+;\d+;\d+[Mm]$/.test(input)) {
+        return;
+      }
+
       if (key.return) {
         // Alt/Meta+Enter inserts a newline; plain Enter submits.
         // Shift+Enter is handled above via the kitty keyboard protocol sequence
@@ -634,7 +844,18 @@ export const ChatInput = memo(function ChatInput({
         }
       }
 
+      // "?" on its own (empty buffer, no modifier, not in any subflow) toggles
+      // the help panel. We still allow questions starting with "?" — the user
+      // just needs to type one character first (e.g. a space) before the "?",
+      // which is the convention in lazygit/k9s/less. Treats the bare-? as a
+      // command shortcut, not a typing keystroke.
+      if (input === '?' && value === '' && !key.ctrl && !key.meta) {
+        onCommand?.('help');
+        return;
+      }
+
       // Regular character input — insert at cursor position
+      debugPaste('normal-key', input.length, input.includes('\n'), input);
       historyIndexRef.current = -1;
       const newVal = value.slice(0, cursorPos) + input + value.slice(cursorPos);
       setValue(newVal);
@@ -644,12 +865,30 @@ export const ChatInput = memo(function ChatInput({
 
   const lines = value.split('\n');
   const displayLines = lines.length > 5 ? lines.slice(-5) : lines;
-  const visibleFiltered = filtered.slice(0, MENTION_VISIBLE);
-  const visiblePathEntries = pathEntries.slice(0, MENTION_VISIBLE);
-  const overflowCount =
-    pathCtx !== null
-      ? pathEntries.length - visiblePathEntries.length
-      : filtered.length - visibleFiltered.length;
+  // Scroll the mention popover so the selected cursor stays inside the
+  // MENTION_VISIBLE window. Without this, cursor advances past index 7 but
+  // the slice stays pinned at [0, 8) and the selection indicator disappears.
+  const mentionTotal = pathCtx !== null ? pathEntries.length : filtered.length;
+  const mentionScrollOffset = Math.max(
+    0,
+    Math.min(
+      Math.max(0, mentionTotal - MENTION_VISIBLE),
+      mention.cursor - MENTION_VISIBLE + 1,
+    ),
+  );
+  const visibleFiltered = filtered.slice(
+    mentionScrollOffset,
+    mentionScrollOffset + MENTION_VISIBLE,
+  );
+  const visiblePathEntries = pathEntries.slice(
+    mentionScrollOffset,
+    mentionScrollOffset + MENTION_VISIBLE,
+  );
+  const overflowAbove = mentionScrollOffset;
+  const overflowBelow = Math.max(
+    0,
+    mentionTotal - mentionScrollOffset - MENTION_VISIBLE,
+  );
 
   const promptColor = disabled ? '#475569' : '#00D9FF';
   const borderColor = disabled ? '#374151' : '#7B6FFF';
@@ -677,6 +916,9 @@ export const ChatInput = memo(function ChatInput({
         </Box>
       )}
       {mention.active && (
+        // Fixed-height popover: 1 header + 1 mode + MENTION_VISIBLE items
+        // + 1 overflow + 1 footer = stable layout so the chat input below
+        // never shifts as the user types and the result list grows/shrinks.
         <Box flexDirection="column" marginBottom={1} borderStyle="round" borderColor="#7B6FFF" paddingX={1}>
           <Box>
             <Text color="#7B6FFF">@ </Text>
@@ -688,32 +930,36 @@ export const ChatInput = memo(function ChatInput({
               <Text color="#FBBF24">  no matches</Text>
             ) : null}
           </Box>
-          {pathCtx !== null && (
-            <Text dimColor>  {formatPathContextHeader(pathCtx)}</Text>
-          )}
-          {pathCtx !== null && visiblePathEntries.map((entry, i) => {
-            const isSelected = i === mention.cursor;
+          <Text dimColor>{pathCtx !== null ? `  ${formatPathContextHeader(pathCtx)}` : ' '}</Text>
+          {Array.from({ length: MENTION_VISIBLE }).map((_, i) => {
+            const idx = i + mentionScrollOffset;
+            const isSelected = idx === mention.cursor;
             const prefix = isSelected ? '▶ ' : '  ';
-            const icon = entry.isDir ? '📁 ' : '   ';
-            return (
-              <Box key={entry.name}>
-                <Text color={isSelected ? '#00D9FF' : '#64748B'}>
-                  {prefix}{icon}{entry.name}{entry.isDir ? '/' : ''}
-                </Text>
-              </Box>
-            );
-          })}
-          {pathCtx === null && visibleFiltered.map((candidate, i) => {
-            const isSelected = i === mention.cursor;
-            const prefix = isSelected ? '▶ ' : '  ';
+            if (pathCtx !== null) {
+              const entry = visiblePathEntries[i];
+              if (entry === undefined) {
+                return <Text key={`pad-${String(i)}`}> </Text>;
+              }
+              const icon = entry.isDir ? '📁 ' : '   ';
+              return (
+                <Box key={entry.name}>
+                  <Text color={isSelected ? '#00D9FF' : '#64748B'}>
+                    {prefix}{icon}{entry.name}{entry.isDir ? '/' : ''}
+                  </Text>
+                </Box>
+              );
+            }
+            const candidate = visibleFiltered[i];
+            if (candidate === undefined) {
+              return <Text key={`pad-${String(i)}`}> </Text>;
+            }
             if (candidate.kind === 'agent') {
               const agentColor = isSelected ? ((candidate.color as string | undefined) ?? '#00D9FF') : '#64748B';
               return (
-                <Box key={candidate.name} flexDirection="column">
-                  <Text color={agentColor}>
-                    {prefix}{candidate.icon} <Text bold={isSelected}>{candidate.name}</Text>
-                  </Text>
-                  <Text color="#475569">    {candidate.description.slice(0, 60)}</Text>
+                <Box key={candidate.name}>
+                  <Text color={agentColor}>{prefix}{candidate.icon} </Text>
+                  <Text color={agentColor} bold={isSelected}>{candidate.name}</Text>
+                  <Text color="#475569"> — {candidate.description.slice(0, 80)}</Text>
                 </Box>
               );
             }
@@ -726,7 +972,6 @@ export const ChatInput = memo(function ChatInput({
                 </Box>
               );
             }
-            // file
             return (
               <Box key={candidate.path}>
                 <Text color={isSelected ? '#00D9FF' : '#64748B'}>
@@ -735,9 +980,11 @@ export const ChatInput = memo(function ChatInput({
               </Box>
             );
           })}
-          {overflowCount > 0 && (
-            <Text dimColor>  …{String(overflowCount)} more (keep typing to narrow)</Text>
-          )}
+          <Text dimColor>
+            {overflowAbove > 0 || overflowBelow > 0
+              ? `  ${overflowAbove > 0 ? `↑ ${String(overflowAbove)} above` : ''}${overflowAbove > 0 && overflowBelow > 0 ? '  ·  ' : ''}${overflowBelow > 0 ? `↓ ${String(overflowBelow)} below` : ''}`
+              : ' '}
+          </Text>
           <Text dimColor>
             {pathCtx !== null
               ? '  ↑↓ select · Enter → open/pick · Tab complete · Esc cancel'

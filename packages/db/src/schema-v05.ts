@@ -79,7 +79,7 @@ export const providerConfigs = sqliteTable(
   (table) => [
     check(
       'provider_type_check',
-      sql`${table.providerType} IN ('ollama', 'vllm', 'lmstudio', 'localai', 'llama-cpp', 'openai', 'anthropic', 'openrouter', 'custom')`,
+      sql`${table.providerType} IN ('ollama', 'vllm', 'lmstudio', 'localai', 'llama-cpp', 'openai', 'openrouter', 'custom')`,
     ),
     // NEW — "only one default" enforced at the DB layer. SQLite supports
     // partial indexes, so we only index rows where is_default = 1.

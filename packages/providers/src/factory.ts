@@ -1,19 +1,16 @@
 import { OllamaProvider } from './ollama.js';
 import { OpenAICompatibleProvider } from './openai-compatible.js';
-import { AnthropicProvider } from './anthropic.js';
 import type { ModelProvider, ProviderConfig, ProviderKind } from './types.js';
 
 /**
  * Construct a `ModelProvider` for the given config. All OpenAI-compatible
- * server flavours share one class; only Ollama and Anthropic have dedicated
- * adapters because their discovery endpoints differ.
+ * server flavours share one class; only Ollama has a dedicated adapter
+ * because its discovery endpoint differs.
  */
 export function makeProvider(config: ProviderConfig): ModelProvider {
   switch (config.kind) {
     case 'ollama':
       return new OllamaProvider(config);
-    case 'anthropic':
-      return new AnthropicProvider(config);
     case 'openai':
     case 'openai-compatible':
     case 'lmstudio':
@@ -40,6 +37,5 @@ export const PROVIDER_KIND_OPTIONS: Array<{
   { kind: 'localai',           label: 'LocalAI',             defaultBaseUrl: 'http://localhost:8080/v1',       defaultAuth: 'none',    hint: 'LocalAI container' },
   { kind: 'llama-cpp',         label: 'llama.cpp server',    defaultBaseUrl: 'http://localhost:8080/v1',       defaultAuth: 'none',    hint: 'llama-server OpenAI compat' },
   { kind: 'openai',            label: 'OpenAI',              defaultBaseUrl: 'https://api.openai.com/v1',      defaultAuth: 'bearer',  hint: 'api.openai.com' },
-  { kind: 'anthropic',         label: 'Anthropic',           defaultBaseUrl: 'https://api.anthropic.com',      defaultAuth: 'api-key', hint: 'api.anthropic.com' },
   { kind: 'custom',            label: 'Custom',              defaultBaseUrl: '',                                defaultAuth: 'bearer',  hint: 'Anything else — hand-configured' },
 ];

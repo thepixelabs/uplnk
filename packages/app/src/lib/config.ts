@@ -162,7 +162,6 @@ const ConfigSchema = z.object({
           'vllm',
           'localai',
           'llama-cpp',
-          'anthropic',
           'openai',
           'custom',
         ]),
@@ -283,8 +282,8 @@ const ConfigSchema = z.object({
     turnTimeoutMs: z.number().int().positive().default(120_000),
     minInterTurnMs: z.number().int().nonnegative().default(750),
     judge: z.object({
-      provider: z.string().default('anthropic'),
-      model: z.string().default('claude-haiku-4-5-20251001'),
+      provider: z.string().default('ollama'),
+      model: z.string().default(''),
       everyNTurns: z.number().int().positive().default(1),
     }).default({}),
     redact: z.object({
@@ -298,6 +297,17 @@ const ConfigSchema = z.object({
       quitKeys: z.string().default('C-c C-c'),
     })).default({}),
   }).default({}),
+  /**
+   * Header stats display. Per-turn tok/s, in/out tokens, and TTFT shown
+   * in a thin row beneath the main header. Defaults to ON — the row only
+   * renders once the first turn completes, so it never shows placeholder
+   * noise.
+   */
+  stats: z
+    .object({
+      showInHeader: z.boolean().default(true),
+    })
+    .default({}),
   /**
    * Altergo integration settings. Controls account management and session import.
    */

@@ -16,6 +16,10 @@ interface MessageItemProps {
 export const MessageItem = memo(function MessageItem({ message, onPromote, displayName }: MessageItemProps) {
   const isUser = message.role === 'user';
   const isSystem = message.role === 'system';
+  const agentName =
+    !isUser && typeof message.senderAgentName === 'string' && message.senderAgentName !== ''
+      ? message.senderAgentName
+      : null;
 
   if (isSystem) {
     return (
@@ -28,8 +32,8 @@ export const MessageItem = memo(function MessageItem({ message, onPromote, displ
   return (
     <Box flexDirection="column" marginY={1}>
       <Box>
-        <Text bold color={isUser ? 'white' : '#60A5FA'}>
-          {isUser ? `  ${displayName ?? 'you'}  ` : 'uplnk'}
+        <Text bold color={isUser ? 'white' : agentName !== null ? '#A78BFA' : '#60A5FA'}>
+          {isUser ? `  ${displayName ?? 'you'}  ` : agentName !== null ? `@${agentName}` : 'uplnk'}
         </Text>
       </Box>
       <Box>

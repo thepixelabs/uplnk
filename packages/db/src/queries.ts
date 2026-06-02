@@ -202,6 +202,18 @@ export function setProviderApiKey(db: Db, id: string, apiKey: string | null): vo
 }
 
 /**
+ * Update only the default_model column. Used by the /model picker so a
+ * user's selection survives restart instead of reverting to the seeded
+ * default on the next ChatScreen mount.
+ */
+export function setProviderDefaultModel(db: Db, id: string, defaultModel: string): void {
+  db.update(providerConfigs)
+    .set({ defaultModel, updatedAt: new Date().toISOString() })
+    .where(eq(providerConfigs.id, id))
+    .run();
+}
+
+/**
  * Promote a provider to default, demoting all others in a single transaction
  * so the `is_default` column always has exactly one true row.
  */

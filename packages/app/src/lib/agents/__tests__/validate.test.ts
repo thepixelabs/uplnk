@@ -16,8 +16,8 @@ You are a helpful agent.
 const FULL_MD = `---
 name: full-agent
 description: Full-featured agent with all options.
-model: claude-opus-4-5
-provider: anthropic
+model: qwen2.5-coder:7b
+provider: ollama
 temperature: 0.7
 effort: high
 tools:
@@ -73,8 +73,8 @@ describe('parseAgentFile', () => {
     const def = parseAgentFile(FULL_MD, '/path/to/full.md', 'user');
 
     expect(def.name).toBe('full-agent');
-    expect(def.model).toBe('claude-opus-4-5');
-    expect(def.provider).toBe('anthropic');
+    expect(def.model).toBe('qwen2.5-coder:7b');
+    expect(def.provider).toBe('ollama');
     expect(def.temperature).toBe(0.7);
     expect(def.effort).toBe('high');
     expect(def.tools).toEqual(['WebSearch', 'Read']);

@@ -10,7 +10,6 @@ export type CatalogProviderKind =
   | 'vllm'
   | 'localai'
   | 'llama-cpp'
-  | 'anthropic'
   | 'openai'
   | 'custom';
 

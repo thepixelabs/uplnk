@@ -42,7 +42,7 @@ function materialize(caps: CatalogCapabilities | undefined): ResolvedCapabilitie
  *   1. canonical key "<kind>/<id>"
  *   2. displayId within the given kind
  *   3. displayId across any kind (fallback for providers whose kind the caller
- *      guessed wrong, e.g. custom-wrapped Anthropic)
+ *      guessed wrong, e.g. an unusually-wrapped server)
  * Returns `DEFAULT_CAPABILITIES` (all conservative) if nothing matches.
  *
  * Accepts an optional `catalog` override so callers who already loaded the

@@ -46,6 +46,7 @@ export function makeTestConfig(overrides: Partial<Config> = {}): Config {
       watchSessions: false,
       launchDetach: true,
     },
+    stats: { showInHeader: false },
     ...overrides,
   };
 }

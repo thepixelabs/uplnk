@@ -2,16 +2,11 @@ import { describe, it, expect } from 'vitest';
 import { resolveCapabilities, type CatalogEntry } from '@uplnk/catalog';
 
 describe('resolveCapabilities', () => {
-  it('resolves known tool-capable models via canonical key', () => {
-    const caps = resolveCapabilities('anthropic', 'claude-sonnet-4-6');
+  it('resolves OpenAI gpt-4o as tool-capable', () => {
+    const caps = resolveCapabilities('openai', 'gpt-4o');
     expect(caps.tools).toBe(true);
     expect(caps.vision).toBe(true);
     expect(caps.streaming).toBe(true);
-    expect(caps.promptCaching).toBe(true);
-  });
-
-  it('resolves OpenAI gpt-4o as tool-capable', () => {
-    expect(resolveCapabilities('openai', 'gpt-4o').tools).toBe(true);
   });
 
   it('resolves Ollama allowlist entries as tool-capable', () => {

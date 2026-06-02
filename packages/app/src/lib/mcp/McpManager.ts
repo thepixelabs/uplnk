@@ -151,10 +151,25 @@ interface ServerConnection {
   error?: Error;
 }
 
+/**
+ * Snapshot of a server that failed to connect at startup. Kept separately
+ * from the live connections map so the UI can show "N servers failed —
+ * /mcp" without us having to keep the dead client around.
+ */
+export interface FailedConnection {
+  config: McpServerConfig;
+  error: Error;
+  /** Last ~40 lines of the child process's stderr, joined with `\n`. */
+  stderrTail: string;
+}
+
+const STDERR_TAIL_LINES = 40;
+
 // ─── McpManager ───────────────────────────────────────────────────────────────
 
 export class McpManager {
   private readonly connections = new Map<string, ServerConnection>();
+  private readonly failedConnections = new Map<string, FailedConnection>();
   private readonly config: McpManagerConfig;
   private destroyed = false;
   /** Resolved once at construction so all logToolCall() calls use the same path. */
@@ -244,8 +259,18 @@ export class McpManager {
       return; // Already connected
     }
 
+    // A retry through connect() means the previous failure is no longer
+    // current — clear it so a successful connect doesn't leave a stale
+    // entry hanging around for the UI to display.
+    this.failedConnections.delete(serverConfig.id);
+
     const transportType = serverConfig.type ?? 'stdio';
     let transport: StdioClientTransport | StreamableHTTPClientTransport;
+    // Captures the last STDERR_TAIL_LINES of the child process's stderr so
+    // /mcp can show the user what actually went wrong. For http transports
+    // this stays empty.
+    const stderrLines: string[] = [];
+    let stderrBuffer = '';
 
     if (transportType === 'http') {
       if (serverConfig.url === undefined) {
@@ -256,11 +281,24 @@ export class McpManager {
       if (serverConfig.command === undefined) {
         throw new Error(`MCP server "${serverConfig.id}" has type "stdio" but no command`);
       }
-      transport = new StdioClientTransport({
+      // stderr: 'pipe' keeps child process error output off our Ink alt-screen.
+      // The SDK exposes the piped stream via transport.stderr.
+      const stdioTransport = new StdioClientTransport({
         command: serverConfig.command,
         args: serverConfig.args ?? [],
         ...(serverConfig.env !== undefined ? { env: serverConfig.env } : {}),
+        stderr: 'pipe',
       });
+      stdioTransport.stderr?.on('data', (chunk: Buffer | string) => {
+        stderrBuffer += typeof chunk === 'string' ? chunk : chunk.toString('utf8');
+        const parts = stderrBuffer.split('\n');
+        stderrBuffer = parts.pop() ?? '';
+        for (const line of parts) {
+          stderrLines.push(line);
+          if (stderrLines.length > STDERR_TAIL_LINES) stderrLines.shift();
+        }
+      });
+      transport = stdioTransport;
     }
 
     const client = new Client(
@@ -306,10 +344,41 @@ export class McpManager {
       conn.status = 'connected';
     } catch (err) {
       conn.status = 'error';
-      conn.error = err instanceof Error ? err : new Error(String(err));
+      const wrapped = err instanceof Error ? err : new Error(String(err));
+      conn.error = wrapped;
       this.connections.delete(serverConfig.id);
-      throw conn.error;
+      // Built-ins are an implementation detail — surfacing their failures in
+      // /mcp would just confuse users. Only record user-configured servers.
+      if (!serverConfig.id.startsWith('__uplnk_builtin_')) {
+        const tail = [...stderrLines];
+        if (stderrBuffer.length > 0) tail.push(stderrBuffer);
+        this.failedConnections.set(serverConfig.id, {
+          config: serverConfig,
+          error: wrapped,
+          stderrTail: tail.join('\n'),
+        });
+      }
+      throw wrapped;
     }
+  }
+
+  /**
+   * Snapshot of every server that failed at connect time and hasn't been
+   * successfully retried. Consumed by ChatScreen + the /mcp status screen.
+   */
+  getFailedConnections(): FailedConnection[] {
+    return [...this.failedConnections.values()];
+  }
+
+  /**
+   * Configured servers that are not currently connected and not in the
+   * failed-connections map either — typically because retry hasn't been
+   * attempted yet. Used by /mcp to enumerate every server the user
+   * configured, even if they connected fine.
+   */
+  isConnected(serverId: string): boolean {
+    const conn = this.connections.get(serverId);
+    return conn !== undefined && conn.status === 'connected';
   }
 
   async disconnect(serverId: string): Promise<void> {

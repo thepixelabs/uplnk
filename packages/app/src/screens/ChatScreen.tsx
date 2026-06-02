@@ -46,12 +46,14 @@ import {
   messageStartLine,
   totalLines,
 } from '../lib/messageLines.js';
-import { ChatInput } from '../components/chat/ChatInput.js';
+import { ChatInput, MENTION_POPOVER_HEIGHT } from '../components/chat/ChatInput.js';
 import { useTerminalSize } from '../hooks/useTerminalSize.js';
+import { onWheel } from '../lib/mouseEvents.js';
 import { StreamingTextOverlay } from '../components/chat/StreamingTextOverlay.js';
 import { Header } from '../components/layout/Header.js';
 import { ArtifactPanel } from '../components/artifacts/ArtifactPanel.js';
 import { ApprovalDialog } from '../components/mcp/ApprovalDialog.js';
+import { McpStatusPanel } from '../components/mcp/McpStatusPanel.js';
 import type { UplnkError } from '@uplnk/shared';
 import { toUplnkError } from '../lib/errors.js';
 import {
@@ -59,6 +61,7 @@ import {
   inferProviderAuthMode,
 } from '../lib/providerConnectivity.js';
 import { VERSION } from '../lib/version.js';
+import { pickNextTip } from '../lib/tips.js';
 
 interface Props {
   initialModel?: string;
@@ -78,9 +81,19 @@ interface Props {
    * reset cleanly.
    */
   onForkedTo?: (newConversationId: string) => void;
+  /**
+   * One-shot command delivered from outside the chat (the Ctrl+K command
+   * palette is the only producer today). Each enqueue is a fresh object so
+   * React identifies it as new even when the same command is sent twice.
+   * ChatScreen runs it through handleCommand and then calls
+   * onCommandConsumed so App can clear the queue.
+   */
+  pendingCommand?: { command: string; nonce: number };
+  onCommandConsumed?: () => void;
 }
 
 const HEADER_HEIGHT = 6; // Outer border plus two inner metadata rows
+const HEADER_HEIGHT_WITH_STATS = HEADER_HEIGHT + 1; // +1 for the optional stats row
 const CHAT_INPUT_HEIGHT = 5; // Fixed height ChatInput area
 
 const DEFAULT_CONFIG: Config = {
@@ -97,8 +110,9 @@ const DEFAULT_CONFIG: Config = {
   networkScanner: { timeoutMs: 2000, concurrency: 16 },
   headless: { persist: false },
   flows: { dir: '~/.uplnk/flows', autoReload: true, defaultTimeoutMs: 600000, allowShellStep: false, allowHttpStep: true, httpAllowlist: [], concurrency: 1 },
-  robotic: { enabled: false, transport: 'auto', maxTurns: 40, turnTimeoutMs: 120000, minInterTurnMs: 750, judge: { provider: 'anthropic', model: 'claude-haiku-4-5-20251001', everyNTurns: 1 }, redact: { envPatterns: ['(?i)api[_-]?key', '(?i)token', '(?i)secret', '(?i)password'], customPatterns: [] }, targets: {} },
+  robotic: { enabled: false, transport: 'auto', maxTurns: 40, turnTimeoutMs: 120000, minInterTurnMs: 750, judge: { provider: 'ollama', model: '', everyNTurns: 1 }, redact: { envPatterns: ['(?i)api[_-]?key', '(?i)token', '(?i)secret', '(?i)password'], customPatterns: [] }, targets: {} },
   altergo: { binary: 'altergo', home: '~/.altergo', autoImport: false, autoImportAccounts: [], watchSessions: false, launchDetach: true },
+  stats: { showInHeader: true },
 };
 
 export function ChatScreen({
@@ -113,6 +127,8 @@ export function ChatScreen({
   onError,
   onCommand,
   onForkedTo,
+  pendingCommand,
+  onCommandConsumed,
 }: Props) {
   const { exit } = useApp();
 
@@ -208,7 +224,7 @@ export function ChatScreen({
     });
   }, [config.mcp.servers]);
 
-  const { tools: mcpTools, pendingApproval, resolveApproval } = useMcp({
+  const { tools: mcpTools, pendingApproval, resolveApproval, failedServers, retryFailedServers } = useMcp({
     allowedPaths: config.mcp.allowedPaths,
     commandExecEnabled: config.mcp.commandExecEnabled,
     ...(config.mcp.commandExecConfirmedAt !== undefined
@@ -272,14 +288,29 @@ export function ChatScreen({
     projectContextRef.current = ctx?.systemPrompt ?? null;
   }
 
-  const { streamedTextRef, subscribeToStreamText, status, error, sessionTokens, send, abort } = useStream(activeModel);
+  const { streamedTextRef, subscribeToStreamText, status, error, sessionTokens, lastTurnStats, liveTurnTokens, send, abort } = useStream(activeModel);
   const connectionState = useProviderConnectivity({ providerType, baseURL, apiKey, authMode });
   const { activeArtifact, promoteArtifact, dismissArtifact, updateArtifact } = useArtifacts();
   const { artifactWidthPct, chatWidthPct, growArtifact, shrinkArtifact } = useSplitPane();
   const { columns: termCols, rows: termRows } = useTerminalSize();
   const prevStatusRef = useRef(status);
   const currentDirectory = projectDir ?? process.cwd();
-  const connectionDisplay = buildProviderConnectionDisplay(connectionState);
+  const connectionDisplay = buildProviderConnectionDisplay({
+    ...connectionState,
+    activeModelId: resolvedModel,
+  });
+  // True only after the probe has run AND the server reports a model list
+  // that doesn't include the configured model. Used by ChatInput-level error
+  // messaging and to colour the model name in the header.
+  const modelMissing =
+    connectionState.connected &&
+    connectionState.installedModelIds instanceof Set &&
+    !connectionState.installedModelIds.has(resolvedModel.toLowerCase());
+
+  // True while ChatInput's @mention popover is open. Reserves
+  // MENTION_POPOVER_HEIGHT rows in CHROME_HEIGHT so the popover renders
+  // above the input without pushing the input off the bottom of the screen.
+  const [mentionActive, setMentionActive] = useState(false);
 
   // Active role (null = no role)
   const [activeRole, setActiveRole] = useState<string | null>(null);
@@ -287,6 +318,19 @@ export function ChatScreen({
   const [feedbackMsg, setFeedbackMsg] = useState<string | null>(null);
   // Help panel visibility (toggled by /help)
   const [showHelp, setShowHelp] = useState(false);
+  // MCP status overlay (toggled by /mcp)
+  const [showMcpStatus, setShowMcpStatus] = useState(false);
+  // Rotating tip-of-the-run banner. pickNextTip() reads/advances the
+  // persisted index in ~/.uplnk/tip-state.json so each launch shows a
+  // different tip from TIPS. Auto-hides after 5s. Skipped entirely when
+  // no tip applies to the current platform.
+  const [startupTip] = useState(() => pickNextTip());
+  const [showTip, setShowTip] = useState(startupTip !== null);
+  useEffect(() => {
+    if (!showTip) return;
+    const t = setTimeout(() => { setShowTip(false); }, 5_000);
+    return () => { clearTimeout(t); };
+  }, [showTip]);
 
   // ─── Scrollback state ──────────────────────────────────────────────────────
   // `scrollTopLine` is the line index (from the top of the full transcript)
@@ -304,9 +348,12 @@ export function ChatScreen({
     : Math.max(20, termCols - 2);
 
   // Fixed reservation height (Header + StatusBar + ChatInput + feedback area + scroll indicator)
+  const showHeaderStats = config.stats?.showInHeader === true;
+  const headerHeight = showHeaderStats ? HEADER_HEIGHT_WITH_STATS : HEADER_HEIGHT;
   const CHROME_HEIGHT =
-    HEADER_HEIGHT +
+    headerHeight +
     CHAT_INPUT_HEIGHT +
+    (mentionActive ? MENTION_POPOVER_HEIGHT : 0) +
     (feedbackMsg !== null ? 1 : 0) +
     (activeRole !== null ? 1 : 0) +
     (inScrollback ? 3 : 0) +
@@ -405,6 +452,15 @@ export function ChatScreen({
     }
     setScrollTopLine(Math.max(1, nextLine));
   }, [findCurrentTopMessage, inScrollback, lineIndex, totalContentLines, viewportLines]);
+
+  // Mouse wheel → existing per-message scroll. The bus only fires when the
+  // terminal supports SGR mouse reporting; PageUp/PageDown remain the fallback.
+  useEffect(() => {
+    return onWheel((dir) => {
+      if (dir === 'up') scrollUpOneMessage();
+      else scrollDownOneMessage();
+    });
+  }, [scrollUpOneMessage, scrollDownOneMessage]);
 
   // ─── Stream persistence ──────────────────────────────────────────────────
   const assistantMessageIdRef = useRef<string | null>(null);
@@ -658,6 +714,7 @@ export function ChatScreen({
 
   const handleCommand = useCallback((command: string) => {
     if (command === 'help') { setShowHelp((prev) => !prev); return; }
+    if (command === 'mcp') { setShowMcpStatus((prev) => !prev); return; }
     if (command === 'settings') { onCommand?.('settings'); return; }
     if (command === 'provider-selector' || command === 'provider') { onCommand?.('provider-selector'); return; }
     if (command === 'model-selector' || command === 'model') { onCommand?.('model-selector'); return; }
@@ -698,6 +755,24 @@ export function ChatScreen({
     }
     onCommand?.(command);
   }, [messages, onCommand, handleFork, handleCompact]);
+
+  // Consume one-shot commands from App (Ctrl+K palette dispatches that
+  // target chat-level commands like /fork or /mcp). We stash handleCommand
+  // in a ref so the effect only re-runs when a new pendingCommand object
+  // arrives — re-firing on every handleCommand identity change would
+  // double-execute the command whenever local state shifts (messages,
+  // active role, etc.).
+  const handleCommandRef = useRef(handleCommand);
+  useEffect(() => { handleCommandRef.current = handleCommand; }, [handleCommand]);
+  useEffect(() => {
+    if (pendingCommand === undefined) return;
+    handleCommandRef.current(pendingCommand.command);
+    onCommandConsumed?.();
+    // The nonce is the dep signal — pendingCommand object identity changes
+    // on every enqueue (App generates a new {command, nonce} each time),
+    // and tracking the nonce explicitly keeps the dep array honest.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pendingCommand?.nonce]);
 
   useInput((input, key) => {
     // Ctrl+C: abort streaming / agent run / quit.
@@ -747,6 +822,7 @@ export function ChatScreen({
 
     if (key.pageUp) { scrollUpOneMessage(); return; }
     if (key.pageDown) { scrollDownOneMessage(); return; }
+    if (showMcpStatus && key.escape && !inScrollback && activeArtifact === null) { setShowMcpStatus(false); return; }
     if (showHelp && key.escape && !inScrollback && activeArtifact === null) { setShowHelp(false); return; }
     if (inScrollback && key.escape && activeArtifact === null) { setScrollTopLine(0); return; }
     if (activeArtifact !== null) {
@@ -770,6 +846,9 @@ export function ChatScreen({
     status,
     sessionTokens,
     columns: termCols,
+    showStats: showHeaderStats,
+    lastTurnStats,
+    liveTurnTokens,
     ...(isCompacting ? { statusOverride: 'Compacting…' } : {}),
   };
 
@@ -853,6 +932,13 @@ export function ChatScreen({
 
       {/* Fixed Footer Area */}
       <Box flexDirection="column" flexShrink={0}>
+        {showMcpStatus && (
+          <McpStatusPanel
+            failedServers={failedServers}
+            onRetry={retryFailedServers}
+            onClose={() => setShowMcpStatus(false)}
+          />
+        )}
         {showHelp && (
           <Box flexDirection="column" borderStyle="round" borderColor="#7B6FFF" paddingX={1} marginX={1}>
             <Box flexDirection="row" justifyContent="space-between">
@@ -867,16 +953,20 @@ export function ChatScreen({
                 <Text dimColor>  switch provider</Text>
               </Text>
               <Text>
-                <Text color="#60A5FA">/settings</Text>
-                <Text dimColor>  app configuration</Text>
+                <Text color="#60A5FA">?</Text>
+                <Text dimColor>  toggle this help (empty input)</Text>
               </Text>
             </Box>
             <Box flexDirection="row" justifyContent="space-between">
               <Text>
+                <Text color="#60A5FA">/settings</Text>
+                <Text dimColor>  app configuration  </Text>
                 <Text color="#60A5FA">/role</Text>
-                <Text dimColor>  [id|clear]  set or clear role</Text>
+                <Text dimColor>  [id|clear]</Text>
               </Text>
               <Text>
+                <Text color="#60A5FA">Ctrl+,</Text>
+                <Text dimColor>  open Settings  </Text>
                 <Text color="#60A5FA">Shift+Enter</Text>
                 <Text dimColor>  new line</Text>
               </Text>
@@ -912,7 +1002,9 @@ export function ChatScreen({
                 <Text color="#60A5FA">/relay</Text>
                 <Text dimColor>  relay picker  </Text>
                 <Text color="#60A5FA">/scan</Text>
-                <Text dimColor>  network scan</Text>
+                <Text dimColor>  network scan  </Text>
+                <Text color="#60A5FA">/mcp</Text>
+                <Text dimColor>  MCP server status</Text>
               </Text>
               <Text>
                 <Text color="#60A5FA">Ctrl+C</Text>
@@ -933,6 +1025,16 @@ export function ChatScreen({
                 <Text dimColor>  close this panel</Text>
               </Text>
             </Box>
+            {process.platform === 'darwin' && (
+              <Box flexDirection="row" justifyContent="space-between">
+                <Text>
+                  <Text color="#60A5FA">Option+drag</Text>
+                  <Text dimColor>  select text on screen (then </Text>
+                  <Text color="#60A5FA">⌘C</Text>
+                  <Text dimColor> to copy) — Terminal.app, iTerm2, Ghostty</Text>
+                </Text>
+              </Box>
+            )}
           </Box>
         )}
         {feedbackMsg !== null && (
@@ -945,11 +1047,34 @@ export function ChatScreen({
             <Text color="#475569">Role: {getRole(activeRole)?.name ?? activeRole}</Text>
           </Box>
         )}
+        {modelMissing && (
+          <Box paddingX={1}>
+            <Text color="#F87171">
+              ✗ model "{resolvedModel}" is not installed on {connectionState.host} — run /model to switch
+            </Text>
+          </Box>
+        )}
+        {failedServers.length > 0 && !showMcpStatus && (
+          <Box paddingX={1}>
+            <Text color="#FBBF24">
+              ⚠ {failedServers.length} MCP server{failedServers.length === 1 ? '' : 's'} failed to connect — run <Text color="#60A5FA">/mcp</Text> to manage
+            </Text>
+          </Box>
+        )}
+        {showTip && startupTip !== null && (
+          <Box paddingX={1}>
+            <Text>
+              <Text dimColor>tip: </Text>
+              {startupTip.render()}
+            </Text>
+          </Box>
+        )}
         <ChatInput
           onSubmit={handleSubmit}
           onCommand={handleCommand}
           disabled={status === 'streaming' || agentRun.status === 'running' || roomRun.status === 'running' || focusedPanel === 'artifact' || isCompacting}
           projectDir={currentDirectory}
+          onMentionActiveChange={setMentionActive}
         />
       </Box>
     </Box>
@@ -958,7 +1083,7 @@ export function ChatScreen({
   return (
     <Box flexDirection="column" height={termRows - 1} overflow="hidden">
       {/* Fixed Header */}
-      <Box flexShrink={0} height={HEADER_HEIGHT}>
+      <Box flexShrink={0} height={headerHeight}>
         <Header {...headerProps} />
       </Box>
 

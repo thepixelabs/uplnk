@@ -298,6 +298,36 @@ To edit the config in your `$EDITOR`:
 uplnk config
 ```
 
+### Adding MCP servers
+
+`mcp.servers` accepts two transport types — `stdio` (uplnk spawns a child process) and `http` (uplnk connects to an already-running endpoint). Example:
+
+```jsonc
+"mcp": {
+  "servers": [
+    {
+      "id": "my-tools",
+      "name": "My local tool server",
+      "type": "stdio",
+      "command": "/opt/homebrew/bin/uv",
+      "args": [
+        "run", "--project", "/abs/path/to/project",
+        "fastmcp", "run",
+        "/abs/path/to/project/mcp_server/server.py"
+      ]
+    },
+    {
+      "id": "remote",
+      "name": "Remote HTTP server",
+      "type": "http",
+      "url": "https://mcp.example.com/sse"
+    }
+  ]
+}
+```
+
+**Always use absolute paths for script arguments.** The child process inherits uplnk's working directory (wherever you launched `uplnk` from), not your project directory. `uv --project <dir>` only swaps the Python environment — it does not `cd`. If your stderr shows `File not found: …/uplnk/packages/app/your_script.py`, the script path is being resolved against uplnk's cwd; make it absolute.
+
 ### CLI flags
 
 ```

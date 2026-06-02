@@ -12,8 +12,8 @@ describe('providerConnectivity helpers', () => {
     expect(inferProviderAuthMode('openai-compatible')).toBe('bearer');
   });
 
-  it('infers api-key auth for anthropic', () => {
-    expect(inferProviderAuthMode('anthropic')).toBe('api-key');
+  it('infers none auth for ollama', () => {
+    expect(inferProviderAuthMode('ollama')).toBe('none');
   });
 
   it('extracts the host from a provider URL', () => {
@@ -39,7 +39,7 @@ describe('providerConnectivity helpers', () => {
     })).toEqual({
       phase: 'connected',
       color: '#22C55E',
-      label: 'server connected · 182ms',
+      label: 'server + model ready · 182ms',
       detail: 'llm.example.com',
     });
   });

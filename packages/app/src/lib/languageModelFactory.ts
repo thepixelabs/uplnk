@@ -2,21 +2,16 @@
  * Language model factory — picks the right AI SDK provider based on the
  * stored `providerType` on a `provider_configs` row.
  *
- * Today only two branches exist in practice:
+ * Every supported provider speaks the OpenAI `/v1/chat/completions` shape,
+ * so we route through `@ai-sdk/openai-compatible`'s `createOpenAICompatible`
+ * regardless of kind. This covers Ollama, LM Studio, vLLM, LocalAI,
+ * llama.cpp, raw OpenAI, and custom endpoints.
  *
- *   - `anthropic`     → `@ai-sdk/anthropic`'s `createAnthropic` (uses the
- *                       native Messages API with `x-api-key` auth)
- *   - everything else → `@ai-sdk/openai-compatible`'s `createOpenAICompatible`
- *                       (covers Ollama, LM Studio, vLLM, LocalAI, llama.cpp,
- *                       raw OpenAI, and custom endpoints since they all speak
- *                       the `/v1/chat/completions` shape)
- *
- * Both branches return a `LanguageModelV1` so the streaming hook and the
- * model router do not need to care which backend is in use.
+ * Returns a `LanguageModelV1` so the streaming hook and the model router
+ * do not need to care which backend is in use.
  */
 
 import { createOpenAICompatible } from '@ai-sdk/openai-compatible';
-import { createAnthropic } from '@ai-sdk/anthropic';
 import type { LanguageModelV1 } from '@ai-sdk/provider';
 
 export interface LanguageModelFactoryInput {
@@ -29,26 +24,13 @@ export interface LanguageModelFactoryInput {
 /**
  * Build a `LanguageModelV1` for the given provider + model pair.
  *
- * The OpenAI-compatible branch normalises the base URL to the `/v1` root
- * expected by the SDK — callers may have stored either `http://host:11434`
- * (Ollama native) or `http://host:11434/v1` (OpenAI-compat mount).
- *
- * The Anthropic branch strips any trailing `/v1` the user might have stored
- * (the SDK appends its own path). It uses `x-api-key` auth internally.
+ * The base URL is normalised to the `/v1` root expected by the SDK —
+ * callers may have stored either `http://host:11434` (Ollama native) or
+ * `http://host:11434/v1` (OpenAI-compat mount).
  */
 export function createLanguageModel(
   input: LanguageModelFactoryInput,
 ): LanguageModelV1 {
-  if (input.providerType === 'anthropic') {
-    const base = input.baseURL.replace(/\/v1\/?$/, '').replace(/\/+$/, '');
-    const provider = createAnthropic({
-      apiKey: input.apiKey,
-      baseURL: `${base}/v1`,
-    });
-    return provider(input.modelId);
-  }
-
-  // OpenAI-compatible handles every other provider kind today.
   const baseURL = /\/v1\/?$/.test(input.baseURL)
     ? input.baseURL.replace(/\/+$/, '')
     : `${input.baseURL.replace(/\/+$/, '')}/v1`;
@@ -57,5 +39,10 @@ export function createLanguageModel(
     baseURL,
     apiKey: input.apiKey,
   });
-  return provider(input.modelId);
+  // Force stream_options: { include_usage: true } on every chat completion.
+  // OpenAI's streaming spec omits usage by default; Ollama / LM Studio /
+  // vLLM all honor this flag and emit a final chunk with prompt + completion
+  // token counts, which the AI SDK surfaces as `finish.usage`. Without it
+  // the header live counter and end-of-turn stats stay empty.
+  return provider(input.modelId, undefined, { includeUsage: true });
 }

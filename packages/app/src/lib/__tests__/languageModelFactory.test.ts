@@ -12,18 +12,6 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 // vi.hoisted() which runs in the same hoisted position.
 
 const mocks = vi.hoisted(() => {
-  const mockAnthropicModel = {
-    specificationVersion: 'v1' as const,
-    provider: 'anthropic',
-    modelId: 'claude-3-5-sonnet-20240620',
-    defaultObjectGenerationMode: undefined as undefined,
-    doGenerate: vi.fn(),
-    doStream: vi.fn(),
-  };
-
-  const mockAnthropicProvider = vi.fn().mockReturnValue(mockAnthropicModel);
-  const mockCreateAnthropic = vi.fn().mockReturnValue(mockAnthropicProvider);
-
   const mockOpenAICompatibleModel = {
     specificationVersion: 'v1' as const,
     provider: 'openai-compat',
@@ -37,18 +25,11 @@ const mocks = vi.hoisted(() => {
   const mockCreateOpenAICompatible = vi.fn().mockReturnValue(mockOpenAICompatibleProvider);
 
   return {
-    mockAnthropicModel,
-    mockAnthropicProvider,
-    mockCreateAnthropic,
     mockOpenAICompatibleModel,
     mockOpenAICompatibleProvider,
     mockCreateOpenAICompatible,
   };
 });
-
-vi.mock('@ai-sdk/anthropic', () => ({
-  createAnthropic: mocks.mockCreateAnthropic,
-}));
 
 vi.mock('@ai-sdk/openai-compatible', () => ({
   createOpenAICompatible: mocks.mockCreateOpenAICompatible,
@@ -67,97 +48,14 @@ function getFirstCallArg(mockFn: ReturnType<typeof vi.fn>): Record<string, unkno
 
 // ─── Tests ────────────────────────────────────────────────────────────────────
 
-describe('createLanguageModel — anthropic branch', () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-    mocks.mockCreateAnthropic.mockReturnValue(mocks.mockAnthropicProvider);
-    mocks.mockAnthropicProvider.mockReturnValue(mocks.mockAnthropicModel);
-    mocks.mockCreateOpenAICompatible.mockReturnValue(mocks.mockOpenAICompatibleProvider);
-    mocks.mockOpenAICompatibleProvider.mockReturnValue(mocks.mockOpenAICompatibleModel);
-  });
-
-  it('returns an object with specificationVersion "v1" for the anthropic provider type', () => {
-    const model = createLanguageModel({
-      providerType: 'anthropic',
-      baseURL: 'https://api.anthropic.com',
-      apiKey: 'sk-ant-test',
-      modelId: 'claude-3-5-sonnet-20240620',
-    });
-
-    expect(model.specificationVersion).toBe('v1');
-  });
-
-  it('calls createAnthropic (not createOpenAICompatible) for anthropic provider type', () => {
-    createLanguageModel({
-      providerType: 'anthropic',
-      baseURL: 'https://api.anthropic.com',
-      apiKey: 'sk-ant-test',
-      modelId: 'claude-3-5-sonnet-20240620',
-    });
-
-    expect(mocks.mockCreateAnthropic).toHaveBeenCalledOnce();
-    expect(mocks.mockCreateOpenAICompatible).not.toHaveBeenCalled();
-  });
-
-  it('forwards the modelId to the anthropic provider function', () => {
-    createLanguageModel({
-      providerType: 'anthropic',
-      baseURL: 'https://api.anthropic.com',
-      apiKey: 'sk-ant-test',
-      modelId: 'claude-3-opus-20240229',
-    });
-
-    expect(mocks.mockAnthropicProvider).toHaveBeenCalledWith('claude-3-opus-20240229');
-  });
-
-  it('strips trailing /v1 from baseURL and re-appends it canonically', () => {
-    createLanguageModel({
-      providerType: 'anthropic',
-      baseURL: 'https://api.anthropic.com/v1',
-      apiKey: 'sk-ant-test',
-      modelId: 'claude-3-5-sonnet-20240620',
-    });
-
-    const args = getFirstCallArg(mocks.mockCreateAnthropic);
-    // Strip /v1 → "https://api.anthropic.com", then re-append → /v1 suffix.
-    expect(args['baseURL']).toBe('https://api.anthropic.com/v1');
-  });
-
-  it('strips trailing /v1/ (with trailing slash) from baseURL', () => {
-    createLanguageModel({
-      providerType: 'anthropic',
-      baseURL: 'https://api.anthropic.com/v1/',
-      apiKey: 'sk-ant-test',
-      modelId: 'claude-3-5-sonnet-20240620',
-    });
-
-    const args = getFirstCallArg(mocks.mockCreateAnthropic);
-    expect(args['baseURL']).toBe('https://api.anthropic.com/v1');
-  });
-
-  it('passes apiKey through to createAnthropic', () => {
-    createLanguageModel({
-      providerType: 'anthropic',
-      baseURL: 'https://api.anthropic.com',
-      apiKey: 'my-key',
-      modelId: 'claude-3-5-sonnet-20240620',
-    });
-
-    const args = getFirstCallArg(mocks.mockCreateAnthropic);
-    expect(args['apiKey']).toBe('my-key');
-  });
-});
-
 describe('createLanguageModel — openai-compatible branch', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mocks.mockCreateAnthropic.mockReturnValue(mocks.mockAnthropicProvider);
-    mocks.mockAnthropicProvider.mockReturnValue(mocks.mockAnthropicModel);
     mocks.mockCreateOpenAICompatible.mockReturnValue(mocks.mockOpenAICompatibleProvider);
     mocks.mockOpenAICompatibleProvider.mockReturnValue(mocks.mockOpenAICompatibleModel);
   });
 
-  it('calls createOpenAICompatible (not createAnthropic) for ollama provider type', () => {
+  it('calls createOpenAICompatible for ollama provider type', () => {
     createLanguageModel({
       providerType: 'ollama',
       baseURL: 'http://localhost:11434',
@@ -166,7 +64,6 @@ describe('createLanguageModel — openai-compatible branch', () => {
     });
 
     expect(mocks.mockCreateOpenAICompatible).toHaveBeenCalledOnce();
-    expect(mocks.mockCreateAnthropic).not.toHaveBeenCalled();
   });
 
   it('appends /v1 to a baseURL that does not already end with /v1 (ollama style)', () => {
@@ -229,7 +126,7 @@ describe('createLanguageModel — openai-compatible branch', () => {
     expect(args['name']).toBe('vllm');
   });
 
-  it('forwards the modelId to the openai-compatible provider function', () => {
+  it('forwards the modelId and includeUsage flag to the provider function', () => {
     createLanguageModel({
       providerType: 'ollama',
       baseURL: 'http://localhost:11434',
@@ -237,7 +134,11 @@ describe('createLanguageModel — openai-compatible branch', () => {
       modelId: 'qwen2.5:7b',
     });
 
-    expect(mocks.mockOpenAICompatibleProvider).toHaveBeenCalledWith('qwen2.5:7b');
+    expect(mocks.mockOpenAICompatibleProvider).toHaveBeenCalledWith(
+      'qwen2.5:7b',
+      undefined,
+      { includeUsage: true },
+    );
   });
 
   it('returns an object with specificationVersion "v1"', () => {

@@ -69,8 +69,9 @@ function makeConfig(overrides: Partial<Config['rag']> = {}): Config {
     networkScanner: { timeoutMs: 2000, concurrency: 16 },
     headless: { persist: false },
     flows: { dir: '~/.uplnk/flows', autoReload: true, defaultTimeoutMs: 600000, allowShellStep: false, allowHttpStep: true, httpAllowlist: [], concurrency: 1 },
-    robotic: { enabled: false, transport: 'auto', maxTurns: 40, turnTimeoutMs: 120000, minInterTurnMs: 750, judge: { provider: 'anthropic', model: 'claude-haiku-4-5-20251001', everyNTurns: 1 }, redact: { envPatterns: ['(?i)api[_-]?key', '(?i)token', '(?i)secret', '(?i)password'], customPatterns: [] }, targets: {} },
+    robotic: { enabled: false, transport: 'auto', maxTurns: 40, turnTimeoutMs: 120000, minInterTurnMs: 750, judge: { provider: 'ollama', model: '', everyNTurns: 1 }, redact: { envPatterns: ['(?i)api[_-]?key', '(?i)token', '(?i)secret', '(?i)password'], customPatterns: [] }, targets: {} },
     altergo: { binary: 'altergo', home: '~/.altergo', autoImport: false, autoImportAccounts: [], watchSessions: false, launchDetach: true },
+    stats: { showInHeader: false },
   } satisfies Config;
 }
 

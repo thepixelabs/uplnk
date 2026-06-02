@@ -7,6 +7,7 @@ export const PROVIDER_STALE_DISCONNECT_MS = 2 * 60 * 1000;
 export type ProviderConnectionPhase =
   | 'checking'
   | 'connected'
+  | 'model-missing'
   | 'disconnected'
   | 'stale-disconnected';
 
@@ -17,6 +18,14 @@ export interface ProviderConnectionSnapshot {
   latencyMs: number | null;
   disconnectedSince: number | null;
   errorDetail: string | null;
+  /** Lowercased ids of models the server reports. `null` = not yet probed. */
+  installedModelIds?: ReadonlySet<string> | null;
+  /**
+   * Lowercased id of the model the chat is configured to use. When provided
+   * AND a model list is available, the display switches the label/colour to
+   * reflect model availability instead of just server reachability.
+   */
+  activeModelId?: string | null;
 }
 
 export interface ProviderConnectionDisplay {
@@ -28,8 +37,6 @@ export interface ProviderConnectionDisplay {
 
 export function inferProviderAuthMode(providerType: string): AuthMode {
   switch (providerType) {
-    case 'anthropic':
-      return 'api-key';
     case 'openai':
     case 'openai-compatible':
     case 'vllm':
@@ -80,12 +87,32 @@ export function buildProviderConnectionDisplay(
   }
 
   if (snapshot.connected) {
+    // Server up + we know the model list + active model isn't on it →
+    // surface the mismatch in the header so the user doesn't see "connected"
+    // while their actual chat fails. Without an activeModelId, fall through
+    // to the plain "server connected" label (existing behaviour preserved).
+    if (
+      snapshot.activeModelId !== undefined &&
+      snapshot.activeModelId !== null &&
+      snapshot.installedModelIds !== undefined &&
+      snapshot.installedModelIds !== null
+    ) {
+      const present = snapshot.installedModelIds.has(snapshot.activeModelId.toLowerCase());
+      if (!present) {
+        return {
+          phase: 'model-missing',
+          color: '#EF4444',
+          label: 'model not installed',
+          detail: `${snapshot.host} · ${snapshot.activeModelId}`,
+        };
+      }
+    }
     return {
       phase: 'connected',
       color: '#22C55E',
       label: snapshot.latencyMs !== null
-        ? `server connected · ${String(snapshot.latencyMs)}ms`
-        : 'server connected',
+        ? `server + model ready · ${String(snapshot.latencyMs)}ms`
+        : 'server + model ready',
       detail: snapshot.host,
     };
   }

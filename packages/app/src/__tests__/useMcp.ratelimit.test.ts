@@ -41,6 +41,7 @@ const mcpManagerMocks = vi.hoisted(() => {
   const mockConnectBuiltins = vi.fn(async () => undefined);
   const mockConnect = vi.fn(async () => undefined);
   const mockGetAiSdkToolsAsync = vi.fn(async () => fakeTools);
+  const mockGetFailedConnections = vi.fn(() => []);
   const mockDestroy = vi.fn(async () => undefined);
 
   return {
@@ -50,11 +51,13 @@ const mcpManagerMocks = vi.hoisted(() => {
       connectBuiltins: mockConnectBuiltins,
       connect: mockConnect,
       getAiSdkToolsAsync: mockGetAiSdkToolsAsync,
+      getFailedConnections: mockGetFailedConnections,
       destroy: mockDestroy,
     })),
     mockConnectBuiltins,
     mockConnect,
     mockGetAiSdkToolsAsync,
+    mockGetFailedConnections,
     mockDestroy,
   };
 });

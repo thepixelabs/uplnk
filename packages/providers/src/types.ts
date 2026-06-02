@@ -9,7 +9,6 @@ export type ProviderKind =
   | 'vllm'
   | 'localai'
   | 'llama-cpp'
-  | 'anthropic'
   | 'openai'
   | 'custom';
 

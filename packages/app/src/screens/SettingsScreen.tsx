@@ -16,7 +16,7 @@ interface Props {
   onBack: () => void;
 }
 
-type SettingField = 'displayName' | 'theme' | 'telemetry' | 'git' | 'rag' | 'updates' | 'splashScreen';
+type SettingField = 'displayName' | 'theme' | 'telemetry' | 'git' | 'rag' | 'updates' | 'splashScreen' | 'headerStats';
 
 interface SettingRow {
   id: SettingField;
@@ -70,6 +70,12 @@ const SETTINGS: SettingRow[] = [
     type: 'boolean',
     description: 'Show logo animation on startup',
   },
+  {
+    id: 'headerStats',
+    label: 'Header Stats',
+    type: 'boolean',
+    description: 'Show tok/s, in/out tokens, and TTFT in the top bar',
+  },
 ];
 
 export const SettingsScreen = memo(function SettingsScreen({ config, onDone, onBack }: Props) {
@@ -81,8 +87,11 @@ export const SettingsScreen = memo(function SettingsScreen({ config, onDone, onB
   const currentSetting = SETTINGS[cursor]!;
 
   useInput((input, key) => {
+    // Kitty keyboard protocol sends ESC as '[27u' after Ink strips \x1b.
+    const escPressed = key.escape || input === '[27u';
+
     if (editing) {
-      if (key.escape) {
+      if (escPressed) {
         setEditing(false);
         return;
       }
@@ -103,7 +112,7 @@ export const SettingsScreen = memo(function SettingsScreen({ config, onDone, onB
       return;
     }
 
-    if (key.escape) {
+    if (escPressed) {
       onBack();
       return;
     }
@@ -121,6 +130,7 @@ export const SettingsScreen = memo(function SettingsScreen({ config, onDone, onB
           else if (s.id === 'rag') next.rag = { ...next.rag, enabled: !next.rag.enabled };
           else if (s.id === 'updates') next.updates = { ...next.updates, enabled: !next.updates.enabled };
           else if (s.id === 'splashScreen') next.splashScreen = { ...next.splashScreen, enabled: !next.splashScreen?.enabled };
+          else if (s.id === 'headerStats') next.stats = { ...next.stats, showInHeader: !next.stats?.showInHeader };
           return next;
         });
       } else if (s.type === 'enum' && s.options) {
@@ -149,6 +159,7 @@ export const SettingsScreen = memo(function SettingsScreen({ config, onDone, onB
     if (s.id === 'rag') return draftConfig.rag.enabled ? 'Enabled' : 'Disabled';
     if (s.id === 'updates') return draftConfig.updates.enabled ? 'Enabled' : 'Disabled';
     if (s.id === 'splashScreen') return (draftConfig.splashScreen?.enabled ?? true) ? 'Enabled' : 'Disabled';
+    if (s.id === 'headerStats') return (draftConfig.stats?.showInHeader ?? true) ? 'Enabled' : 'Disabled';
     return '';
   };
 

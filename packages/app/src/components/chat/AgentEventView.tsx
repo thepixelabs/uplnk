@@ -5,9 +5,27 @@
  * indents by depth, and updates live as events arrive.
  */
 
-import { memo } from 'react';
+import { memo, useEffect, useState } from 'react';
 import { Box, Text } from 'ink';
 import type { AgentEvent, AgentColor, InvocationId, IAgentRegistry } from '../../lib/agents/types.js';
+
+// Braille dots spinner — same frames as Rich's `dots` (used by altergo) and
+// the streaming overlay in MessageDisplay. Keeping the spinner vocabulary
+// consistent across the app.
+const SPINNER_FRAMES = ['⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', '⠇', '⠏'] as const;
+const SPINNER_INTERVAL_MS = 90;
+
+function useSpinnerFrame(active: boolean): string {
+  const [frame, setFrame] = useState(0);
+  useEffect(() => {
+    if (!active) return;
+    const id = setInterval(() => {
+      setFrame((f) => (f + 1) % SPINNER_FRAMES.length);
+    }, SPINNER_INTERVAL_MS);
+    return () => clearInterval(id);
+  }, [active]);
+  return SPINNER_FRAMES[frame] ?? SPINNER_FRAMES[0];
+}
 
 interface Props {
   rootInvocationId: InvocationId;
@@ -101,12 +119,35 @@ const AgentGroup = memo(function AgentGroup({
   const bodyIndent = indent + '  ';
   const fullText = group.textChunks.join('');
 
+  const isDone =
+    group.endEvent !== undefined ||
+    group.errorEvent !== undefined ||
+    group.aborted === true;
+  // The agent is "in flight" until a terminal event arrives. Status text
+  // depends on what we've heard so far: tool calls beat text, text beats
+  // pure thinking. Animate while in flight.
+  const lastToolName =
+    group.toolCalls.length > 0
+      ? group.toolCalls[group.toolCalls.length - 1]?.toolName
+      : null;
+  const statusLabel = isDone
+    ? null
+    : lastToolName !== null && lastToolName !== undefined && fullText.length === 0
+      ? `running ${lastToolName}…`
+      : fullText.length === 0
+        ? 'thinking…'
+        : 'writing…';
+  const spinnerFrame = useSpinnerFrame(!isDone);
+
   return (
     <Box flexDirection="column">
       {/* Header */}
       <Text color={color}>
         {indent}{icon}{' '}
         <Text bold>@{group.agentName}</Text>
+        {statusLabel !== null && (
+          <Text dimColor>{`  ${spinnerFrame} ${statusLabel}`}</Text>
+        )}
       </Text>
 
       {/* Streaming text */}
@@ -131,11 +172,16 @@ const AgentGroup = memo(function AgentGroup({
       ))}
 
       {/* End line */}
-      {group.endEvent !== undefined && (
-        <Text dimColor>
-          {bodyIndent}✓ done ({group.endEvent.durationMs}ms · {group.endEvent.inputTokens + group.endEvent.outputTokens} tok)
-        </Text>
-      )}
+      {group.endEvent !== undefined && (() => {
+        const inTok = Number.isFinite(group.endEvent.inputTokens) ? group.endEvent.inputTokens : 0;
+        const outTok = Number.isFinite(group.endEvent.outputTokens) ? group.endEvent.outputTokens : 0;
+        const haveUsage = inTok + outTok > 0;
+        return (
+          <Text dimColor>
+            {bodyIndent}✓ done ({group.endEvent.durationMs}ms{haveUsage ? ` · ↑${inTok} ↓${outTok}` : ''})
+          </Text>
+        );
+      })()}
 
       {/* Error */}
       {group.errorEvent !== undefined && (

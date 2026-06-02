@@ -19,6 +19,7 @@ import { Box, Text } from 'ink';
 import { parseMarkdown } from '../../lib/syntax.js';
 import { PROMOTE_THRESHOLD } from '../../hooks/useArtifacts.js';
 import type { Artifact } from '../artifacts/ArtifactPanel.js';
+import { InkMarkdown } from './InkMarkdown.js';
 
 interface Props {
   text: string;
@@ -45,10 +46,14 @@ export const MarkdownMessage = memo(function MarkdownMessage({
     <Box flexDirection="column">
       {segments.map((seg, i) => {
         if (seg.kind === 'text') {
-          return (
-            <Text key={i} wrap="wrap">
-              {seg.text}
-            </Text>
+          // raw=true means skip all markdown parsing — render literally.
+          // raw=false (normal assistant messages) gets full inline markdown.
+          return raw ? (
+            <Text key={i} wrap="wrap">{seg.text}</Text>
+          ) : (
+            <Box key={i} flexDirection="column">
+              <InkMarkdown text={seg.text} />
+            </Box>
           );
         }
 

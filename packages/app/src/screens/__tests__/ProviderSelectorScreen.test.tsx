@@ -24,7 +24,7 @@ const makeProvider = (id: string, name: string, overrides = {}) => ({
   providerType: id === 'openai' ? 'openai' : id,
   baseUrl: `http://${id}.local`,
   apiKey: 'key-' + id,
-  authMode: id === 'anthropic' ? 'api-key' : id === 'openai' ? 'bearer' : 'none',
+  authMode: id === 'openai' ? 'bearer' : 'none',
   defaultModel: `${id}-model`,
   isDefault: false,
   createdAt: '2026-01-01T00:00:00Z',
@@ -35,7 +35,7 @@ const makeProvider = (id: string, name: string, overrides = {}) => ({
 const providers = [
   makeProvider('ollama', 'Ollama', { isDefault: true }),
   makeProvider('openai', 'OpenAI'),
-  makeProvider('anthropic', 'Anthropic'),
+  makeProvider('lmstudio', 'LM Studio'),
 ];
 
 beforeEach(() => {
@@ -65,7 +65,7 @@ describe('ProviderSelectorScreen — render', () => {
     );
     expect(lastFrame()).toContain('Ollama');
     expect(lastFrame()).toContain('OpenAI');
-    expect(lastFrame()).toContain('Anthropic');
+    expect(lastFrame()).toContain('LM Studio');
   });
 
   it('shows default marker next to the default provider', () => {
@@ -241,12 +241,12 @@ describe('ProviderSelectorScreen — navigation + select', () => {
     stdin.write('\r');
     await tick();
     expect(onSelect).toHaveBeenCalledWith(
-      'anthropic',
+      'lmstudio',
       expect.any(String),
       expect.any(String),
       expect.any(String),
-      'anthropic',
-      'api-key',
+      'lmstudio',
+      'none',
     );
   });
 });

@@ -306,6 +306,7 @@ describe('McpManager', () => {
         command: 'node',
         args: ['server.js'],
         env: { NODE_ENV: 'test' },
+        stderr: 'pipe',
       });
     });
 
@@ -1263,6 +1264,80 @@ describe('McpManager', () => {
       await mgr.disconnect(SERVER_CONFIG.id);
 
       expect(mgr.getConnectionStatus()).not.toHaveProperty('test-server');
+    });
+  });
+
+  // ─── getFailedConnections() — startup failure tracking ────────────────────
+
+  describe('getFailedConnections()', () => {
+    it('returns empty array when no connections have been attempted', () => {
+      const mgr = makeManager();
+      expect(mgr.getFailedConnections()).toEqual([]);
+    });
+
+    it('records a failed connection entry when client.connect() rejects', async () => {
+      mockConnect.mockRejectedValueOnce(new Error('ENOENT: no such file'));
+
+      const mgr = makeManager();
+      await expect(mgr.connect(SERVER_CONFIG)).rejects.toThrow('ENOENT');
+
+      const failed = mgr.getFailedConnections();
+      expect(failed).toHaveLength(1);
+      expect(failed[0]!.config).toEqual(SERVER_CONFIG);
+      expect(failed[0]!.error).toBeInstanceOf(Error);
+      expect(failed[0]!.error.message).toBe('ENOENT: no such file');
+      expect(failed[0]!.stderrTail).toBe('');
+    });
+
+    it('clears the failed entry on a successful retry', async () => {
+      // First attempt fails
+      mockConnect.mockRejectedValueOnce(new Error('ENOENT'));
+      const mgr = makeManager();
+      await expect(mgr.connect(SERVER_CONFIG)).rejects.toThrow();
+
+      expect(mgr.getFailedConnections()).toHaveLength(1);
+
+      // Second attempt succeeds — retry semantics clear the entry
+      mockConnect.mockResolvedValueOnce(undefined);
+      await mgr.connect(SERVER_CONFIG);
+
+      expect(mgr.getFailedConnections()).toEqual([]);
+    });
+
+    it('does NOT record a failed connection for builtin server ids', async () => {
+      mockConnect.mockRejectedValueOnce(new Error('spawn error'));
+
+      const mgr = makeManager();
+      const builtinConfig = {
+        id: '__uplnk_builtin_test__',
+        name: 'Test Builtin',
+        command: 'node',
+        args: ['builtin.js'],
+      };
+      await expect(mgr.connect(builtinConfig)).rejects.toThrow('spawn error');
+
+      // Built-in failures are suppressed — UI must not show them
+      expect(mgr.getFailedConnections()).toEqual([]);
+    });
+
+    it('isConnected() returns false for a failed server', async () => {
+      mockConnect.mockRejectedValueOnce(new Error('connection refused'));
+      const mgr = makeManager();
+      await expect(mgr.connect(SERVER_CONFIG)).rejects.toThrow();
+
+      expect(mgr.isConnected(SERVER_CONFIG.id)).toBe(false);
+    });
+
+    it('isConnected() returns true after a successful connect', async () => {
+      const mgr = makeManager();
+      await mgr.connect(SERVER_CONFIG);
+
+      expect(mgr.isConnected(SERVER_CONFIG.id)).toBe(true);
+    });
+
+    it('isConnected() returns false for an unknown server id', () => {
+      const mgr = makeManager();
+      expect(mgr.isConnected('does-not-exist')).toBe(false);
     });
   });
 });
