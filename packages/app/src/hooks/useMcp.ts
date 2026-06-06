@@ -307,8 +307,44 @@ export function useMcp({
 
     void connectAndLoadTools();
 
+    // Phase 12f — subscribe to tools/list_changed across every connected
+    // server. When a server (e.g. Myco via myco_find_tools) publishes a
+    // refresh, fetch the new catalog and replace toolMap. The existing
+    // `tools` useMemo will recompute and downstream `send` will forward
+    // the updated tool surface to streamText on the next chat turn.
+    //
+    // Coalesce concurrent refreshes via an in-flight + queued pattern so
+    // notification bursts (server adding many tools at once) result in at
+    // most two listTools() RPCs, not one per notification.
+    let refreshInFlight = false;
+    let refreshQueued = false;
+    const runRefresh = async (): Promise<void> => {
+      if (cancelled) return;
+      if (refreshInFlight) {
+        refreshQueued = true;
+        return;
+      }
+      refreshInFlight = true;
+      try {
+        const next = await manager.getAiSdkToolsAsync();
+        if (!cancelled) {
+          setToolMap(next);
+        }
+      } finally {
+        refreshInFlight = false;
+        if (refreshQueued && !cancelled) {
+          refreshQueued = false;
+          void runRefresh();
+        }
+      }
+    };
+    const unsubscribe = manager.subscribeToolsChanged(() => {
+      void runRefresh();
+    });
+
     return () => {
       cancelled = true;
+      unsubscribe();
       void manager.destroy();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
