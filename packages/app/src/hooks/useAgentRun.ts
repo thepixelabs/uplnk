@@ -24,8 +24,13 @@ export interface UseAgentRunResult {
 export function useAgentRun(deps: {
   orchestrator: AgentOrchestrator;
   eventBus: AgentEventBus;
+  /**
+   * Owning conversation — threaded into orchestrator.run() so delegation
+   * tools can persist / resume runs (continuation + background delegation).
+   */
+  conversationId?: string;
 }): UseAgentRunResult {
-  const { orchestrator, eventBus } = deps;
+  const { orchestrator, eventBus, conversationId } = deps;
 
   const [events, setEvents] = useState<AgentEvent[]>([]);
   const [status, setStatus] = useState<AgentRunStatus>('idle');
@@ -70,6 +75,7 @@ export function useAgentRun(deps: {
           // Pass rootId as override so orchestrator mints rootInvocationId = rootId,
           // which aligns with our bus subscription key set up above.
           rootInvocationIdOverride: rootId,
+          ...(conversationId !== undefined ? { conversationId } : {}),
         });
 
         setStatus('done');
@@ -86,7 +92,7 @@ export function useAgentRun(deps: {
         unsubscribeRef.current = null;
       }
     },
-    [orchestrator, eventBus],
+    [orchestrator, eventBus, conversationId],
   );
 
   return { events, status, rootInvocationId, run, abort };

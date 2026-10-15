@@ -205,6 +205,8 @@ describe('saveConfig', () => {
     robotic: { enabled: false, transport: 'auto', maxTurns: 40, turnTimeoutMs: 120000, minInterTurnMs: 750, judge: { provider: 'ollama', model: '', everyNTurns: 1 }, redact: { envPatterns: ['(?i)api[_-]?key', '(?i)token', '(?i)secret', '(?i)password'], customPatterns: [] }, targets: {} },
     altergo: { binary: 'altergo', home: '~/.altergo', autoImport: false, autoImportAccounts: [], watchSessions: false, launchDetach: true },
     stats: { showInHeader: false },
+    loopBreaker: { intervene: true },
+    search: { fallbackChain: [] },
   };
 
   it('creates the uplnk directory with recursive: true before writing', () => {
@@ -249,6 +251,8 @@ describe('saveConfig', () => {
       robotic: { enabled: false, transport: 'auto', maxTurns: 40, turnTimeoutMs: 120000, minInterTurnMs: 750, judge: { provider: 'ollama', model: '', everyNTurns: 1 }, redact: { envPatterns: ['(?i)api[_-]?key', '(?i)token', '(?i)secret', '(?i)password'], customPatterns: [] }, targets: {} },
       altergo: { binary: 'altergo', home: '~/.altergo', autoImport: false, autoImportAccounts: [], watchSessions: false, launchDetach: true },
       stats: { showInHeader: false },
+      loopBreaker: { intervene: true },
+      search: { fallbackChain: [] },
     };
 
     saveConfig(configWithExtras);

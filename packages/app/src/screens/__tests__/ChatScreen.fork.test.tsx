@@ -219,6 +219,8 @@ const DEFAULT_CONFIG = {
   robotic: { enabled: false, transport: 'auto' as const, maxTurns: 40, turnTimeoutMs: 120000, minInterTurnMs: 750, judge: { provider: 'ollama', model: '', everyNTurns: 1 }, redact: { envPatterns: ['(?i)api[_-]?key', '(?i)token', '(?i)secret', '(?i)password'], customPatterns: [] as string[] }, targets: {} },
   altergo: { binary: 'altergo', home: '~/.altergo', autoImport: false, autoImportAccounts: [] as string[], watchSessions: false, launchDetach: true },
   stats: { showInHeader: false },
+  loopBreaker: { intervene: true },
+  search: { fallbackChain: [] as ('tavily' | 'brave' | 'duckduckgo')[] },
 };
 
 function renderChatScreen(overrides: Partial<React.ComponentProps<typeof ChatScreen>> = {}) {

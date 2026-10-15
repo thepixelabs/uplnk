@@ -63,6 +63,10 @@ interface RequestOptions {
   headers?: Record<string, string> | undefined;
   timeoutMs?: number | undefined;
   signal?: AbortSignal | undefined;
+  /** Defaults to 'GET'. Set to 'POST' for endpoints like Ollama's /api/show. */
+  method?: 'GET' | 'POST' | undefined;
+  /** JSON-serializable body — only sent when method is 'POST'. */
+  body?: unknown;
 }
 
 /**
@@ -85,9 +89,20 @@ export async function fetchJson<T>(opts: RequestOptions): Promise<T> {
       opts.signal.addEventListener('abort', () => { controller.abort(); });
     }
     try {
+      const method = opts.method ?? 'GET';
+      const headers: Record<string, string> = {
+        Accept: 'application/json',
+        ...(opts.headers ?? {}),
+      };
+      if (method === 'POST' && opts.body !== undefined) {
+        headers['Content-Type'] = 'application/json';
+      }
       const res = await fetch(opts.url, {
-        method: 'GET',
-        headers: { Accept: 'application/json', ...(opts.headers ?? {}) },
+        method,
+        headers,
+        ...(method === 'POST' && opts.body !== undefined
+          ? { body: JSON.stringify(opts.body) }
+          : {}),
         signal: controller.signal,
       });
       if (res.status === 401 || res.status === 403) {

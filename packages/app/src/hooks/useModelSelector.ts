@@ -1,21 +1,32 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import type { Model, ProviderConfig as PyProviderConfig } from '@uplnk/providers';
 import { makeProvider, mergeWithCatalog, ProviderError } from '@uplnk/providers';
-import { loadCatalog } from '@uplnk/catalog';
+import {
+  loadCatalog,
+  hasCachedCatalog,
+  getUserCatalogPath,
+  refreshCatalogFromRemote,
+} from '@uplnk/catalog';
+import type { CatalogEntry } from '@uplnk/catalog';
 
 export interface UseModelSelectorResult {
   installed: Model[];
   available: Model[];
   isLoading: boolean;
+  isCatalogRefreshing: boolean;
   /** `null` when the fetch succeeded. */
   error: string | null;
   /** Friendly error code for conditional UI (badge color etc.) */
   errorCode: string | null;
+  catalogError: string | null;
   refresh: () => void;
 }
 
 /**
- * Discover models for a provider and merge them with the static catalog.
+ * Discover models for a provider and merge them with the catalog.
+ *
+ * On first open (no cached catalog) the catalog is fetched automatically from
+ * LiteLLM. Subsequent refreshes require the user to press r.
  *
  * Returns two lists: `installed` (models the server actually serves, enriched
  * with catalog metadata where matches exist) and `available` (catalog-only
@@ -24,16 +35,49 @@ export interface UseModelSelectorResult {
 export function useModelSelector(
   providerConfig: PyProviderConfig | null,
 ): UseModelSelectorResult {
+  const [catalog, setCatalog] = useState<CatalogEntry[]>(() => loadCatalog());
   const [installed, setInstalled] = useState<Model[]>([]);
   const [available, setAvailable] = useState<Model[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [isCatalogRefreshing, setIsCatalogRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [errorCode, setErrorCode] = useState<string | null>(null);
+  const [catalogError, setCatalogError] = useState<string | null>(null);
   const [refreshKey, setRefreshKey] = useState(0);
 
-  const catalog = useMemo(() => loadCatalog(), []);
+  const doRefreshCatalog = useCallback(
+    (signal?: AbortSignal): Promise<void> => {
+      setIsCatalogRefreshing(true);
+      setCatalogError(null);
+      return refreshCatalogFromRemote(getUserCatalogPath(), signal)
+        .then((entries) => {
+          setCatalog(entries);
+        })
+        .catch((err: unknown) => {
+          if (err instanceof Error && err.name === 'AbortError') return;
+          setCatalogError(err instanceof Error ? err.message : 'Failed to refresh catalog');
+        })
+        .finally(() => {
+          setIsCatalogRefreshing(false);
+        });
+    },
+    [],
+  );
 
-  const refresh = useCallback(() => { setRefreshKey((k) => k + 1); }, []);
+  // Auto-fetch catalog on first open when no local cache exists.
+  useEffect(() => {
+    if (hasCachedCatalog()) return;
+    const controller = new AbortController();
+    void doRefreshCatalog(controller.signal);
+    return () => { controller.abort(); };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const refresh = useCallback(() => {
+    const controller = new AbortController();
+    void doRefreshCatalog(controller.signal);
+    setRefreshKey((k) => k + 1);
+  }, [doRefreshCatalog]);
 
   useEffect(() => {
     if (providerConfig === null) {
@@ -68,5 +112,5 @@ export function useModelSelector(
     return () => { controller.abort(); };
   }, [providerConfig, catalog, refreshKey]);
 
-  return { installed, available, isLoading, error, errorCode, refresh };
+  return { installed, available, isLoading, isCatalogRefreshing, error, errorCode, catalogError, refresh };
 }

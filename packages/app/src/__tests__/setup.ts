@@ -70,6 +70,11 @@ vi.mock('@uplnk/db', () => ({
   insertMessage: vi.fn(),
   updateMessageContent: vi.fn(),
   getMessages: vi.fn(() => []),
+  // Agent run queries (delegation continuation + background runs)
+  createAgentRun: vi.fn(),
+  updateAgentRun: vi.fn(),
+  getAgentRun: vi.fn(() => undefined),
+  getAgentRunMessages: vi.fn(() => []),
   // Conversation extras
   forkConversation: vi.fn(() => ({ id: 'forked-conv-id', title: 'Forked conversation', createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(), deletedAt: null, providerId: null, modelId: null, totalInputTokens: 0, totalOutputTokens: 0 })),
   searchConversations: vi.fn(() => []),

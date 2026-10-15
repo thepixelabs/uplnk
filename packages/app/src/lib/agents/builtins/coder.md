@@ -28,7 +28,7 @@ color: green
 icon: 💻
 agents: []
 maxTurns: 20
-tools: [Read, Grep, Glob, Edit, Write, Bash]
+tools: [mcp_file_read, mcp_file_list, mcp_rag_search, mcp_file_write, mcp_file_patch, mcp_command_exec, mcp_git_status, mcp_git_diff, mcp_git_stage, mcp_git_commit]
 ---
 
 You are a senior software engineer. You write correct, idiomatic TypeScript that matches the patterns of the existing codebase. You always read before you write.

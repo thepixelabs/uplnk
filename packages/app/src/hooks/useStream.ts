@@ -4,6 +4,66 @@ import { streamText } from 'ai';
 import type { LanguageModel, CoreMessage, Tool } from 'ai';
 import type { UplnkError } from '@uplnk/shared';
 import { toUplnkError } from '../lib/errors.js';
+import { sanitizeMessages } from '../lib/sanitizeMessages.js';
+import { stripReasoningContent } from '../lib/stripReasoningContent.js';
+import {
+  trimMessagesForContext,
+  type TrimResult,
+} from '../lib/contextBudget.js';
+import { selectTools } from '../lib/toolSelection.js';
+import { LoopBreaker, makeSignature, wrapToolsWithLoopBreaker } from '../lib/loopBreaker.js';
+import {
+  wrapUntrustedBatch,
+  UNTRUSTED_CONTEXT_POLICY,
+  type UntrustedSource,
+} from '../lib/promptSecurity.js';
+import { retrieve as retrieveMemories } from '../lib/memory/retrieve.js';
+import type { IMemoryRegistry } from '../lib/memory/types.js';
+import type { MemoryStore } from '../lib/memory/store.js';
+
+/**
+ * Conservative fallback when the active model did not report a contextWindow.
+ * Matches the orchestrator's fallback so behaviour is identical across the
+ * two call sites.
+ */
+const DEFAULT_CONTEXT_WINDOW = 8192;
+
+/** See orchestrator.ts — same threshold so behaviour matches at both sites. */
+const TOOL_SELECTION_THRESHOLD = 8;
+const TOOL_SELECTION_TOP_K = 8;
+const ALWAYS_AVAILABLE_PREFIXES: readonly string[] = ['mcp_rag_'];
+const ALWAYS_AVAILABLE_EXACT: ReadonlySet<string> = new Set([
+  'delegate_to',
+  'ask',
+  'spawn_agent',
+]);
+function isAlwaysAvailable(name: string): boolean {
+  if (ALWAYS_AVAILABLE_EXACT.has(name)) return true;
+  for (const prefix of ALWAYS_AVAILABLE_PREFIXES) {
+    if (name.startsWith(prefix)) return true;
+  }
+  return false;
+}
+
+/** Find the text of the most recent user message — used as the memory query. */
+function findLastUserText(messages: readonly CoreMessage[]): string {
+  for (let i = messages.length - 1; i >= 0; i--) {
+    const m = messages[i]!;
+    if (m.role !== 'user') continue;
+    const c = m.content;
+    if (typeof c === 'string') return c;
+    if (Array.isArray(c)) {
+      const parts: string[] = [];
+      for (const p of c) {
+        if (typeof (p as { text?: unknown }).text === 'string') {
+          parts.push((p as { text: string }).text);
+        }
+      }
+      return parts.join(' ');
+    }
+  }
+  return '';
+}
 
 export type StreamStatus =
   | 'idle'
@@ -44,6 +104,19 @@ export interface SendOptions {
    * every send() and passes it explicitly.
    */
   supportsTools?: boolean;
+  /**
+   * Live context window in tokens for the chosen model. Drives the input
+   * budget for trimMessagesForContext. When unset the hook falls back to
+   * DEFAULT_CONTEXT_WINDOW (8192) — conservative, fits a 4-bit local model.
+   */
+  contextWindow?: number;
+  /**
+   * Loop-breaker intervention for the chat path. When true (default), the
+   * 3rd consecutive identical tool call is blocked with a synthetic result
+   * instead of executing — mirrors the agent path in orchestrator.ts.
+   * ChatScreen wires this from `config.loopBreaker.intervene`.
+   */
+  loopBreakerIntervene?: boolean;
 }
 
 interface UseStreamResult {
@@ -147,7 +220,11 @@ function estimateTokensFromMessages(messages: CoreMessage[]): number {
   return estimateTokensFromText('x'.repeat(chars));
 }
 
-export function useStream(model: LanguageModel): UseStreamResult {
+export function useStream(
+  model: LanguageModel,
+  memoryRegistry?: IMemoryRegistry,
+  memoryStore?: MemoryStore,
+): UseStreamResult {
   // Streaming text lives in a ref rather than state so token arrivals do not
   // schedule React re-renders. Components that need to repaint per token batch
   // subscribe via subscribeToStreamText instead.
@@ -237,7 +314,7 @@ export function useStream(model: LanguageModel): UseStreamResult {
       setStatus('connecting');
       setError(null);
 
-      const { onPersist, modelOverride, supportsTools } = opts ?? {};
+      const { onPersist, modelOverride, supportsTools, contextWindow } = opts ?? {};
       // When the ModelRouter has selected a specific model for this request,
       // use it instead of the hook-level default.  Falls back to the hook's
       // model when routing is disabled or no override was provided.
@@ -250,13 +327,149 @@ export function useStream(model: LanguageModel): UseStreamResult {
       const effectiveTools =
         tools !== undefined && supportsTools !== false ? tools : undefined;
 
+      // ── 1. Retrieve memories against the last user message ─────────────────
+      // Same logic as orchestrator.ts: pinned first, then non-pinned matched,
+      // injected as a wrapped untrusted-context user message. Description only;
+      // body is used for ranking but spending tokens on it would waste budget.
+      const lastUserText = findLastUserText(messages);
+      const memorySources: UntrustedSource[] = [];
+      if (memoryRegistry !== undefined) {
+        const retrieved = retrieveMemories(memoryRegistry, lastUserText, { topK: 3 });
+        for (const m of retrieved) {
+          memorySources.push({ label: `memory:${m.name}`, content: m.description });
+        }
+        if (memoryStore !== undefined && lastUserText.trim().length > 0) {
+          for (const m of retrieved) {
+            try { memoryStore.updateLastUsed(m.name); } catch { /* non-fatal */ }
+          }
+        }
+      }
+      const untrustedMessage = wrapUntrustedBatch(memorySources);
+
+      // Build raw messages in order: existing history + memory batch + (no
+      // synthetic user prompt here — useStream's caller has already appended
+      // the user message into `messages`).
+      // Inject the untrusted batch BEFORE the last user message so the model
+      // reads the retrieved facts as context for the new prompt.
+      const rawMessages: CoreMessage[] = untrustedMessage
+        ? [...messages.slice(0, -1), untrustedMessage, ...messages.slice(-1)]
+        : [...messages];
+      // If there's no last message to anchor against, prepend instead — keeps
+      // the wrap inside the array even on degenerate empty inputs.
+      if (untrustedMessage && messages.length === 0) {
+        rawMessages.push(untrustedMessage);
+      }
+
+      // ── 2 + 3. Sanitize and strip reasoning ────────────────────────────────
+      // Defensive pre-send pass: drop orphan tool messages, unanswered tool
+      // calls, merge consecutive user turns. Prevents provider 400s on histories
+      // that became malformed after compaction, retries, or partial aborts.
+      // Then strip reasoning content from all but the most recent assistant
+      // turn — reasoning models otherwise re-inject stale CoT each round.
+      const sanitized = stripReasoningContent(sanitizeMessages(rawMessages));
+
+      // ── 4. Trim to fit model context window ────────────────────────────────
+      const ctxWindow = contextWindow ?? DEFAULT_CONTEXT_WINDOW;
+      const trimResult: TrimResult = trimMessagesForContext(sanitized, {
+        contextWindow: ctxWindow,
+        inputBudgetRatio: 0.85,
+        protectedIndices: [],
+      });
+      const sanitizedMessages = trimResult.messages;
+      if (
+        trimResult.trimmed ||
+        trimResult.droppedCount > 0 ||
+        Object.keys(trimResult.truncations).length > 0
+      ) {
+        // No event bus on the chat path — surface via console.warn with a
+        // clear prefix so it's grep-able in logs / robotic transcripts.
+        console.warn(
+          `[useStream:context-trimmed] dropped=${trimResult.droppedCount} truncations=${Object.keys(trimResult.truncations).length} est=${trimResult.estimatedInputTokens}/${trimResult.inputBudget}`,
+        );
+      }
+
+      // ── 5. Tool selection (only when registry exceeds threshold) ───────────
+      let toolsForStream = effectiveTools;
+      if (effectiveTools !== undefined) {
+        const toolNames = Object.keys(effectiveTools);
+        if (toolNames.length > TOOL_SELECTION_THRESHOLD && lastUserText.length > 0) {
+          // Snake_case fix — see orchestrator.ts for rationale. Expand the
+          // DESCRIPTION (not the canonical name) so BM25 sees both "web_search"
+          // and "web search".
+          const expandedTools: Record<string, { description: string }> = {};
+          for (const name of toolNames) {
+            const t = effectiveTools[name]!;
+            const desc = typeof t.description === 'string' ? t.description : '';
+            const expanded = `${desc} ${name.replace(/_/g, ' ')}`.trim();
+            expandedTools[name] = { description: expanded };
+          }
+          const alwaysAvailable = toolNames.filter(isAlwaysAvailable);
+          const sel = selectTools({
+            userMessage: lastUserText,
+            tools: expandedTools,
+            alwaysAvailable,
+            topK: TOOL_SELECTION_TOP_K,
+          });
+          if (sel.selected.length > 0) {
+            const filtered: Record<string, Tool> = {};
+            for (const name of sel.selected) {
+              const tool = effectiveTools[name];
+              if (tool !== undefined) filtered[name] = tool;
+            }
+            toolsForStream = filtered;
+          }
+        }
+      }
+
+      // ── 5b. Loop-breaker intervention guard ────────────────────────────────
+      // Wraps each tool's execute so the 3rd consecutive identical call is
+      // blocked with a synthetic tool result instead of re-running. This is
+      // the chat-path twin of the orchestrator's agent-path wiring; there is
+      // no event bus here, so interventions surface via console.warn with the
+      // same stable prefix as the detector below.
+      if (toolsForStream !== undefined && (opts?.loopBreakerIntervene ?? true)) {
+        toolsForStream = wrapToolsWithLoopBreaker(toolsForStream, {
+          onIntervene: ({ toolName, occurrence }) => {
+            console.warn(
+              `[useStream:loop-breaker] intervened — blocked ${toolName} (identical consecutive call #${occurrence}); synthetic result returned`,
+            );
+          },
+        });
+      }
+
+      // ── 6. Loop-breaker (one per send, observed via onStepFinish) ──────────
+      // No event bus on this path — emit a console.warn with a stable prefix.
+      const lb = new LoopBreaker();
+      let lbFired = false;
+
+      // When memory was injected the model needs the untrusted-context policy
+      // in its system prompt; useStream has no system source of its own, so
+      // we pass UNTRUSTED_CONTEXT_POLICY through the `system:` slot. Skipped
+      // entirely when no untrusted batch was added so cold runs don't change.
+      const systemForStream = untrustedMessage ? UNTRUSTED_CONTEXT_POLICY : undefined;
+
       try {
         const { fullStream } = streamText({
           model: effectiveModel,
-          messages,
-          ...(effectiveTools !== undefined ? { tools: effectiveTools } : {}),
+          messages: sanitizedMessages,
+          ...(toolsForStream !== undefined ? { tools: toolsForStream } : {}),
+          ...(systemForStream !== undefined ? { system: systemForStream } : {}),
           abortSignal: controller.signal,
           maxSteps: 5,
+          onStepFinish: (step) => {
+            const calls = (step as { toolCalls?: ReadonlyArray<{ toolName: string; args: unknown }> })
+              .toolCalls;
+            if (calls === undefined || calls.length === 0) return;
+            for (const call of calls) {
+              const verdict = lb.observe(makeSignature(call.toolName, call.args));
+              if (verdict.action !== 'continue' && !lbFired) {
+                lbFired = true;
+                console.warn(
+                  `[useStream:loop-breaker] ${verdict.action} — ${verdict.reason}`,
+                );
+              }
+            }
+          },
         });
 
         // Stream is open but no tokens yet — show 'waiting' until first text-delta.
@@ -472,7 +685,7 @@ export function useStream(model: LanguageModel): UseStreamResult {
         setStatus('error');
       }
     },
-    [model, stopFlushTimer, stopPersistTimer],
+    [model, memoryRegistry, memoryStore, stopFlushTimer, stopPersistTimer],
   );
 
   const abort = useCallback(() => {

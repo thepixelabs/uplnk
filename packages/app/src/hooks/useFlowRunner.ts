@@ -1,6 +1,6 @@
 import { useState, useCallback, useRef } from 'react';
 import { FlowEngine } from '../flow/engine/FlowEngine.js';
-import type { FlowEvent } from '../flow/engine/FlowEngine.js';
+import type { FlowEvent, FlowEngineDeps } from '../flow/engine/FlowEngine.js';
 import type { LoadedFlow } from '../flow/loader.js';
 import type { FlowDef } from '../flow/schema.js';
 import type { Config } from '../lib/config.js';
@@ -36,7 +36,7 @@ export interface FlowRunnerState {
 
 // ─── Hook ─────────────────────────────────────────────────────────────────────
 
-export function useFlowRunner(config: Config) {
+export function useFlowRunner(config: Config, engineDeps?: FlowEngineDeps) {
   const [state, setState] = useState<FlowRunnerState>({
     flow: null,
     loadedFlow: null,
@@ -80,7 +80,7 @@ export function useFlowRunner(config: Config) {
       const controller = new AbortController();
       abortRef.current = controller;
 
-      const engine = new FlowEngine(config);
+      const engine = new FlowEngine(config, engineDeps);
       engineRef.current = engine;
 
       setState((prev) => ({
@@ -204,7 +204,7 @@ export function useFlowRunner(config: Config) {
       }
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [state.loadedFlow, config],
+    [state.loadedFlow, config, engineDeps],
   );
 
   const cancel = useCallback(() => {

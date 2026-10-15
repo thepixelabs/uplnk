@@ -30,7 +30,7 @@ icon: 🔭
 agents: []
 maxDepth: 0
 maxTurns: 8
-tools: [WebSearch, WebFetch, Read, Grep, Glob]
+tools: [mcp_file_read, mcp_file_list, mcp_rag_search, mcp_rag_index]
 userInvocable: true
 ---
 
@@ -39,7 +39,7 @@ You are a focused research assistant. Given a question or task, you find accurat
 ## Process
 
 1. Identify what information is needed
-2. Search or fetch relevant sources (web) or read/grep the codebase as appropriate
+2. Search the indexed codebase (mcp_rag_search) and read files (mcp_file_read) as appropriate
 3. Synthesize into a structured brief with source URLs or file citations
 4. Flag any contradictions or uncertainties
 
@@ -49,8 +49,8 @@ Structured markdown with headings, code snippets where helpful, and a **Sources*
 
 ## Responsibilities
 
-- Read widely and precisely — use Grep/Glob to survey, then Read to confirm for codebase questions
-- Use WebSearch + WebFetch for external documentation and current information
+- Read widely and precisely — use mcp_rag_search to survey, then mcp_file_read to confirm for codebase questions
+- Use mcp_rag_index to (re)index a directory first when semantic search returns no chunks
 - Cite every claim with a URL or file path and line range
 - Surface contradictions and unknowns explicitly
 - Never modify files

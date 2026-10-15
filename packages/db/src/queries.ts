@@ -6,10 +6,13 @@ import type * as schema from './schema.js';
 // Driver is bun:sqlite (TRunResult=void) across dev, test, and shipped binary.
 type Db = BaseSQLiteDatabase<'sync', any, typeof schema>;
 import {
+  agentRuns,
   conversations,
   messages,
   providerConfigs,
   relayRuns,
+  type AgentRun,
+  type NewAgentRun,
   type Conversation,
   type NewConversation,
   type Message,
@@ -356,6 +359,45 @@ export function forkConversation(
   });
 
   return getConversation(db, newConvId)!;
+}
+
+// ─── Agent Runs ───────────────────────────────────────────────────────────────
+
+export function createAgentRun(db: Db, data: NewAgentRun): AgentRun {
+  const rows = db.insert(agentRuns).values(data).returning().all();
+  return rows[0]!;
+}
+
+export function updateAgentRun(
+  db: Db,
+  id: string,
+  data: Partial<NewAgentRun>,
+): void {
+  db.update(agentRuns).set(data).where(eq(agentRuns.id, id)).run();
+}
+
+export function getAgentRun(db: Db, id: string): AgentRun | undefined {
+  const rows = db
+    .select()
+    .from(agentRuns)
+    .where(eq(agentRuns.id, id))
+    .limit(1)
+    .all();
+  return rows[0];
+}
+
+/**
+ * Ordered transcript of a single agent run — every message row attributed to
+ * it via `agent_run_id` (migration 0008). Used by the delegation continuation
+ * flow to rehydrate a finished run's context before resuming it.
+ */
+export function getAgentRunMessages(db: Db, agentRunId: string): Message[] {
+  return db
+    .select()
+    .from(messages)
+    .where(eq(messages.agentRunId, agentRunId))
+    .orderBy(asc(messages.createdAt))
+    .all();
 }
 
 // ─── Relay Runs ───────────────────────────────────────────────────────────────

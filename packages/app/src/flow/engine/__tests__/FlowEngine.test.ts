@@ -17,10 +17,18 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 // ─── Hoisted mock refs ─────────────────────────────────────────────────────────
 
 const aiMocks = vi.hoisted(() => ({ streamText: vi.fn() }));
+const structuredMocks = vi.hoisted(() => ({ generateStructured: vi.fn() }));
 
 // ─── Module mocks ──────────────────────────────────────────────────────────────
 
 vi.mock('ai', () => ({ streamText: aiMocks.streamText }));
+
+// expectJson chat steps route through generateStructured — mocked at the
+// module boundary; its retry/fallback internals are covered by
+// lib/__tests__/structured.test.ts.
+vi.mock('../../../lib/structured.js', () => ({
+  generateStructured: structuredMocks.generateStructured,
+}));
 
 vi.mock('../../../lib/languageModelFactory.js', () => ({
   createLanguageModel: vi.fn(() => ({ specificationVersion: 'v1', provider: 'fake', modelId: 'fake' })),
@@ -99,6 +107,7 @@ beforeEach(() => {
   vi.mocked(getDefaultProvider).mockReturnValue(makeFakeProviderRow());
   engine = new FlowEngine(makeTestConfig({ flows: { ...makeTestConfig().flows, allowHttpStep: true } }));
   aiMocks.streamText.mockReset();
+  structuredMocks.generateStructured.mockReset();
 });
 
 afterEach(() => {
@@ -268,6 +277,228 @@ describe('FlowEngine', () => {
 
       expect(errorEvents).toHaveLength(1);
       expect(errorEvents[0]?.error).toBe('LLM API exploded');
+    });
+  });
+
+  // ── Chat step — expectJson ────────────────────────────────────────────────
+
+  describe('chat step — expectJson', () => {
+    it('routes through generateStructured and stores the PARSED OBJECT as the step result', async () => {
+      structuredMocks.generateStructured.mockResolvedValueOnce({
+        object: { answer: 42, tags: ['a', 'b'] },
+        usage: { promptTokens: 1, completionTokens: 1, totalTokens: 2 },
+      });
+
+      const flow = makeLoadedFlow({
+        name: 'json-chat',
+        steps: [{ id: 's1', type: 'chat', prompt: 'give me json', expectJson: true, retries: 0 }],
+      });
+
+      const result = await engine.run(flow);
+
+      expect(result['s1']).toEqual({ answer: 42, tags: ['a', 'b'] });
+      expect(aiMocks.streamText).not.toHaveBeenCalled();
+
+      const call = structuredMocks.generateStructured.mock.calls[0]?.[0] as {
+        prompt: string;
+        schema: { safeParse?: unknown };
+      };
+      expect(call.prompt).toBe('give me json');
+      // z.unknown() — a Zod schema instance is passed through.
+      expect(call.schema.safeParse).toBeTypeOf('function');
+    });
+
+    it('interpolates the prompt and forwards system for expectJson steps', async () => {
+      structuredMocks.generateStructured.mockResolvedValueOnce({
+        object: {},
+        usage: { promptTokens: 0, completionTokens: 0, totalTokens: 0 },
+      });
+
+      const flow = makeLoadedFlow({
+        name: 'json-interp',
+        inputs: { subject: { type: 'string', required: true } },
+        steps: [
+          {
+            id: 's1',
+            type: 'chat',
+            prompt: 'summarise ${inputs.subject} as JSON',
+            system: 'Emit JSON only.',
+            expectJson: true,
+            retries: 0,
+          },
+        ],
+      });
+
+      await engine.run(flow, { inputs: { subject: 'flows' } });
+
+      const call = structuredMocks.generateStructured.mock.calls[0]?.[0] as {
+        prompt: string;
+        system?: string;
+      };
+      expect(call.prompt).toBe('summarise flows as JSON');
+      expect(call.system).toBe('Emit JSON only.');
+    });
+  });
+
+  // ── Agent step ────────────────────────────────────────────────────────────
+
+  describe('agent step', () => {
+    function makeAgentEngine(agentRunner: Parameters<typeof vi.fn>[0] | ReturnType<typeof vi.fn>) {
+      return new FlowEngine(makeTestConfig(), { agentRunner: agentRunner as never });
+    }
+
+    it('invokes the injected agentRunner with the interpolated prompt, agent name, and model', async () => {
+      const agentRunner = vi.fn(async () => ({ summary: 'agent summary', runId: 'run-123' }));
+      const agentEngine = makeAgentEngine(agentRunner);
+
+      const flow = makeLoadedFlow({
+        name: 'agent-flow',
+        inputs: { topic: { type: 'string', required: true } },
+        steps: [
+          {
+            id: 'research',
+            type: 'agent',
+            agent: 'researcher',
+            prompt: 'study ${inputs.topic}',
+            model: 'qwen3:8b',
+            retries: 0,
+          },
+        ],
+      });
+
+      const result = await agentEngine.run(flow, { inputs: { topic: 'handpans' } });
+
+      expect(result['research']).toBe('agent summary');
+      expect(agentRunner).toHaveBeenCalledOnce();
+      expect(agentRunner).toHaveBeenCalledWith(
+        expect.objectContaining({
+          agentName: 'researcher',
+          prompt: 'study handpans',
+          model: 'qwen3:8b',
+        }),
+      );
+    });
+
+    it('fails the step with a clear error when no agentRunner is provided', async () => {
+      // Default engine from beforeEach — constructed WITHOUT deps.
+      const flow = makeLoadedFlow({
+        name: 'no-runner',
+        steps: [{ id: 'delegate', type: 'agent', agent: 'researcher', prompt: 'go', retries: 0 }],
+      });
+
+      const errorEvents: FlowEvent[] = [];
+      await expect(
+        engine.run(flow, { onEvent: (e) => { if (e.kind === 'step.error') errorEvents.push(e); } }),
+      ).rejects.toThrow('no agentRunner was provided to FlowEngine');
+
+      expect(errorEvents).toHaveLength(1);
+      expect(errorEvents[0]?.stepId).toBe('delegate');
+      expect(errorEvents[0]?.error).toContain('agentRunner');
+    });
+
+    it('stores the summary under resultVar and interpolates it into a later chat step', async () => {
+      const agentRunner = vi.fn(async () => ({ summary: 'FINDINGS', runId: 'run-1' }));
+      const agentEngine = makeAgentEngine(agentRunner);
+      aiMocks.streamText.mockReturnValueOnce({ fullStream: makeFullStream(['refined']) });
+
+      const flow = makeLoadedFlow({
+        name: 'agent-then-chat',
+        steps: [
+          {
+            id: 'research',
+            type: 'agent',
+            agent: 'researcher',
+            prompt: 'go',
+            resultVar: 'findings',
+            retries: 0,
+          },
+          {
+            id: 'refine',
+            type: 'chat',
+            prompt: 'refine ${vars.findings} from ${steps.research.output}',
+            retries: 0,
+          },
+        ],
+      });
+
+      const result = await agentEngine.run(flow);
+
+      const chatCall = aiMocks.streamText.mock.calls[0]?.[0] as { messages: Array<{ role: string; content: string }> };
+      const userMsg = chatCall.messages.find((m) => m.role === 'user');
+      expect(userMsg?.content).toBe('refine FINDINGS from FINDINGS');
+      expect(result['refine']).toBe('refined');
+    });
+
+    it('retries the agent step and succeeds on a later attempt', async () => {
+      vi.useFakeTimers();
+
+      let calls = 0;
+      const agentRunner = vi.fn(async () => {
+        calls++;
+        if (calls === 1) throw new Error('transient agent failure');
+        return { summary: 'second-try summary', runId: 'run-2' };
+      });
+      const agentEngine = makeAgentEngine(agentRunner);
+
+      const flow = makeLoadedFlow({
+        name: 'agent-retry',
+        steps: [{ id: 'flaky', type: 'agent', agent: 'researcher', prompt: 'go', retries: 1 }],
+      });
+
+      const retryEvents: FlowEvent[] = [];
+      const runPromise = agentEngine.run(flow, {
+        onEvent: (e) => { if (e.kind === 'step.retry') retryEvents.push(e); },
+      });
+      const settled = runPromise
+        .then((v) => ({ ok: true as const, value: v }))
+        .catch((e: unknown) => ({ ok: false as const, error: e }));
+
+      for (let i = 0; i < 3; i++) {
+        await vi.advanceTimersByTimeAsync(600);
+      }
+
+      const result = await settled;
+      expect(result.ok).toBe(true);
+      expect(retryEvents).toHaveLength(1);
+      expect(retryEvents[0]?.error).toBe('transient agent failure');
+      expect(agentRunner).toHaveBeenCalledTimes(2);
+      if (result.ok) expect(result.value['flaky']).toBe('second-try summary');
+    }, 15_000);
+
+    it('persists the agent step result via upsertStepResult like other steps', async () => {
+      const agentRunner = vi.fn(async () => ({ summary: 'persisted summary', runId: 'run-3' }));
+      const agentEngine = makeAgentEngine(agentRunner);
+
+      const flow = makeLoadedFlow({
+        name: 'agent-persist',
+        steps: [{ id: 'delegate', type: 'agent', agent: 'researcher', prompt: 'go', retries: 0 }],
+      });
+
+      await agentEngine.run(flow);
+
+      const calls = vi.mocked(mockUpsertStepResult).mock.calls;
+      const succeeded = calls.find((c) => c[0]?.status === 'succeeded' && c[0]?.stepId === 'delegate');
+      expect(succeeded).toBeDefined();
+      expect(succeeded?.[0]?.outputJson).toBe(JSON.stringify('persisted summary'));
+    });
+
+    it('forwards the abort signal to the agentRunner', async () => {
+      const seen: Array<AbortSignal | undefined> = [];
+      const agentRunner = vi.fn(async (req: { abortSignal?: AbortSignal }) => {
+        seen.push(req.abortSignal);
+        return { summary: 's', runId: 'r' };
+      });
+      const agentEngine = makeAgentEngine(agentRunner);
+      const controller = new AbortController();
+
+      const flow = makeLoadedFlow({
+        name: 'agent-signal',
+        steps: [{ id: 'delegate', type: 'agent', agent: 'researcher', prompt: 'go', retries: 0 }],
+      });
+
+      await agentEngine.run(flow, { signal: controller.signal });
+
+      expect(seen[0]).toBeInstanceOf(AbortSignal);
     });
   });
 

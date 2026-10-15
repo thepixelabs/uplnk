@@ -5,6 +5,7 @@ import { BUILTIN_CATALOG } from './data.js';
 import type { CatalogCapabilities, CatalogEntry, CatalogProviderKind } from './types.js';
 
 export type { CatalogEntry, CatalogCapabilities, CatalogProviderKind } from './types.js';
+export { refreshCatalogFromRemote } from './remoteRefresh.js';
 
 /**
  * Resolved capability flags. Every field is a concrete boolean — an unknown
@@ -66,9 +67,14 @@ export function resolveCapabilities(
   return { ...DEFAULT_CAPABILITIES };
 }
 
-/** Path where users can drop an override catalog (e.g. LiteLLM export). */
+/** Path where the remote-refreshed catalog is cached. */
 export function getUserCatalogPath(): string {
   return join(homedir(), '.uplnk', 'catalog.json');
+}
+
+/** Returns true if a local catalog cache already exists. */
+export function hasCachedCatalog(): boolean {
+  return existsSync(getUserCatalogPath());
 }
 
 /**

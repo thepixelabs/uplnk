@@ -6,6 +6,7 @@
  */
 
 import type { CoreMessage, LanguageModel, Tool } from 'ai';
+import type { Db } from '@uplnk/db';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Scalar aliases
@@ -118,7 +119,13 @@ export interface AgentEventBase {
 
 export type AgentEvent =
   // Lifecycle
-  | (AgentEventBase & { type: 'agent:start'; userPrompt: string; model: string })
+  | (AgentEventBase & {
+      type: 'agent:start';
+      userPrompt: string;
+      model: string;
+      /** Set when this run resumed a prior finished run's transcript (continuation). */
+      resumedFromRunId?: InvocationId;
+    })
   | (AgentEventBase & {
       type: 'agent:end';
       finalText: string;
@@ -152,6 +159,26 @@ export type AgentEvent =
       childAgent: AgentName;
       mode: 'delegate' | 'ask';
       summary: string;
+    })
+  /**
+   * A background delegation (`delegate_to_agent` with `background: true`)
+   * finished or errored. Emitted on the PARENT invocation, possibly long
+   * after the parent's own turn ended — subscribers that outlive the turn
+   * (e.g. the chat screen) use it to surface the persisted notification.
+   */
+  | (AgentEventBase & {
+      type: 'delegate:background-complete';
+      childInvocationId: InvocationId;
+      childAgent: AgentName;
+      status: 'completed' | 'errored';
+      /** Child's final text on success, error message on failure. */
+      summary: string;
+      /** Exact text persisted as the notification message (label + summary). */
+      notification: string;
+      /** Conversation the notification was persisted into, or null when unavailable. */
+      conversationId: string | null;
+      /** Persisted notification message id, or null when persistence was unavailable. */
+      messageId: string | null;
     })
   // Shared state (for UI inspector)
   | (AgentEventBase & { type: 'state:set'; key: string; value: unknown })
@@ -192,6 +219,34 @@ export type AgentEvent =
       turnId: string;
       reason: 'done' | 'budget' | 'ping-pong' | 'error' | 'aborted';
       handoffs: number;
+    })
+  // ── Wave 2 wire-up events (B.1.4 contextBudget + B.1.5 loopBreaker) ────────
+  /**
+   * Emitted when trimMessagesForContext dropped or truncated messages to fit
+   * the model's input budget. UI surfaces this as a "trimmed N messages"
+   * notice — the trim is non-fatal.
+   */
+  | (AgentEventBase & {
+      type: 'context:trimmed';
+      droppedCount: number;
+      truncations: Record<number, string>;
+      estimatedInputTokens: number;
+      inputBudget: number;
+    })
+  /**
+   * Emitted when the LoopBreaker decides the model is wedged on the same
+   * tool call and force-answer should fire. Wave 2 emits + logs only — the
+   * actual abort+retry mechanism is deferred to a follow-up wave.
+   */
+  | (AgentEventBase & {
+      type: 'loop-breaker:fire';
+      action: 'force-answer' | 'force-error';
+      reason: string;
+      snapshot: {
+        recentSignatures: ReadonlyArray<{ toolName: string; argsHash: string }>;
+        perToolCallCounts: Readonly<Record<string, number>>;
+        stuckCount: number;
+      };
     });
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -262,6 +317,19 @@ export interface DelegationContext {
   inheritedModel: LanguageModel;
   /** Parent's tools so children with `tools: undefined` inherit them. */
   inheritedTools: Record<string, Tool>;
+  /**
+   * Resolves a model spec through the SAME path the orchestrator uses
+   * (its modelFactory). Delegation tools call it to validate per-call
+   * model/provider overrides before spawning — a throw means "unknown".
+   */
+  resolveModel?: (spec: { model: AgentModelSpec; provider?: string }) => LanguageModel;
+  /**
+   * DB handle + owning conversation — both optional. When present they enable
+   * continuation (`run_id`) and background-delegation persistence in the
+   * delegation tools; when absent those paths return clear error strings.
+   */
+  db?: Db;
+  conversationId?: string;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -274,12 +342,37 @@ export interface IAgentRegistry {
   reload(projectDir?: string): Promise<void>;
 }
 
+/**
+ * Per-call overrides supplied by delegation tools. Take precedence over the
+ * AgentDef's model/provider/temperature but NEVER over hard limits — maxTurns,
+ * timeoutMs and depth always come from the definition.
+ */
+export interface AgentRunOverrides {
+  model?: string;
+  provider?: string;
+  temperature?: number;
+}
+
 export interface RunAgentOptions {
   agent: AgentDef;
   userPrompt: string;
   history?: CoreMessage[];
   /** Override the rootInvocationId (used by useAgentRun to align with its subscription key). */
   rootInvocationIdOverride?: InvocationId;
+  /**
+   * Pre-mint the run's own invocationId. Background delegation uses this so
+   * the tool can return the run id to the caller BEFORE run() resolves.
+   */
+  invocationIdOverride?: InvocationId;
+  /** Per-call model/provider/temperature overrides (see AgentRunOverrides). */
+  overrides?: AgentRunOverrides;
+  /** Lineage marker for continuation runs — threaded into `agent:start`. */
+  resumedFromRunId?: InvocationId;
+  /**
+   * Conversation this run belongs to. Threaded into the DelegationContext so
+   * delegation tools can persist / look up runs for continuation + background.
+   */
+  conversationId?: string;
   parent?: {
     invocationId: InvocationId;
     depth: number;
@@ -298,6 +391,12 @@ export interface RunAgentOptions {
    */
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   extraTools?: Record<string, Tool<any, any>>;
+  /**
+   * Live context window in tokens for the chosen model. Drives the input
+   * budget passed to trimMessagesForContext. Undefined falls back to a
+   * conservative default inside the orchestrator.
+   */
+  contextWindow?: number;
 }
 
 export interface RunAgentResult {

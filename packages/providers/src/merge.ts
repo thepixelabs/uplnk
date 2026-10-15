@@ -14,6 +14,21 @@ function catalogKey(kind: ProviderKind, id: string): string {
   return `${prefix}${untagged}`;
 }
 
+/**
+ * Precedence rule (locked 2026-06-03) for scalar metadata (contextWindow,
+ * maxOutputTokens, costs, family):
+ *   live wire value (set by the provider) > catalog entry.
+ * The catalog is *only* read for these fields when the live model does not
+ * carry them. This matters most for `contextWindow`: vLLM exposes
+ * `max_model_len`, llama.cpp `/slots` exposes `n_ctx`, Ollama `/api/show`
+ * (lazy) exposes `num_ctx` — all reflect the user's actual runtime config
+ * (e.g. `--max-model-len`, `-c N`, Modelfile overrides) that the static
+ * catalog can't know about.
+ *
+ * Capabilities (tools / vision / streaming) are *not* discoverable from
+ * /v1/models or /api/tags, so the catalog is the source of truth there and
+ * overlays anything the wire happened to set.
+ */
 function enrichFromCatalog(model: Model, entry: CatalogEntry): Model {
   return {
     ...model,
@@ -37,6 +52,9 @@ function enrichFromCatalog(model: Model, entry: CatalogEntry): Model {
       ...(model.capabilities ?? {}),
       ...(entry.capabilities ?? {}),
     },
+    ...(entry.isCloud !== undefined && model.isCloud === undefined
+      ? { isCloud: entry.isCloud }
+      : {}),
   };
 }
 
@@ -86,6 +104,7 @@ export function mergeWithCatalog(
       ...(entry.inputCostPer1M !== undefined ? { inputCostPer1M: entry.inputCostPer1M } : {}),
       ...(entry.outputCostPer1M !== undefined ? { outputCostPer1M: entry.outputCostPer1M } : {}),
       ...(entry.capabilities !== undefined ? { capabilities: entry.capabilities } : {}),
+      ...(entry.isCloud !== undefined ? { isCloud: entry.isCloud } : {}),
     });
   }
 

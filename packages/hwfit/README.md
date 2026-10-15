@@ -1,0 +1,3 @@
+# @uplnk/hwfit
+
+Cross-platform hardware probe + model-fit scorer for uplnk's local-model picker. `detectHardware()` shells out to `nvidia-smi` / `sysctl` / `rocminfo` / PowerShell behind try/catch and always returns a `HardwareProfile` (even if every probe fails). `scoreModel(input, hw)` is a pure function that estimates whether a GGUF / safetensors model will fit, how fast it will run, and emits a `FitLevel` (`gpu` | `cpu-offload` | `cpu-only` | `too-tight` | `incompatible`) plus 0-100 sub-scores for the picker UI. Bandwidth and bytes-per-parameter live in two hand-curated tables (`bandwidthTable.ts`, `quantTable.ts`) — sources cited at the top of each file.

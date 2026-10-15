@@ -34,8 +34,22 @@ import {
 } from '../lib/agents/parseUserInput.js';
 import { getAgentRegistry } from '../lib/agents/registry.js';
 import { AgentOrchestrator } from '../lib/agents/orchestrator.js';
+import {
+  runResearch,
+  parseResearchTrigger,
+  describeResearchEvent,
+} from '../lib/deepResearch/index.js';
+import { buildSearchProviderFromConfig } from '../lib/search/fromConfig.js';
 import { getGlobalAgentEventBus } from '../lib/agents/eventBus.js';
+import { getSkillRegistry } from '../lib/skills/registry.js';
+import {
+  getMemoryRegistry,
+  MemoryStore,
+  parseRememberCommand,
+  detectNlMemorySignal,
+} from '../lib/memory/index.js';
 import { useAgentRun } from '../hooks/useAgentRun.js';
+import { useBackgroundNotifications } from '../hooks/useBackgroundNotifications.js';
 import { useRoomRun } from '../hooks/useRoomRun.js';
 import { EphemeralRegistry } from '../lib/agents/ephemeralRegistry.js';
 import { AgentEventView } from '../components/chat/AgentEventView.js';
@@ -113,6 +127,8 @@ const DEFAULT_CONFIG: Config = {
   robotic: { enabled: false, transport: 'auto', maxTurns: 40, turnTimeoutMs: 120000, minInterTurnMs: 750, judge: { provider: 'ollama', model: '', everyNTurns: 1 }, redact: { envPatterns: ['(?i)api[_-]?key', '(?i)token', '(?i)secret', '(?i)password'], customPatterns: [] }, targets: {} },
   altergo: { binary: 'altergo', home: '~/.altergo', autoImport: false, autoImportAccounts: [], watchSessions: false, launchDetach: true },
   stats: { showInHeader: true },
+  loopBreaker: { intervene: true },
+  search: { fallbackChain: [] },
 };
 
 export function ChatScreen({
@@ -189,7 +205,7 @@ export function ChatScreen({
 
   // Conversation must come before useMcp so conversationId is available for
   // BC-5 rate limiting (tool call counter resets on new conversation).
-  const { conversationId, messages, addMessage, appendAssistantToState, replaceWithSummary } = useConversation(resumeConversationId);
+  const { conversationId, messages, addMessage, appendAssistantToState, replaceWithSummary, appendPersistedMessage } = useConversation(resumeConversationId);
   const [conversationTitle, setConversationTitle] = useState(() =>
     resumeConversationId !== undefined
       ? getConversation(db, resumeConversationId)?.title ?? 'New conversation'
@@ -242,6 +258,22 @@ export function ChatScreen({
     () => getAgentRegistry(projectDir !== undefined ? { projectDir } : undefined),
     [projectDir],
   );
+  const skillRegistry = useMemo(
+    () => getSkillRegistry(projectDir !== undefined ? { projectDir } : undefined),
+    [projectDir],
+  );
+  // Memory registry + store — registry is the read path (used by orchestrator
+  // and useStream for per-turn retrieval), store is the write path (slash and
+  // NL-signal saves go through it). Both are scoped to projectDir so a switch
+  // in projectDir gets a fresh pair.
+  const memoryRegistry = useMemo(
+    () => getMemoryRegistry(projectDir !== undefined ? { projectDir } : undefined),
+    [projectDir],
+  );
+  const memoryStore = useMemo(
+    () => new MemoryStore(projectDir !== undefined ? { projectDir } : undefined),
+    [projectDir],
+  );
   const agentEventBus = useMemo(() => getGlobalAgentEventBus(), []);
   const agentOrchestrator = useMemo(
     () =>
@@ -253,10 +285,19 @@ export function ChatScreen({
             : createLanguageModel({ providerType, baseURL, apiKey, modelId: spec.model }),
         rootTools: mcpTools,
         eventBus: agentEventBus,
+        skillRegistry,
+        memoryRegistry,
+        memoryStore,
+        // Enables continuation (run_id) + background-delegation persistence
+        // in the delegation tools.
+        db,
+        // Loop-breaker intervention policy (blocks the 3rd identical
+        // consecutive tool call unless config disables it).
+        loopBreaker: config.loopBreaker,
       }),
-    [agentRegistry, agentEventBus, activeModel, providerType, baseURL, apiKey, mcpTools],
+    [agentRegistry, skillRegistry, memoryRegistry, memoryStore, agentEventBus, activeModel, providerType, baseURL, apiKey, mcpTools, config.loopBreaker],
   );
-  const agentRun = useAgentRun({ orchestrator: agentOrchestrator, eventBus: agentEventBus });
+  const agentRun = useAgentRun({ orchestrator: agentOrchestrator, eventBus: agentEventBus, conversationId });
 
   // Ephemeral registry: layers spawn_agent-created agents on top of the base
   // disk registry for the current conversation. Re-instantiated whenever the
@@ -288,7 +329,23 @@ export function ChatScreen({
     projectContextRef.current = ctx?.systemPrompt ?? null;
   }
 
-  const { streamedTextRef, subscribeToStreamText, status, error, sessionTokens, lastTurnStats, liveTurnTokens, send, abort } = useStream(activeModel);
+  const { streamedTextRef, subscribeToStreamText, status, error, sessionTokens, lastTurnStats, liveTurnTokens, send, abort } = useStream(activeModel, memoryRegistry, memoryStore);
+
+  // Background-delegation completion notifications. The delegation tool has
+  // already persisted the message row; this appends it to the live list —
+  // queued while a turn is in flight so the stream is never reordered.
+  useBackgroundNotifications({
+    eventBus: agentEventBus,
+    conversationId,
+    busy:
+      status === 'connecting' ||
+      status === 'waiting' ||
+      status === 'streaming' ||
+      status === 'tool-running' ||
+      agentRun.status === 'running' ||
+      roomRun.status === 'running',
+    onNotify: appendPersistedMessage,
+  });
   const connectionState = useProviderConnectivity({ providerType, baseURL, apiKey, authMode });
   const { activeArtifact, promoteArtifact, dismissArtifact, updateArtifact } = useArtifacts();
   const { artifactWidthPct, chatWidthPct, growArtifact, shrinkArtifact } = useSplitPane();
@@ -316,6 +373,11 @@ export function ChatScreen({
   const [activeRole, setActiveRole] = useState<string | null>(null);
   // Transient feedback message (export confirmation, role applied, etc.)
   const [feedbackMsg, setFeedbackMsg] = useState<string | null>(null);
+  // Inline status line for an in-flight @research run (null = no run).
+  // Phase updates from the deep-research generator land here; the final
+  // report is persisted as a normal assistant message.
+  const [researchStatus, setResearchStatus] = useState<string | null>(null);
+  const researchAbortRef = useRef<AbortController | null>(null);
   // Help panel visibility (toggled by /help)
   const [showHelp, setShowHelp] = useState(false);
   // MCP status overlay (toggled by /mcp)
@@ -355,6 +417,7 @@ export function ChatScreen({
     CHAT_INPUT_HEIGHT +
     (mentionActive ? MENTION_POPOVER_HEIGHT : 0) +
     (feedbackMsg !== null ? 1 : 0) +
+    (researchStatus !== null ? 1 : 0) +
     (activeRole !== null ? 1 : 0) +
     (inScrollback ? 3 : 0) +
     (inForkCursor ? 3 : 0);
@@ -505,7 +568,100 @@ export function ChatScreen({
 
   const handleSubmit = useCallback(
     async (input: string) => {
-      if (!input.trim() || status === 'streaming' || agentRun.status === 'running' || roomRun.status === 'running') return;
+      if (!input.trim() || status === 'streaming' || agentRun.status === 'running' || roomRun.status === 'running' || researchStatus !== null) return;
+
+      // ─── Phase C: explicit memory triggers ──────────────────────────────────
+      // /remember + remember: — persist silently with a confirm notice, do NOT
+      //   forward the slash command to the model (user explicitly asked to save).
+      // NL signal ("from now on …", "I prefer …", etc.) — persist a confirm notice
+      //   AND continue with normal send so the agent acts on the instruction.
+      const slashSave = parseRememberCommand(input);
+      if (slashSave !== null) {
+        try {
+          const saved = memoryStore.write({ description: slashSave.save, source: 'slash', scope: 'user' });
+          await memoryRegistry.reload();
+          addMessage({ role: 'system', content: `Memory saved: ${saved.description}` });
+        } catch (err) {
+          addMessage({
+            role: 'system',
+            content: `Memory save failed: ${err instanceof Error ? err.message : String(err)}`,
+          });
+        }
+        return;
+      }
+      const nlSave = detectNlMemorySignal(input);
+      if (nlSave !== null) {
+        try {
+          const saved = memoryStore.write({ description: nlSave.save, source: 'nl-signal', scope: 'user' });
+          await memoryRegistry.reload();
+          addMessage({ role: 'system', content: `Memory saved: ${saved.description}` });
+        } catch {
+          // Non-fatal — fall through to normal send so the user's message still goes through.
+        }
+        // Intentional fall-through: NL-signal save is in addition to the normal turn.
+      }
+
+      // ─── Deep research trigger (@research <topic>) ─────────────────────────
+      // Runs BEFORE agent-mention routing: `research` is not a registered
+      // agent — the deep-research generator (lib/deepResearch/runner.ts) owns
+      // this flow, not the orchestrator. Phase updates render on the inline
+      // status line; the final report persists as a normal assistant message.
+      const researchTopic = parseResearchTrigger(input);
+      if (researchTopic !== null) {
+        if (messages.length === 0) {
+          const firstLine = input.trim().split(/\r?\n/)[0] ?? input.trim();
+          const title = firstLine.slice(0, 60).trim();
+          if (title !== '') {
+            try {
+              updateConversationTitle(db, conversationId, title);
+              setConversationTitle(title);
+            } catch { /* non-fatal */ }
+          }
+        }
+        addMessage({ role: 'user', content: input });
+
+        const searchResult = buildSearchProviderFromConfig(config.search);
+        if (!searchResult.ok) {
+          addMessage({ role: 'system', content: `@research unavailable: ${searchResult.error}` });
+          return;
+        }
+
+        const controller = new AbortController();
+        researchAbortRef.current = controller;
+        setResearchStatus('research: starting…');
+        try {
+          let report: string | null = null;
+          const gen = runResearch({
+            query: researchTopic,
+            model: activeModel,
+            search: searchResult.provider,
+            signal: controller.signal,
+          });
+          for await (const ev of gen) {
+            const line = describeResearchEvent(ev);
+            if (line !== null) setResearchStatus(line);
+            if (ev.type === 'final:done') report = ev.report;
+          }
+          if (report !== null && report.trim() !== '') {
+            const researchMsgId = crypto.randomUUID();
+            insertMessage(db, { id: researchMsgId, conversationId, role: 'assistant', content: report });
+            appendAssistantToState(researchMsgId, report);
+          } else {
+            addMessage({ role: 'system', content: '@research produced no report.' });
+          }
+        } catch (err) {
+          addMessage({
+            role: 'system',
+            content: controller.signal.aborted
+              ? '@research cancelled.'
+              : `@research failed: ${err instanceof Error ? err.message : String(err)}`,
+          });
+        } finally {
+          researchAbortRef.current = null;
+          setResearchStatus(null);
+        }
+        return;
+      }
 
       // ─── Parse @mentions into a structured payload ─────────────────────────
       // Runs before legacy agent-match so we can harvest file attachments even
@@ -653,10 +809,11 @@ export function ChatScreen({
       await send(coreMessages, mcpTools, {
         onPersist: (text) => updateMessageContent(db, assistantMsgId, text),
         supportsTools: caps.tools,
+        loopBreakerIntervene: config.loopBreaker.intervene,
         ...(modelOverride !== undefined ? { modelOverride } : {}),
       });
     },
-    [conversationId, messages, status, send, addMessage, mcpTools, activeRole, projectContextRef, modelRouter, providerType, baseURL, apiKey, agentRegistry, projectDir, resolvedModel, roomRun, agentRun]
+    [conversationId, messages, status, send, addMessage, mcpTools, activeRole, projectContextRef, modelRouter, providerType, baseURL, apiKey, agentRegistry, projectDir, resolvedModel, roomRun, agentRun, researchStatus, activeModel, appendAssistantToState, config]
   );
 
   const handleFork = useCallback((messageIndex?: number) => {
@@ -781,6 +938,7 @@ export function ChatScreen({
     // key.ctrl=false. Also handle the ETX-codepoint variant '[3;5u'.
     if ((key.ctrl && input === 'c') || input === '[99;5u' || input === '[3;5u') {
       if (agentRun.status === 'running') agentRun.abort();
+      else if (researchAbortRef.current !== null) researchAbortRef.current.abort();
       else if (status === 'streaming') abort();
       else exit();
     }
@@ -1042,6 +1200,14 @@ export function ChatScreen({
             <Text color="#4ADE80">{feedbackMsg}</Text>
           </Box>
         )}
+        {researchStatus !== null && (
+          <Box paddingX={1}>
+            <Text color="#60A5FA">
+              ◐ {researchStatus}
+              <Text dimColor>  ·  Ctrl+C cancel</Text>
+            </Text>
+          </Box>
+        )}
         {activeRole !== null && (
           <Box paddingX={1}>
             <Text color="#475569">Role: {getRole(activeRole)?.name ?? activeRole}</Text>
@@ -1072,7 +1238,7 @@ export function ChatScreen({
         <ChatInput
           onSubmit={handleSubmit}
           onCommand={handleCommand}
-          disabled={status === 'streaming' || agentRun.status === 'running' || roomRun.status === 'running' || focusedPanel === 'artifact' || isCompacting}
+          disabled={status === 'streaming' || agentRun.status === 'running' || roomRun.status === 'running' || researchStatus !== null || focusedPanel === 'artifact' || isCompacting}
           projectDir={currentDirectory}
           onMentionActiveChange={setMentionActive}
         />

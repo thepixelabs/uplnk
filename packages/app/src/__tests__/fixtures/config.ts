@@ -47,6 +47,8 @@ export function makeTestConfig(overrides: Partial<Config> = {}): Config {
       launchDetach: true,
     },
     stats: { showInHeader: false },
+    loopBreaker: { intervene: true },
+    search: { fallbackChain: [] },
     ...overrides,
   };
 }

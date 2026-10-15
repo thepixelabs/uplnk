@@ -12,9 +12,9 @@
  * is detected by null-byte sniff and omitted. Oversized files are truncated.
  */
 
-import { readFileSync, statSync } from 'node:fs';
+import { readFileSync, readdirSync, statSync } from 'node:fs';
 import { homedir } from 'node:os';
-import { isAbsolute, relative, resolve } from 'node:path';
+import { isAbsolute, join, relative, resolve } from 'node:path';
 import type { AgentDef, IAgentRegistry } from './types.js';
 
 // ─── Legacy: first-token mention ─────────────────────────────────────────────
@@ -41,18 +41,22 @@ export function parseAgentMention(
 // ─── New: structured payload extraction ──────────────────────────────────────
 
 export interface FileAttachment {
+  /** Whether the resolved target is a regular file or a directory. */
+  kind: 'file' | 'directory';
   /** Original token as it appeared in the user text (e.g. '@../src/foo.ts'). */
   token: string;
   /** Absolute resolved path. */
   absPath: string;
   /** Path relative to `projectDir`, for compact display/injection. */
   relPath: string;
-  /** File contents; null when unreadable or detected binary. */
+  /** File contents (kind='file') or directory listing (kind='directory'); null when unreadable or detected binary. */
   content: string | null;
-  /** Byte size on disk (0 if stat failed). */
+  /** For files: byte size on disk. For directories: byte size of the rendered listing. 0 if stat failed. */
   bytes: number;
   /** True when contents were truncated to respect `maxFileBytes`. */
   truncated: boolean;
+  /** Number of entries listed (directories only). */
+  entryCount?: number;
   /** Human-readable reason when content is null. */
   error?: string;
 }
@@ -102,22 +106,105 @@ function looksBinary(buf: Buffer): boolean {
   return false;
 }
 
+// Directories matching these names are excluded from the listing — they bloat
+// the output without informing the model. Mirrors mentionResolver.SKIP_DIRS.
+const DIR_LISTING_SKIP = new Set([
+  'node_modules', '.git', '.svn', 'dist', 'build', '.next', '.nuxt',
+  'out', '__pycache__', '.venv', 'venv', 'env', '.cache', '.parcel-cache',
+  '.turbo', 'coverage', '.nyc_output', 'vendor', 'target', '.gradle', '.mvn',
+]);
+
+const MAX_DIR_LISTING_ENTRIES = 500;
+const MAX_DIR_LISTING_DEPTH = 6;
+
+interface DirListing {
+  content: string;
+  entryCount: number;
+  truncated: boolean;
+}
+
+/**
+ * Produce a flat, sorted listing of a directory tree. Each line is either
+ * `path/` for a subdirectory or `path\t<size>` for a regular file. Stops when
+ * the rendered string exceeds `maxBytes`, when `MAX_DIR_LISTING_ENTRIES` is
+ * reached, or beyond `MAX_DIR_LISTING_DEPTH`. BFS so shallow entries always
+ * appear, even when truncated.
+ */
+function walkDirectoryListing(rootAbs: string, maxBytes: number): DirListing {
+  const lines: string[] = [];
+  let bytes = 0;
+  let entryCount = 0;
+  let truncated = false;
+
+  type Frame = { abs: string; rel: string; depth: number };
+  const queue: Frame[] = [{ abs: rootAbs, rel: '', depth: 0 }];
+  let head = 0;
+
+  while (head < queue.length) {
+    const frame = queue[head++]!;
+    if (frame.depth > MAX_DIR_LISTING_DEPTH) continue;
+
+    let names: string[];
+    try {
+      names = readdirSync(frame.abs).sort();
+    } catch {
+      continue;
+    }
+
+    for (const name of names) {
+      let stt;
+      try { stt = statSync(join(frame.abs, name)); } catch { continue; }
+      const isDir = stt.isDirectory();
+      if (isDir && DIR_LISTING_SKIP.has(name)) continue;
+
+      const rel = frame.rel === '' ? name : `${frame.rel}/${name}`;
+      const line = isDir ? `${rel}/` : `${rel}\t${stt.size}`;
+      const lineBytes = Buffer.byteLength(line, 'utf-8') + 1; // +1 for \n
+
+      if (entryCount >= MAX_DIR_LISTING_ENTRIES || bytes + lineBytes > maxBytes) {
+        truncated = true;
+        break;
+      }
+      lines.push(line);
+      bytes += lineBytes;
+      entryCount++;
+
+      if (isDir) queue.push({ abs: join(frame.abs, name), rel, depth: frame.depth + 1 });
+    }
+    if (truncated) break;
+  }
+
+  return { content: lines.join('\n'), entryCount, truncated };
+}
+
 function readAttachment(
   token: string,
   projectDir: string,
   maxFileBytes: number,
 ): FileAttachment {
   const absPath = resolveAttachmentPath(token, projectDir);
-  const base: Omit<FileAttachment, 'content' | 'bytes' | 'truncated' | 'error'> = {
-    token,
-    absPath,
-    relPath: relative(projectDir, absPath) || absPath,
-  };
+  const relPath = relative(projectDir, absPath) || absPath;
   try {
     const st = statSync(absPath);
+    if (st.isDirectory()) {
+      const listing = walkDirectoryListing(absPath, maxFileBytes);
+      return {
+        kind: 'directory',
+        token,
+        absPath,
+        relPath,
+        content: listing.content,
+        bytes: Buffer.byteLength(listing.content, 'utf-8'),
+        truncated: listing.truncated,
+        entryCount: listing.entryCount,
+      };
+    }
     if (!st.isFile()) {
       return {
-        ...base,
+        kind: 'file',
+        token,
+        absPath,
+        relPath,
         content: null,
         bytes: 0,
         truncated: false,
@@ -132,7 +219,10 @@ function readAttachment(
     full.copy(buf, 0, 0, readBytes);
     if (looksBinary(buf)) {
       return {
-        ...base,
+        kind: 'file',
+        token,
+        absPath,
+        relPath,
         content: null,
         bytes,
         truncated: false,
@@ -140,14 +230,20 @@ function readAttachment(
       };
     }
     return {
-      ...base,
+      kind: 'file',
+      token,
+      absPath,
+      relPath,
       content: buf.toString('utf-8'),
       bytes,
       truncated: bytes > readBytes,
     };
   } catch (err) {
     return {
-      ...base,
+      kind: 'file',
+      token,
+      absPath,
+      relPath,
       content: null,
       bytes: 0,
       truncated: false,
@@ -225,6 +321,22 @@ export function formatAttachmentsForContext(
   if (attachments.length === 0) return '';
   const parts: string[] = ['<attachments>'];
   for (const a of attachments) {
+    if (a.kind === 'directory') {
+      const entries = a.entryCount ?? 0;
+      parts.push(`<dir path="${a.relPath}" entries="${entries}">`);
+      if (a.content !== null) {
+        parts.push('```');
+        parts.push(a.content);
+        if (a.truncated) {
+          parts.push('… [listing truncated — use mcp_file_list to enumerate further]');
+        }
+        parts.push('```');
+      } else {
+        parts.push(`[unavailable: ${a.error ?? 'unknown'}]`);
+      }
+      parts.push('</dir>');
+      continue;
+    }
     parts.push(`<file path="${a.relPath}" bytes="${a.bytes}">`);
     if (a.content !== null) {
       parts.push('```');

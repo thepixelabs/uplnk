@@ -14,7 +14,9 @@
  *
  * Behaviours covered:
  *   list     — no dir, empty dir, valid + invalid flows in a table, JSON flows
- *   run      — flow found exits code 2 (not-yet-implemented stub)
+ *   run      — flow found executes via (mocked) FlowEngine with an injected
+ *              agentRunner and prints the outputs map
+ *            — engine failure exits code 1
  *            — flow not found exits code 1
  *            — missing name exits code 1
  *            — invalid flow schema exits code 1
@@ -45,6 +47,27 @@ vi.mock('../../../lib/config.js', () => ({
       flows: { dir: '/tmp/default-flows-dir' },
     },
   })),
+}));
+
+// FlowEngine + agentRunner are mocked so `run` tests exercise the command's
+// wiring (construction args, event rendering, exit codes) without a DB or LLM.
+const engineMocks = vi.hoisted(() => ({
+  ctorArgs: [] as unknown[][],
+  run: vi.fn(),
+  buildAgentRunner: vi.fn(() => vi.fn()),
+}));
+
+vi.mock('../../../flow/engine/FlowEngine.js', () => ({
+  FlowEngine: class {
+    run = engineMocks.run;
+    constructor(...args: unknown[]) {
+      engineMocks.ctorArgs.push(args);
+    }
+  },
+}));
+
+vi.mock('../../../flow/agentRunner.js', () => ({
+  buildAgentRunner: engineMocks.buildAgentRunner,
 }));
 
 // ── Static imports (after mocks) ──────────────────────────────────────────────
@@ -102,6 +125,9 @@ let tmpDir: TmpFlowDir;
 
 beforeEach(() => {
   vi.clearAllMocks();
+  engineMocks.ctorArgs.length = 0;
+  engineMocks.run.mockResolvedValue({});
+  engineMocks.buildAgentRunner.mockReturnValue(vi.fn());
   tmpDir = createTmpFlowDir();
 });
 
@@ -213,25 +239,67 @@ describe('runFlowCommand — list', () => {
 // ── run action ────────────────────────────────────────────────────────────────
 
 describe('runFlowCommand — run', () => {
-  it('exits with code 2 (not-yet-implemented stub) when a valid flow is found', async () => {
+  it('executes the flow through FlowEngine and prints the outputs map as JSON', async () => {
+    tmpDir.writeYaml('my-flow', FLOW_WITH_DESCRIPTION);
+    useFlowsDir(tmpDir.dir);
+    engineMocks.run.mockResolvedValueOnce({ answer: 'hello world' });
+
+    const spy = spyOnProcess();
+    await runFlowCommand({ action: 'run', name: 'my-flow' });
+    const stdout = spy.getStdout();
+    spy.restore();
+
+    expect(spy.exit).not.toHaveBeenCalled();
+    expect(stdout).toContain("Flow 'my-flow' loaded");
+    expect(stdout).toContain('1 step(s)');
+    expect(stdout).toContain('"answer": "hello world"');
+
+    // The engine received the canonical LoadedFlow shape…
+    expect(engineMocks.run).toHaveBeenCalledOnce();
+    const loadedFlow = engineMocks.run.mock.calls[0]?.[0] as { def: { name: string }; hash: string };
+    expect(loadedFlow.def.name).toBe('my-flow');
+    expect(loadedFlow.hash).toMatch(/^[0-9a-f]{64}$/);
+    // …with an AbortSignal + event renderer wired.
+    const runOpts = engineMocks.run.mock.calls[0]?.[1] as { onEvent?: unknown; signal?: unknown };
+    expect(runOpts.onEvent).toBeTypeOf('function');
+    expect(runOpts.signal).toBeInstanceOf(AbortSignal);
+  });
+
+  it('constructs FlowEngine with an agentRunner built from the orchestrator factory', async () => {
     tmpDir.writeYaml('my-flow', FLOW_WITH_DESCRIPTION);
     useFlowsDir(tmpDir.dir);
 
-    const { exitCode, stdout, stderr } = await runExpectingExit({ action: 'run', name: 'my-flow' });
+    const spy = spyOnProcess();
+    await runFlowCommand({ action: 'run', name: 'my-flow' });
+    spy.restore();
 
-    expect(exitCode).toBe(2);
-    expect(stdout).toContain("Flow 'my-flow' loaded");
-    expect(stdout).toContain('1 step(s)');
-    expect(stderr).toContain('not yet available');
+    expect(engineMocks.buildAgentRunner).toHaveBeenCalledOnce();
+    expect(engineMocks.ctorArgs).toHaveLength(1);
+    const deps = engineMocks.ctorArgs[0]?.[1] as { agentRunner?: unknown };
+    expect(deps.agentRunner).toBeTypeOf('function');
   });
 
   it('prints the flow description when the flow has one', async () => {
     tmpDir.writeYaml('my-flow', FLOW_WITH_DESCRIPTION);
     useFlowsDir(tmpDir.dir);
 
-    const { stdout } = await runExpectingExit({ action: 'run', name: 'my-flow' });
+    const spy = spyOnProcess();
+    await runFlowCommand({ action: 'run', name: 'my-flow' });
+    const stdout = spy.getStdout();
+    spy.restore();
 
     expect(stdout).toContain('A test flow');
+  });
+
+  it('exits with code 1 when the engine run fails', async () => {
+    tmpDir.writeYaml('my-flow', FLOW_WITH_DESCRIPTION);
+    useFlowsDir(tmpDir.dir);
+    engineMocks.run.mockRejectedValueOnce(new Error('provider exploded'));
+
+    const { exitCode, stderr } = await runExpectingExit({ action: 'run', name: 'my-flow' });
+
+    expect(exitCode).toBe(1);
+    expect(stderr).toContain('failed — provider exploded');
   });
 
   it('exits with code 1 when the named flow does not exist', async () => {

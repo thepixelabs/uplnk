@@ -11,9 +11,11 @@
  */
 
 import { streamText } from 'ai';
+import { z } from 'zod';
 import { db, getDefaultProvider, getProviderById } from '@uplnk/db';
 import { resolveSecret } from '../../lib/secrets.js';
 import { createLanguageModel } from '../../lib/languageModelFactory.js';
+import { generateStructured } from '../../lib/structured.js';
 import type { Config } from '../../lib/config.js';
 import {
   upsertFlow,
@@ -27,6 +29,7 @@ import type {
   FlowDef,
   ChatStep,
   ToolStep,
+  AgentStep,
   AnyStepType,
   ConditionStepType,
   LoopStepType,
@@ -71,10 +74,41 @@ export interface FlowContext {
   iteration: number;
 }
 
+// ─── Injected dependencies ────────────────────────────────────────────────────
+
+export interface AgentRunnerRequest {
+  agentName: string;
+  prompt: string;
+  model?: string;
+  abortSignal?: AbortSignal;
+}
+
+export interface AgentRunnerResult {
+  /** Final text the agent produced — stored as the step result. */
+  summary: string;
+  /** Orchestrator invocation id, for traceability. */
+  runId: string;
+}
+
+/**
+ * Injected agent executor. The engine stays React-free and testable: the TUI
+ * (FlowRunnerScreen) and the headless CLI (`uplnk flow run`) both construct
+ * one from AgentOrchestrator via flow/agentRunner.ts, while tests inject a
+ * stub. When absent, agent steps fail with a clear error.
+ */
+export type AgentRunner = (req: AgentRunnerRequest) => Promise<AgentRunnerResult>;
+
+export interface FlowEngineDeps {
+  agentRunner?: AgentRunner;
+}
+
 // ─── Engine ───────────────────────────────────────────────────────────────────
 
 export class FlowEngine {
-  constructor(private readonly config: Config) {}
+  constructor(
+    private readonly config: Config,
+    private readonly deps: FlowEngineDeps = {},
+  ) {}
 
   /**
    * Run a flow to completion. Returns the evaluated output map.
@@ -221,6 +255,10 @@ export class FlowEngine {
         if ('outputVar' in step && step.outputVar !== undefined) {
           ctx.variables[step.outputVar] = output;
         }
+        // Agent steps use `resultVar` — same mechanics as outputVar.
+        if ('resultVar' in step && step.resultVar !== undefined) {
+          ctx.variables[step.resultVar] = output;
+        }
 
         upsertStepResult({
           runId: ctx.runId,
@@ -271,6 +309,8 @@ export class FlowEngine {
         return this.executeChatStep(step as ChatStep, ctx, opts);
       case 'tool':
         return this.executeToolStep(step as ToolStep, ctx, opts);
+      case 'agent':
+        return this.executeAgentStep(step as AgentStep, ctx, opts);
       case 'condition':
         return this.executeConditionStep(step as ConditionStepType, ctx, opts);
       case 'loop':
@@ -288,7 +328,7 @@ export class FlowEngine {
     step: ChatStep,
     ctx: FlowContext,
     opts: FlowRunOptions,
-  ): Promise<string> {
+  ): Promise<unknown> {
     const { onEvent, signal } = opts;
 
     // Resolve provider — step.provider → config.headless.defaultProvider → DB default
@@ -312,6 +352,20 @@ export class FlowEngine {
     const exprCtx = { stepOutputs: ctx.stepOutputs, inputs: ctx.inputs, variables: ctx.variables };
     const prompt = interpolate(step.prompt, exprCtx);
     const system = step.system !== undefined ? interpolate(step.system, exprCtx) : undefined;
+
+    // JSON-typed chat step: route through generateStructured (JSON mode,
+    // validated, retried) and store the PARSED OBJECT as the step result.
+    // No streaming — structured output arrives as a whole object.
+    if (step.expectJson === true) {
+      const { object } = await generateStructured({
+        model: langModel,
+        schema: z.unknown(),
+        prompt,
+        ...(system !== undefined ? { system } : {}),
+        ...(signal !== undefined ? { abortSignal: signal } : {}),
+      });
+      return object;
+    }
 
     const messages: Array<{ role: 'user' | 'system'; content: string }> = [];
     if (system !== undefined) {
@@ -351,6 +405,39 @@ export class FlowEngine {
     }
 
     return accumulated;
+  }
+
+  // ─── Agent step ─────────────────────────────────────────────────────────────
+
+  private async executeAgentStep(
+    step: AgentStep,
+    ctx: FlowContext,
+    opts: FlowRunOptions,
+  ): Promise<string> {
+    const { signal } = opts;
+    const { agentRunner } = this.deps;
+
+    if (agentRunner === undefined) {
+      throw new Error(
+        `Step "${step.id}" is an agent step but no agentRunner was provided to FlowEngine. ` +
+          'Construct the engine with { agentRunner } (see flow/agentRunner.ts).',
+      );
+    }
+
+    const exprCtx = { stepOutputs: ctx.stepOutputs, inputs: ctx.inputs, variables: ctx.variables };
+    const prompt = interpolate(step.prompt, exprCtx);
+
+    const { summary } = await agentRunner({
+      agentName: step.agent,
+      prompt,
+      ...(step.model !== undefined ? { model: step.model } : {}),
+      ...(signal !== undefined ? { abortSignal: signal } : {}),
+    });
+
+    // The summary is the step result — stored to ctx.stepOutputs by
+    // executeStep, persisted to flow_step_results, and available to later
+    // steps as ${steps.<id>.output} exactly like a chat step's text.
+    return summary;
   }
 
   // ─── Tool step ──────────────────────────────────────────────────────────────

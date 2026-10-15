@@ -135,6 +135,7 @@ COMMANDS
   flow list                     List available flows
   flow run <name>               Run a flow headlessly
   flow validate <name>          Validate a flow definition
+  research "<topic>"            Deep research: multi-round web search → cited Markdown report
   altergo list                  List altergo accounts
   altergo launch <account>      Launch an altergo account session
   altergo import <account>      Import sessions from altergo account
@@ -188,6 +189,21 @@ if (subcommand === 'pipe') {
   await initSecretsBackend();
   const { runPipe } = await import('../src/cli/commands/pipe.js');
   await runPipe({ provider: values.provider, model: values.model });
+  process.exit(0);
+}
+
+// ─── Headless: research ───────────────────────────────────────────────────────
+if (subcommand === 'research') {
+  const topic = positionals[1];
+  if (topic === undefined || topic.trim() === '') {
+    process.stderr.write('Usage: uplnk research "<topic>"\n');
+    process.exit(1);
+  }
+  runMigrations();
+  const { initSecretsBackend } = await import('../src/lib/secrets.js');
+  await initSecretsBackend();
+  const { runResearchCommand } = await import('../src/cli/commands/research.js');
+  await runResearchCommand({ topic, provider: values.provider, model: values.model });
   process.exit(0);
 }
 

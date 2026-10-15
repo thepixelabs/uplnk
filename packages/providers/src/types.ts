@@ -49,6 +49,8 @@ export interface Model {
     vision?: boolean;
     streaming?: boolean;
   };
+  /** True for cloud/API-backed models that proxy to an external service. */
+  isCloud?: boolean;
   /** Untyped provider-native payload; kept for detail panel + debugging. */
   raw?: unknown;
 }

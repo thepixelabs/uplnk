@@ -240,6 +240,9 @@ export const agentRuns = sqliteTable(
     inputTokens: integer('input_tokens').notNull().default(0),
     outputTokens: integer('output_tokens').notNull().default(0),
     errorMessage: text('error_message'),
+    /** When set, this run resumed the transcript of a prior finished run.
+     *  Intentionally NOT a FK — same rationale as parent_invocation_id. */
+    resumedFromRunId: text('resumed_from_run_id'),
     startedAt: text('started_at').notNull().default(isoTimestamp()),
     endedAt: text('ended_at'),
   },
@@ -247,6 +250,7 @@ export const agentRuns = sqliteTable(
     index('agent_runs_conv_started_idx').on(table.conversationId, table.startedAt),
     index('agent_runs_root_idx').on(table.rootInvocationId),
     index('agent_runs_parent_idx').on(table.parentInvocationId),
+    index('agent_runs_resumed_from_idx').on(table.resumedFromRunId),
     check(
       'agent_run_status_check',
       sql`${table.status} IN ('running', 'completed', 'errored', 'aborted')`,

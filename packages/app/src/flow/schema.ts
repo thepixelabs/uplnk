@@ -15,6 +15,24 @@ export const ChatStep = StepBase.extend({
   system: z.string().optional(),
   prompt: z.string(),
   outputVar: z.string().optional(),
+  /**
+   * When true, the reply is requested as schema-validated JSON (via
+   * lib/structured.ts generateStructured) and the PARSED OBJECT — not the raw
+   * text — becomes the step result.
+   */
+  expectJson: z.boolean().optional(),
+});
+
+export const AgentStep = StepBase.extend({
+  type: z.literal('agent'),
+  /** Name of a registered agent (lib/agents/registry.ts). */
+  agent: z.string().min(1),
+  /** Supports the same ${steps.X.output} / ${inputs.X} / ${vars.X} interpolation as chat prompts. */
+  prompt: z.string(),
+  /** Override the agent definition's model for this step. */
+  model: z.string().optional(),
+  /** Variable name to store the agent's summary under (agent-step spelling of outputVar). */
+  resultVar: z.string().optional(),
 });
 
 export const ToolStep = StepBase.extend({
@@ -53,6 +71,7 @@ export const LoopStep: z.ZodType = z.lazy(() =>
 export const AnyStep: z.ZodType = z.union([
   ChatStep,
   ToolStep,
+  AgentStep,
   z.lazy(() => ConditionStep) as z.ZodType,
   z.lazy(() => LoopStep) as z.ZodType,
 ]);
@@ -77,6 +96,7 @@ export const FlowDef = z.object({
 export type FlowDef = z.infer<typeof FlowDef>;
 export type ChatStep = z.infer<typeof ChatStep>;
 export type ToolStep = z.infer<typeof ToolStep>;
+export type AgentStep = z.infer<typeof AgentStep>;
 
 // For condition/loop steps the recursive lazy schema means we need explicit
 // types here. The infer would be recursive which TypeScript handles but we
@@ -108,4 +128,4 @@ export interface LoopStepType {
   body: AnyStepType[];
 }
 
-export type AnyStepType = ChatStep | ToolStep | ConditionStepType | LoopStepType;
+export type AnyStepType = ChatStep | ToolStep | AgentStep | ConditionStepType | LoopStepType;

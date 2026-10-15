@@ -4,6 +4,79 @@ export const PROVIDER_CONNECTIVITY_POLL_MS = 15_000;
 export const PROVIDER_CONNECTIVITY_TIMEOUT_MS = 5_000;
 export const PROVIDER_STALE_DISCONNECT_MS = 2 * 60 * 1000;
 
+/** Consecutive probe failures before switching from steady polling to backoff. */
+export const PROVIDER_FAILURE_THRESHOLD = 2;
+/** Base cooldown delay applied at the threshold; doubles each subsequent failure. */
+export const PROVIDER_COOLDOWN_BASE_MS = 20_000;
+/** Maximum delay between probes while in cooldown. */
+export const PROVIDER_COOLDOWN_MAX_MS = 60_000;
+
+/** FSM states for the connectivity poller. `stale-disconnected` is set by the
+ * display layer based on `disconnectedSince`; the FSM produces the other three
+ * and never returns `stale-disconnected` itself (kept here for type alignment
+ * with the display phase enum). */
+export type ConnectivityFsmState = 'healthy' | 'degraded' | 'cooldown';
+
+export interface ConnectivityFsmPrev {
+  fsmState: ConnectivityFsmState;
+  consecutiveFailures: number;
+  disconnectedSince: number | null;
+}
+
+export type ConnectivityFsmResult =
+  | { kind: 'success'; now: number }
+  | { kind: 'failure'; now: number };
+
+export interface ConnectivityFsmNext {
+  fsmState: ConnectivityFsmState;
+  consecutiveFailures: number;
+  disconnectedSince: number | null;
+  nextPollMs: number;
+}
+
+/**
+ * Pure transition for the connectivity state machine. Drives polling cadence and
+ * tracks how long the host has been unreachable. No timers, no I/O — safe to
+ * unit-test directly.
+ */
+export function nextConnectivityState(
+  prev: ConnectivityFsmPrev,
+  result: ConnectivityFsmResult,
+): ConnectivityFsmNext {
+  if (result.kind === 'success') {
+    return {
+      fsmState: 'healthy',
+      consecutiveFailures: 0,
+      disconnectedSince: null,
+      nextPollMs: PROVIDER_CONNECTIVITY_POLL_MS,
+    };
+  }
+
+  const consecutiveFailures = prev.consecutiveFailures + 1;
+  const disconnectedSince = prev.disconnectedSince ?? result.now;
+
+  if (consecutiveFailures < PROVIDER_FAILURE_THRESHOLD) {
+    return {
+      fsmState: 'degraded',
+      consecutiveFailures,
+      disconnectedSince,
+      nextPollMs: PROVIDER_CONNECTIVITY_POLL_MS,
+    };
+  }
+
+  // Cooldown: exponential backoff capped at PROVIDER_COOLDOWN_MAX_MS.
+  // failures==threshold → base, threshold+1 → base*2, ... → cap.
+  const exponent = consecutiveFailures - PROVIDER_FAILURE_THRESHOLD;
+  const raw = PROVIDER_COOLDOWN_BASE_MS * 2 ** exponent;
+  const nextPollMs = Math.min(raw, PROVIDER_COOLDOWN_MAX_MS);
+  return {
+    fsmState: 'cooldown',
+    consecutiveFailures,
+    disconnectedSince,
+    nextPollMs,
+  };
+}
+
 export type ProviderConnectionPhase =
   | 'checking'
   | 'connected'

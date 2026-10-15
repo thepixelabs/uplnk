@@ -267,6 +267,9 @@ export class RoomConductor {
             rootInvocationIdOverride: rootInvocationId,
             signal: invokeSignal,
             extraTools: roomTools,
+            // Delegation tools need the owning conversation for continuation
+            // (run_id) and background-notification persistence.
+            conversationId: this.deps.conversationId,
           });
         } catch (err) {
           reason = 'error';
@@ -422,6 +425,7 @@ export class RoomConductor {
               ancestryJson: JSON.stringify([]),
               model: ev.model,
               status: 'running',
+              resumedFromRunId: ev.resumedFromRunId ?? null,
               startedAt: new Date(ev.ts).toISOString(),
             })
             .onConflictDoNothing()

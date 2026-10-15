@@ -30,8 +30,10 @@ description: |
 # effort: medium        # low | medium | high | max
 
 # ── Tool access ──────────────────────────────────────────────────────────────
-# tools: [Read, Grep, Glob]   # omit = inherit all tools from parent
-# toolsDeny: [command-exec]   # deny specific tools even if inherited
+# tools: [mcp_file_read, mcp_file_list, mcp_rag_search]   # omit = inherit all tools from parent
+# toolsDeny: [mcp_command_exec]                            # deny specific tools even if inherited
+# Claude-Code-style names (Read, Grep, Glob, Edit, Write, Bash) are accepted
+# in user/project agent files via a compatibility alias map, with a warning.
 
 # ── Skills ───────────────────────────────────────────────────────────────────
 # skills: [skill-name]        # load skill bodies into system prompt

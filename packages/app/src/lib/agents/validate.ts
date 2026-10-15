@@ -41,7 +41,27 @@ const AgentDefFrontmatterSchema = z.object({
     .optional(),
 
   // Memory
-  memory: z.enum(['none', 'project', 'user', 'local']).default('none'),
+  //
+  // A.0.2 — Phase A foundation hardening:
+  // The schema accepts the full set of scopes for forward-compatibility with
+  // Phase C, but ONLY `none` is implemented. Any other value is currently a
+  // no-op that previously silently misled authors of `memory: user` agents.
+  // We accept other values at parse time and downgrade them to `none` with a
+  // logged warning so the broken expectation surfaces. Phase C will wire the
+  // real per-scope memory loader at this site.
+  memory: z
+    .enum(['none', 'project', 'user', 'local'])
+    .default('none')
+    .transform((scope) => {
+      if (scope === 'none') return scope;
+      // We have no access to the source path here — emit the warning with the
+      // scope so the operator can grep for it. The transform always coerces
+      // to 'none' so downstream code can rely on the field's contract.
+      console.warn(
+        `[AgentRegistry] memory: '${scope}' is declared but not yet implemented (Phase C). Treating as 'none'. See plans/odysseus-competitive-analysis.md A.0.2.`,
+      );
+      return 'none' as const;
+    }),
 
   // UI
   color: AgentColorSchema.default('cyan'),

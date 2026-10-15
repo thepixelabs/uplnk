@@ -309,6 +309,45 @@ const ConfigSchema = z.object({
     })
     .default({}),
   /**
+   * Loop-breaker policy. When `intervene` is true (default), the 3rd
+   * consecutive identical tool call (same tool name + normalized-args-hash)
+   * is BLOCKED: a synthetic "stop repeating — answer with what you have"
+   * tool result is returned instead of executing, and the loop-breaker event
+   * still fires so the TUI surfaces it. Set `intervene: false` to restore
+   * the previous detect/emit-only behaviour.
+   *
+   * Example config.json entry:
+   *   { "loopBreaker": { "intervene": false } }
+   */
+  loopBreaker: z
+    .object({
+      intervene: z.boolean().default(true),
+    })
+    .default({}),
+  /**
+   * Web-search provider configuration — used by deep research
+   * (`uplnk research "<topic>"` and the `@research <topic>` chat trigger).
+   *
+   * Providers:
+   *   - tavily      — requires `search.tavily.apiKey` (or TAVILY_API_KEY env)
+   *   - brave       — requires `search.brave.apiKey`  (or BRAVE_API_KEY env)
+   *   - duckduckgo  — keyless; opt in via `search.default: "duckduckgo"`
+   *                   or by listing it in `search.fallbackChain`
+   *
+   * When `fallbackChain` is set it wins; otherwise `default` selects a single
+   * provider; otherwise a chain is auto-built from whichever keys are present
+   * (tavily → brave → duckduckgo). With nothing configured, research commands
+   * fail fast with a message naming these keys.
+   */
+  search: z
+    .object({
+      default: z.enum(['tavily', 'brave', 'duckduckgo']).optional(),
+      tavily: z.object({ apiKey: z.string().min(1) }).optional(),
+      brave: z.object({ apiKey: z.string().min(1) }).optional(),
+      fallbackChain: z.array(z.enum(['tavily', 'brave', 'duckduckgo'])).default([]),
+    })
+    .default({}),
+  /**
    * Altergo integration settings. Controls account management and session import.
    */
   altergo: z.object({

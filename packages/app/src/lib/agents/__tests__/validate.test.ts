@@ -2,7 +2,7 @@
  * validate.ts — unit tests for parseAgentFile
  */
 
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { parseAgentFile } from '../validate.js';
 
 const MINIMAL_MD = `---
@@ -81,7 +81,10 @@ describe('parseAgentFile', () => {
     expect(def.toolsDeny).toEqual(['Bash']);
     expect(def.agents).toEqual(['test-agent']);
     expect(def.maxDepth).toBe(3);
-    expect(def.memory).toBe('project');
+    // A.0.2: memory: 'project' is declared in the .md but coerced to 'none' at
+    // parse time with a warning, because Phase C has not wired the scope yet.
+    // The field is reserved in the schema for forward compatibility.
+    expect(def.memory).toBe('none');
     expect(def.color).toBe('#FF5733');
     expect(def.icon).toBe('🧪');
     expect(def.maxTurns).toBe(20);
@@ -116,5 +119,36 @@ describe('parseAgentFile', () => {
     expect('tools' in def).toBe(false);
     expect('toolsDeny' in def).toBe(false);
     expect('agents' in def).toBe(false);
+  });
+
+  describe('A.0.2 memory scope coercion (Phase A foundation hardening)', () => {
+    it('keeps memory: none as none with no warning', () => {
+      const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+      const md = '---\nname: x\ndescription: x\nmemory: none\n---\nbody\n';
+      const def = parseAgentFile(md, '/x.md', 'user');
+      expect(def.memory).toBe('none');
+      expect(warnSpy).not.toHaveBeenCalled();
+      warnSpy.mockRestore();
+    });
+
+    it.each(['project', 'user', 'local'] as const)(
+      'coerces memory: %s to none and logs a warning',
+      (scope) => {
+        const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+        const md = `---\nname: x\ndescription: x\nmemory: ${scope}\n---\nbody\n`;
+        const def = parseAgentFile(md, '/x.md', 'user');
+        expect(def.memory).toBe('none');
+        expect(warnSpy).toHaveBeenCalledTimes(1);
+        const warnMessage = warnSpy.mock.calls[0]![0] as string;
+        expect(warnMessage).toContain(`'${scope}'`);
+        expect(warnMessage).toContain('not yet implemented');
+        warnSpy.mockRestore();
+      },
+    );
+
+    it('rejects unknown memory scope values at parse time', () => {
+      const md = '---\nname: x\ndescription: x\nmemory: nonsense\n---\nbody\n';
+      expect(() => parseAgentFile(md, '/x.md', 'user')).toThrow();
+    });
   });
 });

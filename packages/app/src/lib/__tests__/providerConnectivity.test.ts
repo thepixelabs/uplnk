@@ -1,10 +1,16 @@
 import { describe, expect, it } from 'vitest';
 import {
+  PROVIDER_CONNECTIVITY_POLL_MS,
+  PROVIDER_COOLDOWN_BASE_MS,
+  PROVIDER_COOLDOWN_MAX_MS,
+  PROVIDER_FAILURE_THRESHOLD,
   PROVIDER_STALE_DISCONNECT_MS,
   buildProviderConnectionDisplay,
   formatDurationShort,
   getProviderHost,
   inferProviderAuthMode,
+  nextConnectivityState,
+  type ConnectivityFsmPrev,
 } from '../providerConnectivity.js';
 
 describe('providerConnectivity helpers', () => {
@@ -74,5 +80,106 @@ describe('providerConnectivity helpers', () => {
       label: 'server offline · 2m 0s',
       detail: 'llm.example.com · connect ECONNREFUSED',
     });
+  });
+});
+
+describe('nextConnectivityState', () => {
+  const healthy: ConnectivityFsmPrev = {
+    fsmState: 'healthy',
+    consecutiveFailures: 0,
+    disconnectedSince: null,
+  };
+
+  it('keeps healthy + 15s poll on success from healthy', () => {
+    const out = nextConnectivityState(healthy, { kind: 'success', now: 1_000 });
+    expect(out).toEqual({
+      fsmState: 'healthy',
+      consecutiveFailures: 0,
+      disconnectedSince: null,
+      nextPollMs: PROVIDER_CONNECTIVITY_POLL_MS,
+    });
+  });
+
+  it('moves healthy → degraded on first failure, still polling at 15s', () => {
+    const out = nextConnectivityState(healthy, { kind: 'failure', now: 1_000 });
+    expect(out.fsmState).toBe('degraded');
+    expect(out.consecutiveFailures).toBe(1);
+    expect(out.disconnectedSince).toBe(1_000);
+    expect(out.nextPollMs).toBe(PROVIDER_CONNECTIVITY_POLL_MS);
+  });
+
+  it('moves degraded → cooldown on second failure with 20s next poll', () => {
+    const degraded: ConnectivityFsmPrev = {
+      fsmState: 'degraded',
+      consecutiveFailures: 1,
+      disconnectedSince: 500,
+    };
+    const out = nextConnectivityState(degraded, { kind: 'failure', now: 16_000 });
+    expect(out.fsmState).toBe('cooldown');
+    expect(out.consecutiveFailures).toBe(PROVIDER_FAILURE_THRESHOLD);
+    expect(out.disconnectedSince).toBe(500); // preserved
+    expect(out.nextPollMs).toBe(PROVIDER_COOLDOWN_BASE_MS);
+  });
+
+  it('doubles the cooldown delay on the third failure (40s)', () => {
+    const cooldown: ConnectivityFsmPrev = {
+      fsmState: 'cooldown',
+      consecutiveFailures: 2,
+      disconnectedSince: 500,
+    };
+    const out = nextConnectivityState(cooldown, { kind: 'failure', now: 36_000 });
+    expect(out.fsmState).toBe('cooldown');
+    expect(out.consecutiveFailures).toBe(3);
+    expect(out.nextPollMs).toBe(PROVIDER_COOLDOWN_BASE_MS * 2);
+  });
+
+  it('caps the cooldown delay at 60s for many consecutive failures', () => {
+    const cooldown: ConnectivityFsmPrev = {
+      fsmState: 'cooldown',
+      consecutiveFailures: 8,
+      disconnectedSince: 500,
+    };
+    const out = nextConnectivityState(cooldown, { kind: 'failure', now: 100_000 });
+    expect(out.fsmState).toBe('cooldown');
+    expect(out.consecutiveFailures).toBe(9);
+    expect(out.nextPollMs).toBe(PROVIDER_COOLDOWN_MAX_MS);
+  });
+
+  it('resets to healthy + 15s on success from cooldown', () => {
+    const cooldown: ConnectivityFsmPrev = {
+      fsmState: 'cooldown',
+      consecutiveFailures: 5,
+      disconnectedSince: 500,
+    };
+    const out = nextConnectivityState(cooldown, { kind: 'success', now: 100_000 });
+    expect(out).toEqual({
+      fsmState: 'healthy',
+      consecutiveFailures: 0,
+      disconnectedSince: null,
+      nextPollMs: PROVIDER_CONNECTIVITY_POLL_MS,
+    });
+  });
+
+  it('preserves disconnectedSince across multiple failures', () => {
+    let prev: ConnectivityFsmPrev = healthy;
+    const firstNow = 1_000;
+    const first = nextConnectivityState(prev, { kind: 'failure', now: firstNow });
+    prev = {
+      fsmState: first.fsmState,
+      consecutiveFailures: first.consecutiveFailures,
+      disconnectedSince: first.disconnectedSince,
+    };
+    const second = nextConnectivityState(prev, { kind: 'failure', now: 16_000 });
+    const third = nextConnectivityState(
+      {
+        fsmState: second.fsmState,
+        consecutiveFailures: second.consecutiveFailures,
+        disconnectedSince: second.disconnectedSince,
+      },
+      { kind: 'failure', now: 36_000 },
+    );
+    expect(first.disconnectedSince).toBe(firstNow);
+    expect(second.disconnectedSince).toBe(firstNow);
+    expect(third.disconnectedSince).toBe(firstNow);
   });
 });

@@ -9,7 +9,7 @@
 
 import { describe, it, expect } from 'vitest';
 import { ZodError } from 'zod';
-import { FlowDef, ChatStep, ToolStep } from '../schema.js';
+import { FlowDef, ChatStep, ToolStep, AgentStep } from '../schema.js';
 
 // ─── Minimal valid inputs ─────────────────────────────────────────────────────
 
@@ -240,6 +240,96 @@ describe('ToolStep', () => {
   it('rejects a tool step missing args', () => {
     const { args: _, ...noArgs } = MINIMAL_TOOL_STEP;
     expect(() => ToolStep.parse(noArgs)).toThrow(ZodError);
+  });
+});
+
+// ─── AgentStep ────────────────────────────────────────────────────────────────
+
+describe('AgentStep', () => {
+  const MINIMAL_AGENT_STEP = {
+    id: 'delegate',
+    type: 'agent' as const,
+    agent: 'researcher',
+    prompt: 'Investigate ${inputs.topic}',
+  };
+
+  it('parses a minimal agent step', () => {
+    const result = AgentStep.parse(MINIMAL_AGENT_STEP);
+    expect(result.type).toBe('agent');
+    expect(result.agent).toBe('researcher');
+    expect(result.prompt).toBe('Investigate ${inputs.topic}');
+    expect(result.retries).toBe(0); // StepBase default
+  });
+
+  it('accepts all optional fields (model, resultVar, timeoutMs, retries, when)', () => {
+    const result = AgentStep.parse({
+      ...MINIMAL_AGENT_STEP,
+      model: 'qwen3:8b',
+      resultVar: 'findings',
+      timeoutMs: 120000,
+      retries: 2,
+      when: 'inputs.enabled',
+    });
+    expect(result.model).toBe('qwen3:8b');
+    expect(result.resultVar).toBe('findings');
+    expect(result.timeoutMs).toBe(120000);
+    expect(result.retries).toBe(2);
+  });
+
+  it('rejects an agent step missing agent', () => {
+    const { agent: _, ...noAgent } = MINIMAL_AGENT_STEP;
+    expect(() => AgentStep.parse(noAgent)).toThrow(ZodError);
+  });
+
+  it('rejects an agent step missing prompt', () => {
+    const { prompt: _, ...noPrompt } = MINIMAL_AGENT_STEP;
+    expect(() => AgentStep.parse(noPrompt)).toThrow(ZodError);
+  });
+
+  it('rejects an empty agent name', () => {
+    expect(() => AgentStep.parse({ ...MINIMAL_AGENT_STEP, agent: '' })).toThrow(ZodError);
+  });
+
+  it('is accepted inside a FlowDef steps array', () => {
+    const result = FlowDef.parse({ ...MINIMAL_FLOW, steps: [MINIMAL_AGENT_STEP] });
+    const step = result.steps[0] as { type: string; agent: string };
+    expect(step.type).toBe('agent');
+    expect(step.agent).toBe('researcher');
+  });
+
+  it('is accepted nested inside a loop body', () => {
+    const result = FlowDef.parse({
+      ...MINIMAL_FLOW,
+      steps: [
+        {
+          id: 'each',
+          type: 'loop' as const,
+          kind: 'forEach' as const,
+          items: 'inputs.list',
+          body: [MINIMAL_AGENT_STEP],
+        },
+      ],
+    });
+    const loop = result.steps[0] as { body: { type: string }[] };
+    expect(loop.body[0]?.type).toBe('agent');
+  });
+});
+
+// ─── ChatStep — expectJson ────────────────────────────────────────────────────
+
+describe('ChatStep — expectJson', () => {
+  it('accepts expectJson: true', () => {
+    const result = ChatStep.parse({ ...MINIMAL_CHAT_STEP, expectJson: true });
+    expect(result.expectJson).toBe(true);
+  });
+
+  it('leaves expectJson undefined when omitted', () => {
+    const result = ChatStep.parse(MINIMAL_CHAT_STEP);
+    expect(result.expectJson).toBeUndefined();
+  });
+
+  it('rejects a non-boolean expectJson', () => {
+    expect(() => ChatStep.parse({ ...MINIMAL_CHAT_STEP, expectJson: 'yes' })).toThrow(ZodError);
   });
 });
 

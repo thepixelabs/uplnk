@@ -29,6 +29,10 @@ import {
   listProviders,
   forkConversation,
   setProviderDefaultModel,
+  createAgentRun,
+  updateAgentRun,
+  getAgentRun,
+  getAgentRunMessages,
 } from '../queries.js';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -540,5 +544,112 @@ describe('forkConversation', () => {
     const forked = forkConversation(db, conv.id, m2.id);
     const list = listConversations(db);
     expect(list.find((c) => c.id === forked.id)).toBeDefined();
+  });
+});
+
+// ─── Agent Runs ───────────────────────────────────────────────────────────────
+
+describe('agent run queries (createAgentRun / updateAgentRun / getAgentRun)', () => {
+  let db: Db;
+  beforeEach(() => { db = createMigratedDb(); });
+
+  function seedAgentRun(
+    conversationId: string,
+    overrides: Partial<{ id: string; agentName: string; status: string; resumedFromRunId: string }> = {},
+  ) {
+    return createAgentRun(db, {
+      id: overrides.id ?? crypto.randomUUID(),
+      conversationId,
+      rootInvocationId: 'root-1',
+      parentInvocationId: null,
+      agentName: overrides.agentName ?? 'coder',
+      depth: 1,
+      ancestryJson: '["coder"]',
+      status: overrides.status ?? 'running',
+      ...(overrides.resumedFromRunId !== undefined
+        ? { resumedFromRunId: overrides.resumedFromRunId }
+        : {}),
+    });
+  }
+
+  it('creates and retrieves an agent run row', () => {
+    const conv = seedConversation(db);
+    seedAgentRun(conv.id, { id: 'run-1', agentName: 'coder' });
+    const found = getAgentRun(db, 'run-1');
+    expect(found).toBeDefined();
+    expect(found!.agentName).toBe('coder');
+    expect(found!.status).toBe('running');
+  });
+
+  it('returns undefined for an unknown run id', () => {
+    expect(getAgentRun(db, 'nope')).toBeUndefined();
+  });
+
+  it('defaults resumed_from_run_id to null (migration 0009 lineage column)', () => {
+    const conv = seedConversation(db);
+    seedAgentRun(conv.id, { id: 'run-plain' });
+    expect(getAgentRun(db, 'run-plain')!.resumedFromRunId).toBeNull();
+  });
+
+  it('persists resumed_from_run_id lineage when set', () => {
+    const conv = seedConversation(db);
+    seedAgentRun(conv.id, { id: 'run-old', status: 'completed' });
+    seedAgentRun(conv.id, { id: 'run-new', resumedFromRunId: 'run-old' });
+    expect(getAgentRun(db, 'run-new')!.resumedFromRunId).toBe('run-old');
+  });
+
+  it('updateAgentRun patches status / tokens / lineage in place', () => {
+    const conv = seedConversation(db);
+    seedAgentRun(conv.id, { id: 'run-upd' });
+    updateAgentRun(db, 'run-upd', {
+      status: 'completed',
+      inputTokens: 12,
+      outputTokens: 34,
+      resumedFromRunId: 'run-prior',
+      endedAt: new Date().toISOString(),
+    });
+    const row = getAgentRun(db, 'run-upd')!;
+    expect(row.status).toBe('completed');
+    expect(row.inputTokens).toBe(12);
+    expect(row.outputTokens).toBe(34);
+    expect(row.resumedFromRunId).toBe('run-prior');
+    expect(row.endedAt).not.toBeNull();
+  });
+});
+
+describe('getAgentRunMessages', () => {
+  let db: Db;
+  beforeEach(() => { db = createMigratedDb(); });
+
+  it('returns only messages attributed to the run, ordered by createdAt', () => {
+    const conv = seedConversation(db);
+    createAgentRun(db, {
+      id: 'run-t',
+      conversationId: conv.id,
+      rootInvocationId: 'root-t',
+      agentName: 'coder',
+      depth: 1,
+    });
+    insertMessage(db, {
+      id: 'm-b', conversationId: conv.id, role: 'assistant',
+      content: 'second', agentRunId: 'run-t',
+      createdAt: '2026-01-01T00:00:02.000Z',
+    });
+    insertMessage(db, {
+      id: 'm-a', conversationId: conv.id, role: 'user',
+      content: 'first', agentRunId: 'run-t',
+      createdAt: '2026-01-01T00:00:01.000Z',
+    });
+    insertMessage(db, {
+      id: 'm-other', conversationId: conv.id, role: 'user',
+      content: 'unrelated',
+    });
+
+    const transcript = getAgentRunMessages(db, 'run-t');
+    expect(transcript.map((m) => m.id)).toEqual(['m-a', 'm-b']);
+  });
+
+  it('returns an empty array for a run with no messages', () => {
+    expect(getAgentRunMessages(db, 'run-none')).toEqual([]);
   });
 });

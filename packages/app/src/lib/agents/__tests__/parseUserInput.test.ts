@@ -191,6 +191,61 @@ describe('extractMentions', () => {
     const out = extractMentions(input, registry, tmp);
     expect(out.text).toBe(input);
   });
+
+  it('produces a directory listing for an @-mentioned folder', () => {
+    mkdirSync(join(tmp, 'pkg/sub'), { recursive: true });
+    writeFileSync(join(tmp, 'pkg/a.txt'), 'hello');
+    writeFileSync(join(tmp, 'pkg/sub/b.txt'), 'world!!');
+    const out = extractMentions('look at @./pkg', registry, tmp);
+    expect(out.attachments).toHaveLength(1);
+    const att = out.attachments[0]!;
+    expect(att.kind).toBe('directory');
+    expect(att.content).not.toBeNull();
+    expect(att.error).toBeUndefined();
+    // Flat sorted listing — files carry their size, dirs end with `/`.
+    expect(att.content).toContain('a.txt\t5');
+    expect(att.content).toContain('sub/');
+    expect(att.content).toContain('sub/b.txt\t7');
+    expect(att.entryCount).toBe(3);
+    expect(att.truncated).toBe(false);
+  });
+
+  it('skips noise directories (node_modules, .git, etc.) in the listing', () => {
+    mkdirSync(join(tmp, 'p/node_modules/foo'), { recursive: true });
+    mkdirSync(join(tmp, 'p/.git/objects'), { recursive: true });
+    mkdirSync(join(tmp, 'p/src'), { recursive: true });
+    writeFileSync(join(tmp, 'p/src/index.ts'), 'export {}');
+    writeFileSync(join(tmp, 'p/node_modules/foo/x.js'), 'noise');
+    writeFileSync(join(tmp, 'p/.git/objects/abc'), 'noise');
+    const out = extractMentions('@./p', registry, tmp);
+    const content = out.attachments[0]!.content!;
+    expect(content).toContain('src/');
+    expect(content).toContain('src/index.ts');
+    expect(content).not.toContain('node_modules');
+    expect(content).not.toContain('.git');
+  });
+
+  it('truncates the directory listing when it exceeds maxFileBytes', () => {
+    mkdirSync(join(tmp, 'many'));
+    for (let i = 0; i < 100; i++) {
+      writeFileSync(join(tmp, `many/file-${String(i).padStart(3, '0')}.txt`), 'x');
+    }
+    const out = extractMentions('@./many', registry, tmp, { maxFileBytes: 100 });
+    const att = out.attachments[0]!;
+    expect(att.kind).toBe('directory');
+    expect(att.truncated).toBe(true);
+    expect(att.entryCount).toBeLessThan(100);
+    expect(att.bytes).toBeLessThanOrEqual(100);
+  });
+
+  it('reports a missing directory/file with an error rather than throwing', () => {
+    const out = extractMentions('look at @./does-not-exist', registry, tmp);
+    expect(out.attachments).toHaveLength(1);
+    const att = out.attachments[0]!;
+    expect(att.content).toBeNull();
+    expect(att.kind).toBe('file');
+    expect(att.error).toBeDefined();
+  });
 });
 
 describe('formatAttachmentsForContext', () => {
@@ -201,6 +256,7 @@ describe('formatAttachmentsForContext', () => {
   it('wraps attachments in a tag block with fenced content', () => {
     const out = formatAttachmentsForContext([
       {
+        kind: 'file',
         token: '@./a.txt',
         absPath: '/tmp/a.txt',
         relPath: 'a.txt',
@@ -219,6 +275,7 @@ describe('formatAttachmentsForContext', () => {
   it('notes truncation', () => {
     const out = formatAttachmentsForContext([
       {
+        kind: 'file',
         token: '@./big.txt',
         absPath: '/tmp/big.txt',
         relPath: 'big.txt',
@@ -233,6 +290,7 @@ describe('formatAttachmentsForContext', () => {
   it('notes unavailable files', () => {
     const out = formatAttachmentsForContext([
       {
+        kind: 'file',
         token: '@./missing.txt',
         absPath: '/tmp/missing.txt',
         relPath: 'missing.txt',
@@ -243,5 +301,41 @@ describe('formatAttachmentsForContext', () => {
       },
     ]);
     expect(out).toMatch(/unavailable.*ENOENT/);
+  });
+
+  it('renders directory attachments with a <dir> tag and entry count', () => {
+    const listing = 'a.txt\t10\nsub/\nsub/b.txt\t20';
+    const out = formatAttachmentsForContext([
+      {
+        kind: 'directory',
+        token: '@./pkg',
+        absPath: '/tmp/pkg',
+        relPath: 'pkg',
+        content: listing,
+        bytes: Buffer.byteLength(listing, 'utf-8'),
+        truncated: false,
+        entryCount: 3,
+      },
+    ]);
+    expect(out).toContain('<dir path="pkg" entries="3">');
+    expect(out).toContain(listing);
+    expect(out).toContain('</dir>');
+    expect(out).not.toMatch(/listing truncated/);
+  });
+
+  it('notes when a directory listing was truncated', () => {
+    const out = formatAttachmentsForContext([
+      {
+        kind: 'directory',
+        token: '@./big-tree',
+        absPath: '/tmp/big-tree',
+        relPath: 'big-tree',
+        content: 'a\nb\nc',
+        bytes: 5,
+        truncated: true,
+        entryCount: 3,
+      },
+    ]);
+    expect(out).toMatch(/listing truncated/);
   });
 });

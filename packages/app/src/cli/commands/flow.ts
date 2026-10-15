@@ -7,9 +7,9 @@
  *
  * Actions:
  *   list             Scan the flows directory and print a table of found flows.
- *   run <name>       Load and validate the named flow, then hand off to
- *                    FlowEngine when it is available. Until then, prints a
- *                    "not yet implemented" notice and exits cleanly.
+ *   run <name>       Load, validate, and execute the named flow via FlowEngine.
+ *                    Step lifecycle goes to stderr; chat-step stream text and
+ *                    the final outputs map (JSON) go to stdout.
  *   validate <name>  Load and validate the named flow, report success or errors.
  */
 
@@ -18,6 +18,11 @@ import { join, extname, basename } from 'node:path';
 import { homedir } from 'node:os';
 import yaml from 'js-yaml';
 import { getOrCreateConfig } from '../../lib/config.js';
+import type { Config } from '../../lib/config.js';
+import { FlowEngine } from '../../flow/engine/FlowEngine.js';
+import type { FlowEvent } from '../../flow/engine/FlowEngine.js';
+import { buildAgentRunner } from '../../flow/agentRunner.js';
+import { loadFlowFromFile } from '../../flow/loader.js';
 // Use the same FlowDef schema the engine uses — keeping one schema prevents
 // `uplnk flow validate` from passing a flow that then fails inside the engine.
 import { FlowDef } from '../../flow/schema.js';
@@ -48,7 +53,7 @@ export async function runFlowCommand(options: FlowCommandOptions): Promise<void>
       break;
 
     case 'run':
-      await runRun(flowsDir, options);
+      await runRun(flowsDir, options, config);
       break;
 
     case 'validate':
@@ -104,25 +109,83 @@ async function runList(flowsDir: string): Promise<void> {
   process.stdout.write('\n');
 }
 
-async function runRun(flowsDir: string, options: FlowCommandOptions): Promise<void> {
+async function runRun(
+  flowsDir: string,
+  options: FlowCommandOptions,
+  config: Config,
+): Promise<void> {
   const name = requireName(options, 'run');
   const { flow, file } = loadNamedFlow(flowsDir, name);
 
-  // Validation passed. The FlowEngine does exist now, but wiring it into
-  // the headless command (prompt for inputs, render per-step progress in
-  // a CI-friendly way, return outputs) is still outstanding — see flow
-  // engine roadmap. Until then, print what we loaded and exit with code 2
-  // so automation doesn't mistake this stub for a successful run.
   process.stdout.write(`Flow '${flow.name}' loaded from ${file}\n`);
   process.stdout.write(`  ${String(flow.steps.length)} step(s) defined\n`);
   if (flow.description !== undefined) {
     process.stdout.write(`  ${flow.description}\n`);
   }
-  process.stderr.write(
-    '\nuplnk flow run: headless execution is not yet available.\n' +
-      'Open the TUI (`uplnk`) and use the Flows screen to run this flow.\n',
-  );
-  process.exit(2);
+
+  // Re-load through the canonical loader to get the LoadedFlow shape
+  // (path + content hash) the engine persists to the flows table.
+  const loadedFlow = loadFlowFromFile(file);
+
+  // Agent steps delegate to the real AgentOrchestrator; see flow/agentRunner.ts
+  // (including the MCP-tools TODO — flow-invoked agents run tool-less for now).
+  const engine = new FlowEngine(config, { agentRunner: buildAgentRunner({ config }) });
+
+  const controller = new AbortController();
+  const onSigint = (): void => controller.abort();
+  process.once('SIGINT', onSigint);
+
+  // Step lifecycle to stderr, stream text to stdout — keeps
+  // `uplnk flow run x > out.txt` clean while progress stays visible.
+  let streamedThisStep = false;
+  const onEvent = (event: FlowEvent): void => {
+    switch (event.kind) {
+      case 'step.start':
+        streamedThisStep = false;
+        process.stderr.write(`→ ${event.stepId ?? '?'}\n`);
+        break;
+      case 'step.stream':
+        if (event.text !== undefined) {
+          process.stdout.write(event.text);
+          streamedThisStep = true;
+        }
+        break;
+      case 'step.done':
+        if (streamedThisStep) process.stdout.write('\n');
+        process.stderr.write(`✓ ${event.stepId ?? '?'}\n`);
+        break;
+      case 'step.skip':
+        process.stderr.write(`– ${event.stepId ?? '?'} (skipped)\n`);
+        break;
+      case 'step.retry':
+        process.stderr.write(`↻ ${event.stepId ?? '?'} retrying — ${event.error ?? ''}\n`);
+        break;
+      case 'step.error':
+        if (streamedThisStep) process.stdout.write('\n');
+        process.stderr.write(`✗ ${event.stepId ?? '?'} — ${event.error ?? 'unknown error'}\n`);
+        break;
+      default:
+        break;
+    }
+  };
+
+  try {
+    // TODO(flow-cli-inputs): no --input flag yet — flows relying on declared
+    // defaults run fine; required inputs fail with the engine's clear message.
+    const outputs = await engine.run(loadedFlow, {
+      onEvent,
+      signal: controller.signal,
+    });
+
+    process.stdout.write(`${JSON.stringify(outputs, null, 2)}\n`);
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    const verb = controller.signal.aborted ? 'cancelled' : 'failed';
+    process.stderr.write(`\nuplnk flow run: ${verb} — ${msg}\n`);
+    process.exit(1);
+  } finally {
+    process.removeListener('SIGINT', onSigint);
+  }
 }
 
 async function runValidate(flowsDir: string, options: FlowCommandOptions): Promise<void> {

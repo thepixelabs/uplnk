@@ -5,9 +5,10 @@
  * the current chat step's LLM output live. Waits for a key after completion.
  */
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Box, Text, useInput } from 'ink';
 import { useFlowRunner } from '../hooks/useFlowRunner.js';
+import { buildAgentRunner } from '../flow/agentRunner.js';
 import type { LoadedFlow } from '../flow/loader.js';
 import type { Config } from '../lib/config.js';
 import type { StepStatus } from '../hooks/useFlowRunner.js';
@@ -44,7 +45,11 @@ interface Props {
 }
 
 export function FlowRunnerScreen({ loadedFlow, inputs, onDone: _onDone, onBack, config }: Props) {
-  const { state, load, run, cancel } = useFlowRunner(config);
+  // Agent steps delegate to the real AgentOrchestrator. Memoised so the
+  // engine deps identity is stable across renders (run() is re-created when
+  // deps change). See flow/agentRunner.ts for the MCP-tools TODO.
+  const engineDeps = useMemo(() => ({ agentRunner: buildAgentRunner({ config }) }), [config]);
+  const { state, load, run, cancel } = useFlowRunner(config, engineDeps);
   const [frame, setFrame] = useState(0);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const didStart = useRef(false);

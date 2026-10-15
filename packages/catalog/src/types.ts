@@ -33,7 +33,10 @@ export interface CatalogEntry {
   family?: string;
   contextWindow?: number;
   maxOutputTokens?: number;
+  sizeBytes?: number;
   inputCostPer1M?: number;
   outputCostPer1M?: number;
   capabilities?: CatalogCapabilities;
+  /** True for cloud/API-backed models that proxy to an external service. */
+  isCloud?: boolean;
 }

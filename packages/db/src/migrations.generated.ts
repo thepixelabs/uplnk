@@ -127,5 +127,14 @@ export const bundledMigrations: MigrationMeta[] = [
     "bps": true,
     "folderMillis": 1776041200000,
     "hash": "4269f0e060824814ca2e02bc33278ed3ebc2e3d7ab05dcd55b9183adf7033e97"
+  },
+  {
+    "sql": [
+      "-- Continuation lineage for agent runs: when a finished run is resumed via\n-- delegate_to_agent(run_id), the NEW run records the prior run's id here.\n-- Nullable — regular (non-resumed) runs leave it NULL. Not a FK on purpose,\n-- matching parent_invocation_id (walk lineage in app code, no cascade surprises).\nALTER TABLE agent_runs ADD COLUMN resumed_from_run_id TEXT;",
+      "CREATE INDEX agent_runs_resumed_from_idx ON agent_runs(resumed_from_run_id);"
+    ],
+    "bps": true,
+    "folderMillis": 1776042400000,
+    "hash": "0690f5a337cad9cd7cc8ad4add7ae78b53bcb8f66f07c76e4ef374e44787ed21"
   }
 ];

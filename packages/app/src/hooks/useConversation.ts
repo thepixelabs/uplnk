@@ -48,6 +48,13 @@ export interface UseConversationResult {
    * `system`, so the LLM sees it as authoritative context on the next turn.
    */
   replaceWithSummary: (idsToRemove: string[], summaryContent: string) => Message;
+  /**
+   * Append an ALREADY-PERSISTED message row to React state only. Used by
+   * background-delegation notifications: the delegation tool wrote the row
+   * (and touched the conversation) out-of-band; the UI just needs to reflect
+   * it. Idempotent on message id.
+   */
+  appendPersistedMessage: (msg: Message) => void;
 }
 
 export function useConversation(resumeId?: string): UseConversationResult {
@@ -171,6 +178,12 @@ export function useConversation(resumeId?: string): UseConversationResult {
     [conversationId],
   );
 
+  const appendPersistedMessage = useCallback((msg: Message): void => {
+    setMessages((prev) =>
+      prev.some((m) => m.id === msg.id) ? prev : [...prev, msg],
+    );
+  }, []);
+
   return {
     conversationId,
     messages,
@@ -179,5 +192,6 @@ export function useConversation(resumeId?: string): UseConversationResult {
     updateMessageInState,
     appendAssistantToState,
     replaceWithSummary,
+    appendPersistedMessage,
   };
 }
