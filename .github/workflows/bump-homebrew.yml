@@ -141,7 +141,7 @@ jobs:
             printf '%s\n' '  desc "Terminal-native AI chat client — local-first, privacy-first"'
             printf '%s\n' '  homepage "https://github.com/thepixelabs/uplnk"'
             printf "  version \"%s\"\n" "${VERSION}"
-            printf '%s\n' '  license :cannot_represent'
+            printf '%s\n' '  license "MIT"'
             printf '\n'
             printf '%s\n' '  on_macos do'
             printf '%s\n' '    on_arm do'
