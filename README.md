@@ -4,7 +4,7 @@
 **Local models. Smart routing. Studio-grade UX.**
 
 [![Release](https://img.shields.io/github/v/release/thepixelabs/uplnk?color=60A5FA&label=release)](https://github.com/thepixelabs/uplnk/releases/latest)
-[![License](https://img.shields.io/badge/license-PolyForm%20Shield%201.0.0-blue)](LICENSE)
+[![License](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
 [![Homebrew](https://img.shields.io/badge/brew-thepixelabs%2Ftap%2Fuplnk-orange)](https://github.com/thepixelabs/homebrew-tap)
 
 ---
@@ -44,8 +44,8 @@
 
 - **Privacy-first by architecture.** Your code never leaves your machine. No API keys, no cloud routing. uplnk talks directly to Ollama running on localhost.
 - **Studio-grade UX, local models.** Streaming text with syntax-highlighted code blocks, an artifact side-panel, conversation persistence, and a keyboard-driven model selector — the experience Claude Code users expect, pointed at your own inference server.
-- **Zero lock-in.** SQLite database at `~/.uplnk/db.sqlite`. Plain JSON config at `~/.uplnk/config.json`. Source-available under PolyForm Shield 1.0.0. Fork it, own it.
-- **Source-available, no feature gates.** The full terminal UI, Ollama streaming, MCP file tools, conversation history — all free, no feature gates.
+- **Zero lock-in.** SQLite database at `~/.uplnk/db.sqlite`. Plain JSON config at `~/.uplnk/config.json`. MIT licensed. Fork it, own it.
+- **Open source, no feature gates.** The full terminal UI, Ollama streaming, MCP file tools, conversation history — all free, no feature gates.
 - **Cost-intelligent by design.** Relay Mode routes cheap triage and analysis work to local models and reserves frontier API spend for final execution. The Scout/Anchor split cuts per-session API cost 60–80% on eligible tasks — without changing the quality of the answer you get back.
 
 ---
@@ -423,8 +423,4 @@ See [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## License
 
-This project is fair-code distributed under the **PolyForm Shield 1.0.0 License**.
-
-You may use, modify, and distribute this software for personal and internal business operations. Commercial use is permitted, provided it does not directly compete with the primary product or services offered by the repository owner.
-
-Please refer to the [`LICENSE`](LICENSE) file for the complete terms and conditions.
+This project is released under the **MIT License**. You may use, modify, and distribute it for any purpose, including commercial use. See the [`LICENSE`](LICENSE) file for the full text.

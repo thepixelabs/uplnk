@@ -6,8 +6,8 @@
  * packages/app/package.json.
  *
  * LICENSE is the human-readable license identifier for this project.
- * PolyForm Shield 1.0.0 is not an SPDX identifier — see LICENSE file for full terms.
+ * MIT is an SPDX identifier; see LICENSE file for full terms.
  */
 
 export const VERSION = '0.3.0';
-export const LICENSE = 'PolyForm Shield 1.0.0';
+export const LICENSE = 'MIT';

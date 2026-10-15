@@ -6,7 +6,7 @@ class Uplnk < Formula
   # in the source repository.
   url "https://registry.npmjs.org/uplnk/-/uplnk-0.1.0.tgz"
   sha256 "PLACEHOLDER_REPLACE_ON_FIRST_PUBLISH"
-  license :cannot_represent
+  license "MIT"
 
   # Pin to Node 22 LTS (supported through April 2027).
   # uplnk requires Node >= 20; Node 22 is the current LTS and avoids churn
